@@ -1,12 +1,13 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
-import { Platform } from 'react-native';
+import { Text, useColorScheme, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
-import { HapticTab } from '@/components/HapticTab';
-import { IconSymbol } from '@/components/ui/IconSymbol';
-import TabBarBackground from '@/components/ui/TabBarBackground';
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
+function TabBarIcon(props: {
+  name: React.ComponentProps<typeof Ionicons>['name'];
+  color: string;
+}) {
+  return <Ionicons size={24} style={{ marginBottom: -3 }} {...props} />;
+}
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -14,30 +15,42 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
-          default: {},
-        }),
+        tabBarActiveTintColor: '#2e78b7',
+        tabBarStyle: { paddingBottom: 5 },
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          title: 'Inicio',
+          tabBarIcon: ({ color }) => <TabBarIcon name="home-outline" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="explore"
+        name="control-pedidos"
         options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
+          title: 'Pedidos',
+          tabBarIcon: ({ color }) => <TabBarIcon name="clipboard-outline" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="control-entregas"
+        options={{
+          title: 'Entregas',
+          tabBarIcon: ({ color }) => <TabBarIcon name="cube-outline" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="control-incidencias"
+        options={{
+          title: 'Incidencias',
+          tabBarIcon: ({ color }) => <TabBarIcon name="alert-circle-outline" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="configuracion"
+        options={{
+          title: 'Ajustes',
+          tabBarIcon: ({ color }) => <TabBarIcon name="settings-outline" color={color} />,
         }}
       />
     </Tabs>
