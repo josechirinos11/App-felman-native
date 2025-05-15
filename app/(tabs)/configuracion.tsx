@@ -5,7 +5,6 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import LogoHeader from '../../components/LogoHeader';
 import { useAuth } from '../../hooks/useAuth';
 
 
@@ -165,7 +164,7 @@ export default function ConfiguracionScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <LogoHeader />
+     
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Configuración</Text>
