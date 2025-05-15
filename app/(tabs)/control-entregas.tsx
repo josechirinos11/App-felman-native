@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, TextInput } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useState } from 'react';
+import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Definir tipo para las entregas
 type Entrega = {
@@ -75,74 +75,79 @@ export default function ControlEntregasScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Control de Entregas</Text>
-      </View>
+    <View style={{ flex: 1 }}>
 
-      <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={20} color="#757575" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Buscar por pedido, cliente o dirección..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Control de Entregas</Text>
+        </View>
+
+        <View style={styles.searchContainer}>
+          <Ionicons name="search-outline" size={20} color="#757575" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar por pedido, cliente o dirección..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+
+        <View style={styles.filterContainer}>
+          <TouchableOpacity style={[styles.filterButton, styles.filterActive]}>
+            <Text style={styles.filterActiveText}>Todos</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.filterButton}>
+            <Text style={styles.filterText}>Pendientes</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.filterButton}>
+            <Text style={styles.filterText}>En ruta</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.filterButton}>
+            <Text style={styles.filterText}>Entregados</Text>
+          </TouchableOpacity>
+        </View>
+
+        <FlatList
+          data={filteredEntregas}
+          renderItem={({ item }) => <EntregaItem item={item} />}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
         />
-      </View>
-
-      <View style={styles.filterContainer}>
-        <TouchableOpacity style={[styles.filterButton, styles.filterActive]}>
-          <Text style={styles.filterActiveText}>Todos</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.filterButton}>
-          <Text style={styles.filterText}>Pendientes</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.filterButton}>
-          <Text style={styles.filterText}>En ruta</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.filterButton}>
-          <Text style={styles.filterText}>Entregados</Text>
-        </TouchableOpacity>
-      </View>
-
-      <FlatList
-        data={filteredEntregas}
-        renderItem={({ item }) => <EntregaItem item={item} />}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-      />
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f3f4f6',
   },
   header: {
     padding: 16,
-    backgroundColor: '#2e78b7',
+    backgroundColor: '#f3f4f6',
     alignItems: 'center',
+    marginBottom: 10,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
+    color: '#2e78b7',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: '#f3f4f6',
     margin: 16,
     marginBottom: 8,
-    borderRadius: 8,
-    paddingHorizontal: 10,
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 5,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 5, height: 5 },
     shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 1,
+    shadowRadius: 10,
+    elevation: 5,
   },
   searchIcon: {
     marginRight: 8,
@@ -150,6 +155,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 50,
+    color: '#2e78b7',
   },
   filterContainer: {
     flexDirection: 'row',
@@ -160,34 +166,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     marginRight: 8,
-    borderRadius: 16,
-    backgroundColor: '#e0e0e0',
+    borderRadius: 10,
+    backgroundColor: '#f3f4f6',
+    shadowColor: '#000',
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 3,
   },
   filterActive: {
     backgroundColor: '#2e78b7',
   },
   filterText: {
-    color: '#757575',
+    color: '#718096',
     fontSize: 14,
+    fontWeight: '500',
   },
   filterActiveText: {
     color: 'white',
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   listContainer: {
     padding: 16,
   },
   entregaItem: {
-    backgroundColor: 'white',
-    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 5, height: 5 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowRadius: 10,
+    elevation: 5,
   },
   entregaHeader: {
     flexDirection: 'row',
@@ -198,28 +210,31 @@ const styles = StyleSheet.create({
   pedidoNumero: {
     fontSize: 16,
     fontWeight: 'bold',
+    color: '#2e78b7',
   },
   statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
   statusText: {
     color: 'white',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   clienteText: {
     fontSize: 16,
     marginBottom: 4,
+    color: '#4a5568',
   },
   direccionText: {
     fontSize: 14,
+    color: '#4a5568',
     marginBottom: 4,
   },
   fechaText: {
     fontSize: 14,
-    color: '#757575',
+    color: '#718096',
     marginBottom: 12,
   },
   actionsContainer: {
@@ -227,7 +242,14 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   actionButton: {
-    padding: 8,
+    padding: 10,
     marginLeft: 8,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 3,
   },
-}); 
+});

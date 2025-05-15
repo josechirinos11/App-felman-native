@@ -1,0 +1,51 @@
+Flujo del Proyecto Expo Router (appNativeFelman)
+====================================================
+
+1. **Archivo principal de entrada:**
+   - `app/_layout.tsx`
+   - Este archivo define el layout raíz de la aplicación. Aquí se configura el tema (oscuro o claro),
+    se cargan las fuentes y se define la estructura principal de navegación usando `<Stack>` de `expo-router`.
+
+2. **Navegación principal:**
+   - Dentro de `<Stack>`, se definen las rutas principales:
+     - `Stack.Screen name="(tabs)"` (el menú principal con pestañas)
+     - `Stack.Screen name="+not-found"` (pantalla de error para rutas no encontradas)
+
+3. **Menú de pestañas (Tabs):**
+   - Carpeta: `app/(tabs)/`
+   - Archivo: `app/(tabs)/_layout.tsx`
+   - Este archivo define la navegación por pestañas (tabs) y carga las diferentes páginas principales de la app.
+
+4. **Páginas principales:**
+   - Dentro de la carpeta `app/(tabs)/` se encuentran los archivos que representan cada página principal:
+     - `configuracion.tsx` (Configuración)
+     - `control-entregas.tsx` (Control de Entregas)
+     - `control-incidencias.tsx` (Control de Incidencias)
+     - `control-pedidos.tsx` (Control de Pedidos)
+     - `explore.tsx` (Explorar)
+     - `index.tsx` (Página principal de las pestañas)
+
+5. **Pantalla de error:**
+   - Archivo: `app/+not-found.tsx`
+   - Se muestra cuando el usuario navega a una ruta que no existe.
+
+6. **Componentes reutilizables:**
+   - Carpeta: `components/`
+   - Contiene componentes UI y utilitarios que pueden ser usados en cualquier página.
+
+7. **Hooks personalizados:**
+   - Carpeta: `hooks/`
+   - Ejemplo: `useColorScheme.ts` para detectar el tema del sistema.
+
+8. **Recursos y assets:**
+   - Carpeta: `assets/`
+   - Contiene fuentes, imágenes y otros recursos estáticos.
+
+Resumen del flujo:
+------------------
+- La app inicia en `app/_layout.tsx`.
+- Se configura el tema y la navegación principal.
+- Se carga el menú de pestañas desde `app/(tabs)/_layout.tsx`.
+- Cada pestaña es una página principal ubicada en `app/(tabs)/`.
+- Si la ruta no existe, se muestra `app/+not-found.tsx`.
+- Los componentes y hooks se usan para construir las páginas y la UI.

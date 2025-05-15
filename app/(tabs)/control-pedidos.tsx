@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { StyleSheet, Text, View, FlatList, TextInput, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useState } from 'react';
+import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Definir tipo para los pedidos
 type Pedido = {
@@ -74,62 +74,67 @@ export default function ControlPedidosScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Control de Pedidos</Text>
-      </View>
+    <View style={{ flex: 1 }}>
+      
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Control de Pedidos</Text>
+        </View>
 
-      <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={20} color="#757575" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Buscar por número o cliente..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search-outline" size={20} color="#757575" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar por número o cliente..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+        </View>
+
+        <FlatList
+          data={filteredPedidos}
+          renderItem={({ item }) => <PedidoItem item={item} />}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContainer}
         />
-      </View>
 
-      <FlatList
-        data={filteredPedidos}
-        renderItem={({ item }) => <PedidoItem item={item} />}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContainer}
-      />
-
-      <TouchableOpacity style={styles.fab}>
-        <Ionicons name="add" size={24} color="white" />
-      </TouchableOpacity>
-    </SafeAreaView>
+        <TouchableOpacity style={styles.fab}>
+          <Ionicons name="add" size={24} color="white" />
+        </TouchableOpacity>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f3f4f6',
   },
   header: {
     padding: 16,
-    backgroundColor: '#2e78b7',
+    backgroundColor: '#f3f4f6',
     alignItems: 'center',
+    marginBottom: 10,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
+    color: '#2e78b7',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: '#f3f4f6',
     margin: 16,
-    borderRadius: 8,
-    paddingHorizontal: 10,
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 5,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 5, height: 5 },
     shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 1,
+    shadowRadius: 10,
+    elevation: 5,
   },
   searchIcon: {
     marginRight: 8,
@@ -137,20 +142,21 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 50,
+    color: '#2e78b7',
   },
   listContainer: {
     padding: 16,
   },
   pedidoItem: {
-    backgroundColor: 'white',
-    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 5, height: 5 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowRadius: 10,
+    elevation: 5,
   },
   pedidoHeader: {
     flexDirection: 'row',
@@ -161,24 +167,26 @@ const styles = StyleSheet.create({
   pedidoNumero: {
     fontSize: 16,
     fontWeight: 'bold',
+    color: '#2e78b7',
   },
   statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
   },
   statusText: {
     color: 'white',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   clienteText: {
     fontSize: 16,
     marginBottom: 4,
+    color: '#4a5568',
   },
   fechaText: {
     fontSize: 14,
-    color: '#757575',
+    color: '#718096',
     marginBottom: 12,
   },
   actionsContainer: {
@@ -186,8 +194,15 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   actionButton: {
-    padding: 8,
+    padding: 10,
     marginLeft: 8,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 3,
   },
   fab: {
     position: 'absolute',
@@ -196,13 +211,13 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#2e78b7',
+    backgroundColor: '#f3f4f6',
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
+    shadowOffset: { width: 5, height: 5 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 8,
   },
-}); 
+});

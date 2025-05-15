@@ -1,8 +1,13 @@
-import { useState } from 'react';
-import { StyleSheet, Text, View, Switch, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Application from 'expo-application';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import LogoHeader from '../../components/LogoHeader';
+import { useAuth } from '../../hooks/useAuth';
+
 
 type ConfigItem = {
   id: string;
@@ -16,6 +21,8 @@ type ConfigItem = {
 };
 
 export default function ConfiguracionScreen() {
+   const router = useRouter();
+  const { logout } = useAuth();
   const [configItems, setConfigItems] = useState<ConfigItem[]>([
     {
       id: '1',
@@ -57,16 +64,50 @@ export default function ConfiguracionScreen() {
       icon: 'trash-outline',
       action: () => Alert.alert('Caché eliminada', 'Los datos temporales han sido eliminados correctamente.'),
     },
-    {
-      id: '6',
+    {      id: '6',
       title: 'Cerrar sesión',
       description: 'Salir de la cuenta actual',
       type: 'button',
       icon: 'log-out-outline',
-      action: () => Alert.alert('Cerrar sesión', '¿Está seguro que desea cerrar sesión?', [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Confirmar', style: 'destructive' }
-      ]),
+      action: () => Alert.alert(
+        'Cerrar sesión',
+        '¿Está seguro que desea cerrar sesión?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Confirmar',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                console.log('🚪 Cerrando sesión...');
+                // Limpiar datos de AsyncStorage
+                await AsyncStorage.multiRemove([
+                  'token',
+                  'userData',
+                  'departamentos',
+                  'configuracion',
+                  'cache'
+                ]);
+                
+                // Llamar a la función logout que actualiza el estado de autenticación
+                await logout();
+                
+                console.log('✅ Sesión cerrada correctamente');
+                // No necesitamos hacer la redirección manual ya que
+                // el _layout.tsx detectará el cambio en authenticated
+                // y redirigirá automáticamente a login
+                router.push('/login');
+              } catch (error) {
+                console.error('Error al cerrar sesión:', error);
+                Alert.alert(
+                  'Error',
+                  'Hubo un problema al cerrar la sesión. Por favor, intente nuevamente.'
+                );
+              }
+            }
+          }
+        ]
+      ),
     },
   ]);
 
@@ -123,45 +164,49 @@ export default function ConfiguracionScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Configuración</Text>
-      </View>
-
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Configuración general</Text>
-          {configItems.slice(0, 4).map(renderConfigItem)}
+    <View style={{ flex: 1 }}>
+      <LogoHeader />
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Configuración</Text>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Cuenta</Text>
-          {configItems.slice(4).map(renderConfigItem)}
-        </View>
+        <ScrollView style={styles.scrollView}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Configuración general</Text>
+            {configItems.slice(0, 4).map(renderConfigItem)}
+          </View>
 
-        <View style={styles.appInfo}>
-          <Text style={styles.appVersion}>Versión {Application.nativeApplicationVersion}</Text>
-          <Text style={styles.appName}>App Felman</Text>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Cuenta</Text>
+            {configItems.slice(4).map(renderConfigItem)}
+          </View>
+
+          <View style={styles.appInfo}>
+            <Text style={styles.appVersion}>Versión {Application.nativeApplicationVersion}</Text>
+            <Text style={styles.appName}>App Felman</Text>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f3f4f6',
   },
   header: {
     padding: 16,
-    backgroundColor: '#2e78b7',
+    backgroundColor: '#f3f4f6',
     alignItems: 'center',
+    marginBottom: 10,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
+    color: '#2e78b7',
   },
   scrollView: {
     flex: 1,
@@ -174,19 +219,34 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginVertical: 16,
     marginHorizontal: 16,
-    color: '#424242',
+    color: '#2e78b7',
   },
   configItem: {
     flexDirection: 'row',
-    backgroundColor: 'white',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    backgroundColor: '#f3f4f6',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 5, height: 5 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
   },
   iconContainer: {
     marginRight: 16,
     justifyContent: 'center',
+    width: 32,
+    height: 32,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 3, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 3,
   },
   configContent: {
     flex: 1,
@@ -196,13 +256,14 @@ const styles = StyleSheet.create({
   },
   configTitle: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     marginBottom: 2,
     width: '70%',
+    color: '#4a5568',
   },
   configDescription: {
     fontSize: 14,
-    color: '#757575',
+    color: '#718096',
     width: '70%',
   },
   configControl: {
@@ -210,24 +271,41 @@ const styles = StyleSheet.create({
     right: 0,
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+    padding: 8,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 2, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   optionText: {
     marginRight: 8,
     color: '#2e78b7',
+    fontWeight: '500',
   },
   appInfo: {
     alignItems: 'center',
     padding: 24,
     marginBottom: 24,
+    backgroundColor: '#f3f4f6',
+    margin: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 5, height: 5 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
   },
   appVersion: {
     fontSize: 14,
-    color: '#757575',
+    color: '#718096',
     marginBottom: 4,
   },
   appName: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#424242',
+    fontWeight: '600',
+    color: '#2e78b7',
   },
-}); 
+});
