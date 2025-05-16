@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { dbService } from '../config/api';
 import { useAuth } from '../hooks/useAuth';
 
 export const unstable_settings = {
@@ -17,6 +18,17 @@ export default function RootLayout() {
   const { loading, authenticated } = useAuth();
 
   useEffect(() => {
+    const testConnection = async () => {
+      try {
+        // Probar la conexión con el servidor
+        await dbService.testConnection();
+      } catch (error) {
+        console.error('❌ Error al probar la conexión:', error);
+      }
+    };
+
+    testConnection();
+
     if (!loading) {
       SplashScreen.hideAsync();
     }
