@@ -1,39 +1,26 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState } from 'react';
+import axios from 'axios';
+import { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Definir tipo para los pedidos
-type Pedido = {
-  id: string;
-  numero: string;
-  cliente: string;
-  fecha: string;
-  estado: 'Pendiente' | 'En proceso' | 'Completado';
+// Definir tipo para los usuarios
+type Usuario = {
+  nombre: string;
+  dni: string | null;
+  correo: string | null;
+  contraseña: string | null;
+  rol: string;
 };
 
-// Datos de ejemplo para los pedidos
-const PEDIDOS_EJEMPLO: Pedido[] = [
-  { id: '1', numero: 'P001', cliente: 'María López', fecha: '10/05/2023', estado: 'Pendiente' },
-  { id: '2', numero: 'P002', cliente: 'Juan Rodríguez', fecha: '12/05/2023', estado: 'En proceso' },
-  { id: '3', numero: 'P003', cliente: 'Carlos Sánchez', fecha: '15/05/2023', estado: 'Completado' },
-  { id: '4', numero: 'P004', cliente: 'Ana Martínez', fecha: '18/05/2023', estado: 'Pendiente' },
-  { id: '5', numero: 'P005', cliente: 'Pedro Gómez', fecha: '20/05/2023', estado: 'En proceso' },
-  { id: '6', numero: 'P006', cliente: 'Laura Díaz', fecha: '22/05/2023', estado: 'Completado' },
-  { id: '7', numero: 'P007', cliente: 'Javier Pérez', fecha: '25/05/2023', estado: 'Pendiente' },
-  { id: '8', numero: 'P008', cliente: 'Sofía Ruiz', fecha: '28/05/2023', estado: 'En proceso' },
-];
-
-// Componente para mostrar cada item de pedido
-const PedidoItem = ({ item }: { item: Pedido }) => {
-  // Color según el estado del pedido
-  const getStatusColor = (status: Pedido['estado']) => {
-    switch (status) {
-      case 'Pendiente':
-        return '#ffc107';
-      case 'En proceso':
+// Componente para mostrar cada usuario
+const UsuarioItem = ({ item }: { item: Usuario }) => {
+  // Color según el rol del usuario
+  const getRolColor = (rol: string) => {
+    switch (rol.toLowerCase()) {
+      case 'administrador':
         return '#2196f3';
-      case 'Completado':
+      case 'usuario':
         return '#4caf50';
       default:
         return '#757575';
@@ -43,13 +30,11 @@ const PedidoItem = ({ item }: { item: Pedido }) => {
   return (
     <View style={styles.pedidoItem}>
       <View style={styles.pedidoHeader}>
-        <Text style={styles.pedidoNumero}>#{item.numero}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.estado) }]}>
-          <Text style={styles.statusText}>{item.estado}</Text>
+        <Text style={styles.pedidoNumero}>{item.nombre}</Text>
+        <View style={[styles.statusBadge, { backgroundColor: getRolColor(item.rol) }]}>
+          <Text style={styles.statusText}>{item.rol}</Text>
         </View>
       </View>
-      <Text style={styles.clienteText}>{item.cliente}</Text>
-      <Text style={styles.fechaText}>Fecha: {item.fecha}</Text>
       <View style={styles.actionsContainer}>
         <TouchableOpacity style={styles.actionButton}>
           <Ionicons name="eye-outline" size={20} color="#2e78b7" />
@@ -62,44 +47,74 @@ const PedidoItem = ({ item }: { item: Pedido }) => {
   );
 };
 
-export default function ControlPedidosScreen() {
+export default function ControlUsuariosScreen() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [pedidos, setPedidos] = useState<Pedido[]>(PEDIDOS_EJEMPLO);
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [loading, setLoading] = useState(true);  useEffect(() => {
+    const fetchUsuarios = async () => {
+      try {
+        const baseUrl = process.env.EXPO_PUBLIC_API_URL;
+        console.log('Base URL:', baseUrl); // Para debug
+        
+        if (!baseUrl) {
+          throw new Error('EXPO_PUBLIC_API_URL no está definida en el archivo .env');
+        }
+        
+        const url = `${baseUrl}/test`;
+        console.log('Llamando a URL:', url); // Para debug
+          const response = await axios.get(url);
+        console.log('Datos recibidos:', response.data); // Para debug
+        
+        // Extraer el array de usuarios de testResult
+        if (response.data && response.data.testResult) {
+          setUsuarios(response.data.testResult);
+        } else {
+          console.error('La respuesta no tiene el formato esperado:', response.data);
+          setUsuarios([]);
+        }
+      } catch (error) {
+        console.error('Error al obtener usuarios:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // Filtrar pedidos basado en la búsqueda
-  const filteredPedidos = pedidos.filter(
-    (pedido) =>
-      pedido.numero.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      pedido.cliente.toLowerCase().includes(searchQuery.toLowerCase())
+    fetchUsuarios();
+  }, []);
+
+  // Filtrar usuarios basado en la búsqueda
+  const filteredUsuarios = usuarios.filter(
+    (usuario) =>
+      usuario.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      usuario.rol.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <View style={{ flex: 1 }}>
-      
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Control de Pedidos</Text>
+          <Text style={styles.title}>Control de Usuarios</Text>
         </View>
 
         <View style={styles.searchContainer}>
           <Ionicons name="search-outline" size={20} color="#757575" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Buscar por número o cliente..."
+            placeholder="Buscar por nombre o rol..."
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
         </View>
 
         <FlatList
-          data={filteredPedidos}
-          renderItem={({ item }) => <PedidoItem item={item} />}
-          keyExtractor={(item) => item.id}
+          data={filteredUsuarios}
+          renderItem={({ item }) => <UsuarioItem item={item} />}
+          keyExtractor={(item) => item.nombre}
           contentContainerStyle={styles.listContainer}
         />
 
         <TouchableOpacity style={styles.fab}>
-          <Ionicons name="add" size={24} color="white" />
+          <Ionicons name="add" size={24} color="#2e78b7" />
         </TouchableOpacity>
       </SafeAreaView>
     </View>
