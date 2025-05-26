@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 import { useEffect, useState } from 'react';
-import clienteAxios from '../config/axios';
 
 interface AuthState {
     token: string | null;
@@ -41,17 +41,23 @@ export function useAuth() {
             console.error('Error checking auth:', error);
             setState(prev => ({ ...prev, loading: false }));
         }
-    };    const login = async (email: string, password: string) => {
+    };    const login = async (nombre: string, password: string) => {
         try {
-            console.log('📡 Intentando login en:', clienteAxios.defaults.baseURL);
-            const { data } = await clienteAxios.post('/usuarios/login', { email, password });
+            const apiUrl = process.env.EXPO_PUBLIC_API_URL || '';
+            if (!apiUrl) {
+                throw new Error('La variable de entorno EXPO_PUBLIC_API_URL no está definida');
+            }
+            const url = `${apiUrl}/auth/login`;
+            console.log('📡 Intentando login en:', url);
+            const { data } = await axios.post(url, { nombre, password });
 
             if (!data) {
                 throw new Error('No se recibió respuesta del servidor');
-            }            // Mostrar la respuesta completa del servidor para debug
+            }
+            // Mostrar la respuesta completa del servidor para debug
             console.log('✅ Respuesta del servidor:', JSON.stringify(data, null, 2));
 
-            // La respuesta del servidor contiene directamente los datos
+            // La respuesta del servidor contiene el token
             const { token, ...userData } = data;
 
             // Guardar token y datos de usuario
@@ -63,7 +69,8 @@ export function useAuth() {
                 usuario: userData,
                 authenticated: true,
                 loading: false
-            });            console.log('✅ Datos del usuario guardados:', {
+            });
+            console.log('✅ Datos del usuario guardados:', {
                 token: token.substring(0, 20) + '...', // Solo mostramos parte del token por seguridad
                 usuario: userData
             });
