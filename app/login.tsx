@@ -1,3 +1,7 @@
+// 1. Oculta el header de navegación para esta pantalla
+export const options = {
+  headerShown: false,
+};
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';

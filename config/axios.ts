@@ -1,18 +1,18 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { AxiosError } from 'axios';
-import { Platform } from 'react-native';
 
-// Configuración inicial con la URL de producción
-const PROD_URL = 'https://app-felman-backend.vercel.app/felman';
-const DEV_URL = Platform.select({
-    android: 'http://10.0.2.2:4000/felman',
-    ios: 'http://localhost:4000/felman',
-    default: 'http://localhost:4000/felman'
-});
+// Obtener la URL de la API desde las variables de entorno
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
+if (!API_URL) {
+    throw new Error('EXPO_PUBLIC_API_URL no está definida en el archivo .env');
+}
+
+console.log('🔌 Conectando a API:', API_URL);
 
 // Crear la instancia de axios con configuración inicial
 const clienteAxios = axios.create({
-    baseURL: PROD_URL, // Comenzamos con la URL de producción
+    baseURL: API_URL, // Usar la URL de las variables de entorno
     timeout: 10000,
     headers: {
         'Content-Type': 'application/json',
@@ -20,27 +20,18 @@ const clienteAxios = axios.create({
     }
 });
 
-// Si estamos en desarrollo, intentar conectar con el servidor local
-if (__DEV__) {
-    (async () => {
-        try {
-            // Intentar conectar al servidor local
-            const testUrl = `${DEV_URL}/health`;
-            console.log('Probando conexión local:', testUrl);
-            await axios.get(testUrl, { timeout: 2000 });
-            
-            // Si la conexión es exitosa, cambiar a URL local
-            clienteAxios.defaults.baseURL = DEV_URL;
-            console.log('✅ Conectado al servidor local:', DEV_URL);
-        } catch (error) {
-            const axiosError = error as AxiosError;
-            console.log('❌ No se pudo conectar al servidor local, usando producción:', PROD_URL);
-            console.log('Error de conexión:', axiosError.message);
-        }
-    })();
-} else {
-    console.log('🌐 Modo producción:', PROD_URL);
-}
+// Verificar la conexión inicial
+(async () => {
+    try {
+        const testUrl = `${API_URL}/test/test-connection`;
+        console.log('🔄 Probando conexión desde axios:', testUrl);
+        await axios.get(testUrl, { timeout: 2000 });
+        console.log('✅ Conexión exitosa a:', API_URL);
+    } catch (error) {
+        const axiosError = error as AxiosError;
+        console.error('❌ Error al conectar:', axiosError.message);
+    }
+})();
 
 // Interceptor para agregar el token al encabezado de cada solicitud
 clienteAxios.interceptors.request.use(

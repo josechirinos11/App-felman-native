@@ -23,7 +23,7 @@ export default function RootLayout() {
         // Probar la conexión con el servidor
         await dbService.testConnection();
       } catch (error) {
-        console.error('❌ Error al probar la conexión:', error);
+        console.error('❌ Error al probar la conexión desde layout:', error);
       }
     };
 

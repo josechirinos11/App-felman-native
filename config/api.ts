@@ -1,6 +1,12 @@
 import axios from 'axios';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://tu-servidor:3000';
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
+
+if (!API_URL) {
+    throw new Error('EXPO_PUBLIC_API_URL no está definida en el archivo .env');
+}
+
+console.log('🔌 Conectando a API:', API_URL);
 
 // Cliente axios configurado
 const apiClient = axios.create({
@@ -41,18 +47,18 @@ class DatabaseService {
 
     public async testConnection(): Promise<boolean> {
         try {
-            const response = await apiClient.get('/api/test-connection');
-            console.log('✅ Prueba de conexión exitosa:', response.data);
+            const response = await apiClient.get('/test/test-connection');
+             console.log('✅ Prueba de conexión exitosa:', response.data);
             return true;
         } catch (error) {
-            console.error('❌ Error al probar la conexión:', error);
+            console.error('❌❌ Error al probar la conexión desde API:', error);
             return false;
         }
     }
 
     public async query<T>(endpoint: string, params?: any): Promise<T[]> {
         try {
-            const response = await apiClient.post(`/api/${endpoint}`, params);
+            const response = await apiClient.post(`/${endpoint}`, params);
             return response.data as T[];
         } catch (error) {
             console.error(`❌ Error al ejecutar consulta en ${endpoint}:`, error);
@@ -62,7 +68,7 @@ class DatabaseService {
 
     public async execute(endpoint: string, data: any): Promise<void> {
         try {
-            await apiClient.post(`/api/${endpoint}`, data);
+            await apiClient.post(`/${endpoint}`, data);
         } catch (error) {
             console.error(`❌ Error al ejecutar operación en ${endpoint}:`, error);
             throw error;

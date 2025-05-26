@@ -41,7 +41,13 @@ export function useAuth() {
             console.error('Error checking auth:', error);
             setState(prev => ({ ...prev, loading: false }));
         }
-    };    const login = async (nombre: string, password: string) => {
+    }; 
+
+
+
+
+
+       const login = async (nombre: string, password: string) => {
         try {
             const apiUrl = process.env.EXPO_PUBLIC_API_URL || '';
             if (!apiUrl) {
@@ -54,25 +60,33 @@ export function useAuth() {
             if (!data) {
                 throw new Error('No se recibió respuesta del servidor');
             }
-            // Mostrar la respuesta completa del servidor para debug
-            console.log('✅ Respuesta del servidor:', JSON.stringify(data, null, 2));
 
-            // La respuesta del servidor contiene el token
+            // La respuesta del servidor contiene el token y los datos del usuario
             const { token, ...userData } = data;
+            // Si el backend responde con user: { ... }
+            let usuarioPlano = userData.user || userData;
+            // Normalizar a claves en español
+            const usuarioNormalizado = {
+                id: usuarioPlano.id || 0,
+                nombre: usuarioPlano.nombre || usuarioPlano.name || '',
+                rol: usuarioPlano.rol || usuarioPlano.role || '',
+            };
 
-            // Guardar token y datos de usuario
+            // Guardar token y datos de usuario normalizados
             await AsyncStorage.setItem('token', token);
-            await AsyncStorage.setItem('userData', JSON.stringify(userData));
+            await AsyncStorage.setItem('userData', JSON.stringify(usuarioNormalizado));
 
             setState({
                 token,
-                usuario: userData,
+                usuario: usuarioNormalizado,
                 authenticated: true,
                 loading: false
             });
-            console.log('✅ Datos del usuario guardados:', {
-                token: token.substring(0, 20) + '...', // Solo mostramos parte del token por seguridad
-                usuario: userData
+            console.log('✅ Estado actualizado en login:', {
+                token,
+                usuario: usuarioNormalizado,
+                authenticated: true,
+                loading: false
             });
 
             return { success: true };

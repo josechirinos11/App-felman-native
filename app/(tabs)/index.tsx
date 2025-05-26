@@ -1,60 +1,133 @@
+// app/index.tsx
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useAuth } from '../../hooks/useAuth';
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+type RouteNames = '/control-pedidos' | '/control-entregas' | '/control-incidencias';
+
+interface MenuItem {
+  id: number;
+  title: string;
+  icon: IconName;
+  route: RouteNames;
+}
+
+const menuItems: MenuItem[] = [
+  { id: 1, title: 'Control de Pedidos', icon: 'clipboard-outline',    route: '/control-pedidos'    },
+  { id: 2, title: 'Control de Entregas', icon: 'cube-outline',         route: '/control-entregas'   },
+  { id: 3, title: 'Control de Incidencias', icon: 'alert-circle-outline', route: '/control-incidencias' },
+  { id: 4, title: 'Control de Producción', icon: 'build-outline',      route: '/control-pedidos'    },
+  { id: 5, title: 'Pedidos Comerciales', icon: 'person-outline',       route: '/control-pedidos'    },
+  { id: 6, title: 'Pedidos Proveedores', icon: 'cart-outline',         route: '/control-pedidos'    },
+];
+
+
+interface UserData {
+  id: number;
+  nombre?: string;
+  rol?: string;
+  name?: string;
+  role?: string;
+}
+
 
 export default function HomeScreen() {
-  const router = useRouter();
-  const { usuario } = useAuth();
 
-  // Definir el tipo para los nombres de los iconos para evitar errores de tipado
-  type IconName = React.ComponentProps<typeof Ionicons>['name'];
+  const [token, setToken] = useState<string | null>(null);
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
+
   
-  type RouteNames = '/control-pedidos' | '/control-entregas' | '/control-incidencias';
+  
+  
+  
+        const router = useRouter();
 
-  interface MenuItem {
-    id: number;
-    title: string;
-    icon: IconName;
-    route: RouteNames;
+
+  useEffect(() => {
+    (async () => {
+      try {
+        // 1. Recuperar el token
+        const storedToken = await AsyncStorage.getItem('token');
+        // 2. Recuperar los datos de usuario (JSON)
+        const rawUser = await AsyncStorage.getItem('userData');
+
+        console.log('🟢 AsyncStorage token:', storedToken);
+        console.log('🟢 AsyncStorage userData:', rawUser);
+
+        if (storedToken) {
+          setToken(storedToken);
+        }
+        if (rawUser) {
+          let parsedUser = JSON.parse(rawUser);
+          console.log('🟢 parsedUser:', parsedUser);
+          // Mapear si vienen como name/role
+          if (parsedUser) {
+            if (parsedUser.nombre && parsedUser.rol) {
+              setUserData(parsedUser);
+            } else if (parsedUser.name && parsedUser.role) {
+              setUserData({
+                id: parsedUser.id || 0,
+                nombre: parsedUser.name,
+                rol: parsedUser.role,
+              });
+            } else {
+              setUserData(null);
+            }
+          } else {
+            setUserData(null);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error al leer AsyncStorage:', error);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color="#2e78b7" />
+      </View>
+    );
   }
-
-  const menuItems: MenuItem[] = [
-    { id: 1, title: 'Control de Pedidos', icon: 'clipboard-outline', route: '/control-pedidos' },
-    { id: 2, title: 'Control de Entregas', icon: 'cube-outline', route: '/control-entregas' },
-    { id: 3, title: 'Control de Incidencias', icon: 'alert-circle-outline', route: '/control-incidencias' },
-    { id: 4, title: 'Control de Producción', icon: 'build-outline', route: '/control-pedidos' },
-    { id: 5, title: 'Pedidos Comerciales', icon: 'person-outline', route: '/control-pedidos' },
-    { id: 6, title: 'Pedidos Proveedores', icon: 'cart-outline', route: '/control-pedidos' },
-  ];
 
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.content}>
+
         {/* Panel superior con información del usuario */}
         <View style={styles.sidePanel}>
-          {usuario && (
+          {userData ? (
             <View style={styles.userInfo}>
               <Text style={styles.welcomeText}>Bienvenido,</Text>
-              <Text style={styles.userName}>{usuario.nombre}</Text>
-              <Text style={styles.userRole}>{usuario.rol}</Text>
+              <Text style={styles.userName}>{userData.nombre || userData.name || 'Sin nombre'}</Text>
+              <Text style={styles.userRole}>{userData.rol || userData.role || 'Sin rol'}</Text>
             </View>
+          ) : (
+            <Text style={styles.notAuthText}>No hay datos de usuario.</Text>
           )}
         </View>
 
         {/* Panel principal con menú */}
         <View style={styles.mainPanel}>
           <ScrollView style={styles.scrollView}>
-            {/* Grid de menú */}
             <View style={styles.menuGrid}>
               {Array.from({ length: Math.ceil(menuItems.length / 2) }).map((_, rowIndex) => (
                 <View key={rowIndex} style={styles.menuRow}>
-                  {menuItems.slice(rowIndex * 2, rowIndex * 2 + 2).map((item) => (
+                  {menuItems.slice(rowIndex * 2, rowIndex * 2 + 2).map(item => (
                     <TouchableOpacity
                       key={item.id}
                       style={styles.menuItem}
-                      onPress={() => router.push(item.route)}>
+                      onPress={() => router.push(item.route)}
+                    >
                       <Ionicons name={item.icon} size={32} color="#2e78b7" />
                       <Text style={styles.menuText}>{item.title}</Text>
                     </TouchableOpacity>
@@ -64,12 +137,17 @@ export default function HomeScreen() {
             </View>
           </ScrollView>
         </View>
+
       </SafeAreaView>
     </View>
   );
 }
 
+
 const styles = StyleSheet.create({
+    loader: {
+    flex: 1, justifyContent: 'center', alignItems: 'center'
+  },
   container: {
     flex: 1,
     backgroundColor: '#f3f4f6',
@@ -146,5 +224,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#4a5568',
+  },
+  notAuthText: {
+    fontSize: 16,
+    color: '#e53e3e',
+    textAlign: 'center',
+    marginVertical: 12,
+    fontWeight: '500',
   },
 });

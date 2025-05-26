@@ -1,118 +1,78 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import axios from 'axios';
 import { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Definir tipo para los usuarios
-type Usuario = {
-  nombre: string;
-  dni: string | null;
-  correo: string | null;
-  contraseña: string | null;
-  rol: string;
-};
+// Definir tipo para los presupuestos
+interface Presupuesto {
+  Presupuesto_No: string;
+}
 
-// Componente para mostrar cada usuario
-const UsuarioItem = ({ item }: { item: Usuario }) => {
-  // Color según el rol del usuario
-  const getRolColor = (rol: string) => {
-    switch (rol.toLowerCase()) {
-      case 'administrador':
-        return '#2196f3';
-      case 'usuario':
-        return '#4caf50';
-      default:
-        return '#757575';
-    }
-  };
-
-  return (
-    <View style={styles.pedidoItem}>
-      <View style={styles.pedidoHeader}>
-        <Text style={styles.pedidoNumero}>{item.nombre}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: getRolColor(item.rol) }]}>
-          <Text style={styles.statusText}>{item.rol}</Text>
-        </View>
-      </View>
-      <View style={styles.actionsContainer}>
-        <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="eye-outline" size={20} color="#2e78b7" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="pencil-outline" size={20} color="#2e78b7" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-};
+// Componente para mostrar cada presupuesto
+const PresupuestoItem = ({ item }: { item: Presupuesto }) => (
+  <View style={styles.pedidoItem}>
+    <Text style={styles.pedidoNumero}>{item.Presupuesto_No}</Text>
+  </View>
+);
 
 export default function ControlUsuariosScreen() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-  const [loading, setLoading] = useState(true);  useEffect(() => {
-    const fetchUsuarios = async () => {
+  const [presupuestos, setPresupuestos] = useState<Presupuesto[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPresupuestos = async () => {
       try {
-        const baseUrl = process.env.EXPO_PUBLIC_API_URL;
-        console.log('Base URL:', baseUrl); // Para debug
-        
-        if (!baseUrl) {
-          throw new Error('EXPO_PUBLIC_API_URL no está definida en el archivo .env');
-        }
-        
-        const url = `${baseUrl}/test`;
-        console.log('Llamando a URL:', url); // Para debug
-          const response = await axios.get(url);
-        console.log('Datos recibidos:', response.data); // Para debug
-        
-        // Extraer el array de usuarios de testResult
-        if (response.data && response.data.testResult) {
-          setUsuarios(response.data.testResult);
-        } else {
-          console.error('La respuesta no tiene el formato esperado:', response.data);
-          setUsuarios([]);
-        }
+        const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+        if (!apiUrl) throw new Error('EXPO_PUBLIC_API_URL no definida');
+        const res = await fetch(`${apiUrl}/control-pedido/inicio`);
+        const data = await res.json();
+        setPresupuestos(data);
       } catch (error) {
-        console.error('Error al obtener usuarios:', error);
+        console.error('Error al obtener presupuestos:', error);
+        setPresupuestos([]);
       } finally {
         setLoading(false);
       }
     };
-
-    fetchUsuarios();
+    fetchPresupuestos();
   }, []);
 
-  // Filtrar usuarios basado en la búsqueda
-  const filteredUsuarios = usuarios.filter(
-    (usuario) =>
-      usuario.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      usuario.rol.toLowerCase().includes(searchQuery.toLowerCase())
+  // Filtrar presupuestos por búsqueda
+  const filteredPresupuestos = presupuestos.filter(p =>
+    typeof p.Presupuesto_No === 'string' &&
+    p.Presupuesto_No.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <View style={{ flex: 1 }}>
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Control de Usuarios</Text>
+          <Text style={styles.title}>Control de Pedidos</Text>
         </View>
-
         <View style={styles.searchContainer}>
           <Ionicons name="search-outline" size={20} color="#757575" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Buscar por nombre o rol..."
+            placeholder="Buscar por Presupuesto_No..."
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
         </View>
-
-        <FlatList
-          data={filteredUsuarios}
-          renderItem={({ item }) => <UsuarioItem item={item} />}
-          keyExtractor={(item) => item.nombre}
-          contentContainerStyle={styles.listContainer}
-        />
-
+        {loading ? (
+          <Text style={{ textAlign: 'center', marginTop: 20 }}>Cargando...</Text>
+        ) : (
+          <FlatList
+            data={filteredPresupuestos}
+            renderItem={({ item }) => <PresupuestoItem item={item} />}
+            keyExtractor={(item, idx) => item.Presupuesto_No + idx}
+            contentContainerStyle={styles.listContainer}
+            keyboardShouldPersistTaps="handled"
+            initialNumToRender={20}
+            maxToRenderPerBatch={20}
+            windowSize={21}
+          />
+        )}
         <TouchableOpacity style={styles.fab}>
           <Ionicons name="add" size={24} color="#2e78b7" />
         </TouchableOpacity>
