@@ -1,118 +1,138 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Definir tipo para las entregas
-type Entrega = {
-  id: string;
-  pedido: string;
-  cliente: string;
-  direccion: string;
-  fecha: string;
-  estado: 'Pendiente' | 'En ruta' | 'Entregado';
-};
+// Definir tipo para los pedidos
+interface Pedido {
+  NºPedido: string; // NºPedido
+  EstadoPedido: string;
+  Incidencia: string | null;
+  Compromiso: string | null;
+}
 
-// Datos de ejemplo
-const ENTREGAS_EJEMPLO: Entrega[] = [
-  { id: '1', pedido: 'P001', cliente: 'María López', direccion: 'Calle Principal 123', fecha: '15/05/2023', estado: 'Pendiente' },
-  { id: '2', pedido: 'P002', cliente: 'Juan Rodríguez', direccion: 'Avenida Central 456', fecha: '16/05/2023', estado: 'En ruta' },
-  { id: '3', pedido: 'P003', cliente: 'Carlos Sánchez', direccion: 'Plaza Mayor 789', fecha: '18/05/2023', estado: 'Entregado' },
-  { id: '4', pedido: 'P004', cliente: 'Ana Martínez', direccion: 'Calle Norte 234', fecha: '20/05/2023', estado: 'Pendiente' },
-  { id: '5', pedido: 'P005', cliente: 'Pedro Gómez', direccion: 'Avenida Sur 567', fecha: '22/05/2023', estado: 'En ruta' },
-  { id: '6', pedido: 'P006', cliente: 'Laura Díaz', direccion: 'Calle Oeste 890', fecha: '25/05/2023', estado: 'Entregado' },
-];
-
-// Componente para mostrar cada entrega
-const EntregaItem = ({ item }: { item: Entrega }) => {
-  // Color según el estado de la entrega
-  const getStatusColor = (status: Entrega['estado']) => {
-    switch (status) {
-      case 'Pendiente':
-        return '#ffc107';
-      case 'En ruta':
-        return '#2196f3';
-      case 'Entregado':
-        return '#4caf50';
-      default:
-        return '#757575';
-    }
-  };
-
+// Componente para mostrar cada pedido
+const PedidoItem = ({ item }: { item: Pedido }) => {
+  // Elegir color de estado según el valor, pero siempre gris oscuro
+  let estadoColor = '#333';
+  if (item.EstadoPedido) {
+    if (item.EstadoPedido.toLowerCase().includes('pendiente')) estadoColor = '#6b7280'; // gris medio
+    else if (item.EstadoPedido.toLowerCase().includes('entregado')) estadoColor = '#374151'; // gris oscuro
+    else if (item.EstadoPedido.toLowerCase().includes('incidencia')) estadoColor = '#4b5563'; // gris
+  }
+  // Mostrar solo la fecha 2025-06-01 en Compromiso
+  const compromisoSoloFecha = '2025-06-01';
   return (
-    <View style={styles.entregaItem}>
-      <View style={styles.entregaHeader}>
-        <Text style={styles.pedidoNumero}>Pedido #{item.pedido}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.estado) }]}>
-          <Text style={styles.statusText}>{item.estado}</Text>
-        </View>
-      </View>
-      <Text style={styles.clienteText}>{item.cliente}</Text>
-      <Text style={styles.direccionText}>{item.direccion}</Text>
-      <Text style={styles.fechaText}>Fecha programada: {item.fecha}</Text>
-      <View style={styles.actionsContainer}>
-        <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="location-outline" size={20} color="#2e78b7" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="checkmark-circle-outline" size={20} color="#2e78b7" />
-        </TouchableOpacity>
-      </View>
+    <View style={styles.pedidoItem}>
+      <Text style={styles.pedidoNumero}>NºPedido: {item.NºPedido}</Text>
+      <Text style={[styles.statusText, { color: estadoColor }]}>EstadoPedido: {item.EstadoPedido}</Text>
+      <Text style={styles.fechaText}>Compromiso: 2025-06-01</Text>
+      <Text style={styles.clienteText}>Incidencia: {item.Incidencia || '-'}</Text>
     </View>
   );
 };
 
-export default function ControlEntregasScreen() {
+export default function ControlUsuariosScreen() {
+  const [data, setData] = useState<Pedido[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [entregas, setEntregas] = useState<Entrega[]>(ENTREGAS_EJEMPLO);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const pageSize = 50;
 
-  // Filtrar entregas basado en la búsqueda
-  const filteredEntregas = entregas.filter(
-    (entrega) =>
-      entrega.pedido.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entrega.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entrega.direccion.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  useEffect(() => {
+    const fetchPedidos = async () => {
+      try {
+        const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+        if (!apiUrl) throw new Error('EXPO_PUBLIC_API_URL no definida');
+        const res = await fetch(`${apiUrl}/control-access/formularioControlPedido`);
+        const result = await res.json();
+        
+        setData(Array.isArray(result) ? result : []);
+        setCurrentPage(0);
+      } catch (error) {
+        console.error('Error al obtener pedidos:', error);
+        setData([]);
+        setCurrentPage(0);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPedidos();
+  }, []);
+
+  // Filtrar, ordenar y paginar en el render, no en useEffect
+  const filtered = searchQuery.trim() === ''
+    ? data
+    : data.filter(p =>
+        typeof p.NºPedido === 'string' &&
+        p.NºPedido.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+  // Ordenar por Compromiso de mayor a menor (descendente)
+  const sorted = [...filtered].sort((a, b) => {
+    // Si ambos tienen compromiso, comparar como fechas
+    if (a.Compromiso && b.Compromiso) {
+      return new Date(b.Compromiso).getTime() - new Date(a.Compromiso).getTime();
+    }
+    // Si solo uno tiene compromiso, ese va primero
+    if (a.Compromiso) return -1;
+    if (b.Compromiso) return 1;
+    return 0;
+  });
+  const displayedPedidos = sorted.slice(0, (currentPage + 1) * pageSize);
+
+  const handleEndReached = () => {
+    if (displayedPedidos.length < filtered.length) {
+      setCurrentPage(prev => prev + 1);
+    }
+  };
+
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [searchQuery]);
 
   return (
     <View style={{ flex: 1 }}>
-
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Control de Entregas</Text>
         </View>
-
         <View style={styles.searchContainer}>
           <Ionicons name="search-outline" size={20} color="#757575" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Buscar por pedido, cliente o dirección..."
+            placeholder="Buscar por NºPedido..."
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
         </View>
-
-        <View style={styles.filterContainer}>
-          <TouchableOpacity style={[styles.filterButton, styles.filterActive]}>
-            <Text style={styles.filterActiveText}>Todos</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.filterButton}>
-            <Text style={styles.filterText}>Pendientes</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.filterButton}>
-            <Text style={styles.filterText}>En ruta</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.filterButton}>
-            <Text style={styles.filterText}>Entregados</Text>
-          </TouchableOpacity>
-        </View>
-
-        <FlatList
-          data={filteredEntregas}
-          renderItem={({ item }) => <EntregaItem item={item} />}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContainer}
-        />
+        {loading ? (
+          <Text style={{ textAlign: 'center', marginTop: 20 }}>Cargando...</Text>
+        ) : (
+          <FlatList
+            data={displayedPedidos}
+            renderItem={({ item, index }) => <PedidoItem item={item} />}
+            keyExtractor={(item, idx) => {
+              // Usar NPedido si existe y es string, si no, usar el índice
+              const key = typeof item.NºPedido === 'string' && item.NºPedido.trim() !== '' ? item.NºPedido : `row-${idx}`;
+              return key;
+            }}
+            contentContainerStyle={styles.listContainer}
+            keyboardShouldPersistTaps="handled"
+            initialNumToRender={20}
+            maxToRenderPerBatch={20}
+            windowSize={21}
+            onEndReached={handleEndReached}
+            onEndReachedThreshold={0.2}
+            ListFooterComponent={
+              displayedPedidos.length < filtered.length && !loading ? (
+                <Text style={{ textAlign: 'center', padding: 12, color: '#2e78b7' }}>Cargando más...</Text>
+              ) : null
+            }
+          />
+        )}
+        <TouchableOpacity style={styles.fab}>
+          <Ionicons name="add" size={24} color="#2e78b7" />
+        </TouchableOpacity>
       </SafeAreaView>
     </View>
   );
@@ -139,7 +159,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f3f4f6',
     margin: 16,
-    marginBottom: 8,
     borderRadius: 12,
     paddingHorizontal: 15,
     paddingVertical: 5,
@@ -157,40 +176,10 @@ const styles = StyleSheet.create({
     height: 50,
     color: '#2e78b7',
   },
-  filterContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  filterButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginRight: 8,
-    borderRadius: 10,
-    backgroundColor: '#f3f4f6',
-    shadowColor: '#000',
-    shadowOffset: { width: 3, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  filterActive: {
-    backgroundColor: '#2e78b7',
-  },
-  filterText: {
-    color: '#718096',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  filterActiveText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   listContainer: {
     padding: 16,
   },
-  entregaItem: {
+  pedidoItem: {
     backgroundColor: '#f3f4f6',
     borderRadius: 12,
     padding: 16,
@@ -201,7 +190,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 5,
   },
-  entregaHeader: {
+  pedidoHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -210,32 +199,23 @@ const styles = StyleSheet.create({
   pedidoNumero: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#2e78b7',
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
+    color: '#222', // gris muy oscuro
   },
   statusText: {
-    color: 'white',
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
+    // color dinámico según estado
+    marginBottom: 4,
   },
   clienteText: {
-    fontSize: 16,
-    marginBottom: 4,
-    color: '#4a5568',
-  },
-  direccionText: {
-    fontSize: 14,
-    color: '#4a5568',
-    marginBottom: 4,
+    fontSize: 15,
+    marginBottom: 2,
+    color: '#444', // gris oscuro
   },
   fechaText: {
     fontSize: 14,
-    color: '#718096',
-    marginBottom: 12,
+    color: '#555', // gris oscuro
+    marginBottom: 0,
   },
   actionsContainer: {
     flexDirection: 'row',
@@ -251,5 +231,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 5,
     elevation: 3,
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#f3f4f6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 5, height: 5 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 8,
   },
 });
