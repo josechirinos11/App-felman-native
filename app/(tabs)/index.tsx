@@ -19,11 +19,11 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { id: 1, title: 'Control de Pedidos', icon: 'clipboard-outline',    route: '/control-pedidos'    },
-  { id: 2, title: 'Control de Entregas', icon: 'cube-outline',         route: '/control-entregas'   },
+  { id: 2, title: 'Control Comerciales', icon: 'cube-outline',         route: '/control-entregas'   },
   { id: 3, title: 'Control de Incidencias', icon: 'alert-circle-outline', route: '/control-incidencias' },
-  { id: 4, title: 'Control de Producción', icon: 'build-outline',      route: '/control-pedidos'    },
-  { id: 5, title: 'Pedidos Comerciales', icon: 'person-outline',       route: '/control-pedidos'    },
-  { id: 6, title: 'Pedidos Proveedores', icon: 'cart-outline',         route: '/control-pedidos'    },
+  { id: 4, title: 'Paguina en Construccion', icon: 'build-outline',      route: '/control-pedidos'    },
+  { id: 5, title: 'Paguina en Construccion', icon: 'person-outline',       route: '/control-pedidos'    },
+  { id: 6, title: 'Paguina en Construccion', icon: 'cart-outline',         route: '/control-pedidos'    },
 ];
 
 

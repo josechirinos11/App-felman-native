@@ -1,42 +1,37 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Definir tipo para los pedidos
 interface Pedido {
-  NºPedido: string; // NºPedido
-  EstadoPedido: string;
-  Incidencia: string | null;
-  Compromiso: string | null;
+  NoPedido: string;
+  Seccion: string;
+  Cliente: string;
+  Comercial: string;
+  RefCliente: string;
+  Compromiso: string;
+  Id_ControlMat: number;
+  Material: string;
+  Proveedor: string;
+  FechaPrevista: string;
+  Recibido: number;
+  EstadoPedido?: string;
+  Incidencia?: string | null;
 }
-
-// Componente para mostrar cada pedido
-const PedidoItem = ({ item }: { item: Pedido }) => {
-  // Elegir color de estado según el valor, pero siempre gris oscuro
-  let estadoColor = '#333';
-  if (item.EstadoPedido) {
-    if (item.EstadoPedido.toLowerCase().includes('pendiente')) estadoColor = '#6b7280'; // gris medio
-    else if (item.EstadoPedido.toLowerCase().includes('entregado')) estadoColor = '#374151'; // gris oscuro
-    else if (item.EstadoPedido.toLowerCase().includes('incidencia')) estadoColor = '#4b5563'; // gris
-  }
-  // Mostrar solo la fecha 2025-06-01 en Compromiso
-  const compromisoSoloFecha = '2025-06-01';
-  return (
-    <View style={styles.pedidoItem}>
-      <Text style={styles.pedidoNumero}>NºPedido: {item.NºPedido}</Text>
-      <Text style={[styles.statusText, { color: estadoColor }]}>EstadoPedido: {item.EstadoPedido}</Text>
-      <Text style={styles.fechaText}>Compromiso: 2025-06-01</Text>
-      <Text style={styles.clienteText}>Incidencia: {item.Incidencia || '-'}</Text>
-    </View>
-  );
-};
 
 export default function ControlUsuariosScreen() {
   const [data, setData] = useState<Pedido[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1); // Iniciar en página 1
+  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'TODOS' | 'ALUMINIO' | 'PVC'>('TODOS');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalGroup, setModalGroup] = useState<Pedido[]>(
+    []
+  );
+  const [userName, setUserName] = useState<string | null>(null);
   const pageSize = 20;
 
   // Nuevo fetchPedidos: trae todo, pero fragmenta para mostrar de 20 en 20 en el FlatList
@@ -45,7 +40,7 @@ export default function ControlUsuariosScreen() {
       setLoading(true);
       const apiUrl = process.env.EXPO_PUBLIC_API_URL;
       if (!apiUrl) throw new Error('EXPO_PUBLIC_API_URL no definida');
-      const res = await fetch(`${apiUrl}/control-access/ConsultaControlPedidoInicio`);
+      const res = await fetch(`${apiUrl}/control-access/pedidosComerciales`);
       const result = await res.json();
       setData(Array.isArray(result) ? result : []);
       setCurrentPage(1); // Página 1 al cargar
@@ -62,51 +57,162 @@ export default function ControlUsuariosScreen() {
     fetchPedidos();
   }, []);
 
+  // Obtener nombre de usuario de AsyncStorage
+  useEffect(() => {
+    const getUserName = async () => {
+      try {
+        const userDataString = await AsyncStorage.getItem('userData');
+        console.log('userDataString:', userDataString); // <-- depuración
+        if (userDataString) {
+          const userData = JSON.parse(userDataString);
+          // Unificar lógica: usar 'nombre' o 'name'
+          const nombre = userData.nombre || userData.name || null;
+          console.log('Nombre extraído:', nombre); // <-- depuración
+          setUserName(nombre);
+        }
+      } catch (e) {
+        setUserName(null);
+      }
+    };
+    getUserName();
+  }, []);
+
   // Reiniciar paginación al buscar
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery]);
 
-  // Filtrar y ordenar solo los datos ya cargados
-  const filtered = searchQuery.trim() === ''
-    ? data
-    : data.filter(p =>
-        typeof p.NºPedido === 'string' &&
-        p.NºPedido.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-  const sorted = [...filtered].sort((a, b) => {
-    if (a.Compromiso && b.Compromiso) {
-      return new Date(b.Compromiso).getTime() - new Date(a.Compromiso).getTime();
+  // Agrupar por NoPedido
+  const pedidosAgrupados: { [noPedido: string]: Pedido[] } = {};
+  data.forEach((pedido) => {
+    if (!pedidosAgrupados[pedido.NoPedido]) {
+      pedidosAgrupados[pedido.NoPedido] = [];
     }
-    if (a.Compromiso) return -1;
-    if (b.Compromiso) return 1;
+    pedidosAgrupados[pedido.NoPedido].push(pedido);
+  });
+  // Convertir a array de grupos
+  let grupos = Object.values(pedidosAgrupados);
+
+  // Debug: mostrar userName y grupos antes del filtro
+  useEffect(() => {
+    if (userName && data.length > 0) {
+      const gruposFiltrados = grupos.filter(grupo => grupo[0].Comercial === userName);
+      console.log('userName:', userName, 'Grupos filtrados:', gruposFiltrados.length);
+    }
+  }, [userName, data]);
+
+  // Filtrar por comercial (usuario) ANTES de ordenar y paginar
+  if (userName) {
+    grupos = grupos.filter(grupo => grupo[0].Comercial === userName);
+    console.log('Filtrando por comercial:', userName, 'Grupos resultantes:', grupos.length);
+  }
+
+  // Aplicar filtros
+  if (filter !== 'TODOS') {
+    grupos = grupos.filter(grupo => grupo.some(p => typeof p.Seccion === 'string' && p.Seccion.toUpperCase().includes(filter)));
+  }
+  if (searchQuery.trim() !== '') {
+    const q = searchQuery.toLowerCase();
+    grupos = grupos.filter(grupo =>
+      grupo[0].NoPedido.toLowerCase().includes(q) ||
+      (grupo[0].Cliente && grupo[0].Cliente.toLowerCase().includes(q)) ||
+      (grupo[0].RefCliente && grupo[0].RefCliente.toLowerCase().includes(q))
+    );
+  }
+  // Ordenar por Compromiso del primer elemento
+  grupos.sort((a, b) => {
+    if (a[0].Compromiso && b[0].Compromiso) {
+      return new Date(b[0].Compromiso).getTime() - new Date(a[0].Compromiso).getTime();
+    }
+    if (a[0].Compromiso) return -1;
+    if (b[0].Compromiso) return 1;
     return 0;
   });
-
+  // Ordenar por NoPedido de mayor a menor
+  grupos.sort((a, b) => {
+    if (a[0].NoPedido > b[0].NoPedido) return -1;
+    if (a[0].NoPedido < b[0].NoPedido) return 1;
+    return 0;
+  });
   // Fragmentar para mostrar solo 20 por página
-  const pagedPedidos = sorted.slice(0, currentPage * pageSize);
+  const pagedGrupos = grupos.slice(0, currentPage * pageSize);
 
   // handleEndReached para mostrar más (20 más)
   const handleEndReached = () => {
-    if (!loading && pagedPedidos.length < sorted.length) {
+    if (!loading && pagedGrupos.length < grupos.length) {
       setCurrentPage(prev => prev + 1);
     }
+  };
+
+  // Nuevo PedidoItem agrupado
+  const PedidoAgrupadoItem = ({ grupo }: { grupo: Pedido[] }) => {
+    // Si algún Recibido === 0 => Falta Material, si todos === -1 => Material Completo
+    const faltaMaterial = grupo.some(p => p.Recibido === 0);
+    const materialCompleto = grupo.every(p => p.Recibido === -1);
+    return (
+      <TouchableOpacity onPress={() => { setModalGroup(grupo); setModalVisible(true); }}>
+        <View style={styles.pedidoItem}>
+          <Text style={styles.pedidoNumero}>NºPedido: {grupo[0].NoPedido}</Text>
+          <Text style={styles.clienteText}>Sección: {grupo[0].Seccion}</Text>
+          <Text style={styles.clienteText}>Cliente: {grupo[0].Cliente}</Text>
+          <Text style={styles.clienteText}>Comercial: {grupo[0].Comercial}</Text>
+          <Text style={styles.clienteText}>RefCliente: {grupo[0].RefCliente}</Text>
+          <Text style={styles.fechaText}>Compromiso: {grupo[0].Compromiso ? grupo[0].Compromiso.split('T')[0] : '-'}</Text>
+          {/* Estado de material */}
+          {faltaMaterial ? (
+            <Text style={{ color: 'red', fontWeight: 'bold', marginTop: 6 }}>Falta Material</Text>
+          ) : materialCompleto ? (
+            <Text style={{ color: 'green', fontWeight: 'bold', marginTop: 6 }}>Material Completo</Text>
+          ) : null}
+        </View>
+      </TouchableOpacity>
+    );
   };
 
   return (
     <View style={{ flex: 1 }}>
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Control de Entregas</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={styles.title}>Control Comerciales</Text>
+            <TouchableOpacity
+              onPress={fetchPedidos}
+              style={{ marginLeft: 12, backgroundColor: '#2e78b7', borderRadius: 8, padding: 6 }}
+              accessibilityLabel="Actualizar lista"
+            >
+              <Ionicons name="refresh" size={22} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
         <View style={styles.searchContainer}>
           <Ionicons name="search-outline" size={20} color="#757575" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Buscar por NºPedido..."
+            placeholder="Buscar por NºPedido / Cliente / RefCliente..."
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
+        </View>
+        {/* Botones de filtro por sección */}
+        <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 10 }}>
+          <TouchableOpacity
+            style={[styles.filterButton, filter === 'TODOS' && styles.filterButtonActive]}
+            onPress={() => setFilter('TODOS')}
+          >
+            <Text style={filter === 'TODOS' ? [styles.filterButtonText, styles.filterButtonTextActive] : styles.filterButtonText}>Todos</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterButton, filter === 'ALUMINIO' && styles.filterButtonActive]}
+            onPress={() => setFilter('ALUMINIO')}
+          >
+            <Text style={filter === 'ALUMINIO' ? [styles.filterButtonText, styles.filterButtonTextActive] : styles.filterButtonText}>Aluminio</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterButton, filter === 'PVC' && styles.filterButtonActive]}
+            onPress={() => setFilter('PVC')}
+          >
+            <Text style={filter === 'PVC' ? [styles.filterButtonText, styles.filterButtonTextActive] : styles.filterButtonText}>PVC</Text>
+          </TouchableOpacity>
         </View>
         <Text style={{ textAlign: 'center', color: '#888', marginBottom: 4 }}>
           Página actual: {currentPage}
@@ -115,10 +221,10 @@ export default function ControlUsuariosScreen() {
           <Text style={{ textAlign: 'center', marginTop: 20 }}>Cargando...</Text>
         ) : (
           <FlatList
-            data={pagedPedidos}
-            renderItem={({ item, index }) => <PedidoItem item={item} />}
+            data={pagedGrupos}
+            renderItem={({ item }) => <PedidoAgrupadoItem grupo={item} />}
             keyExtractor={(item, idx) => {
-              const key = typeof item.NºPedido === 'string' && item.NºPedido.trim() !== '' ? item.NºPedido : `row-${idx}`;
+              const key = typeof item[0].NoPedido === 'string' && item[0].NoPedido.trim() !== '' ? item[0].NoPedido : `row-${idx}`;
               return key;
             }}
             contentContainerStyle={styles.listContainer}
@@ -131,7 +237,7 @@ export default function ControlUsuariosScreen() {
             ListFooterComponent={
               loading && currentPage === 1 ? (
                 <Text style={{ textAlign: 'center', padding: 12, color: '#2e78b7' }}>Cargando...</Text>
-              ) : pagedPedidos.length < sorted.length ? (
+              ) : pagedGrupos.length < grupos.length ? (
                 <Text style={{ textAlign: 'center', padding: 12, color: '#2e78b7' }}>Desliza para ver más...</Text>
               ) : (
                 <Text style={{ textAlign: 'center', padding: 12, color: '#888' }}>Fin del listado</Text>
@@ -139,6 +245,45 @@ export default function ControlUsuariosScreen() {
             }
           />
         )}
+        {/* Modal para mostrar detalles del grupo */}
+        <Modal
+          visible={modalVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' }}>
+            <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, minWidth: 300, maxWidth: 350, maxHeight: 500 }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10, color: '#2e78b7' }}>Detalle de Materiales</Text>
+              <ScrollView style={{ maxHeight: 350 }}>
+                {modalGroup.map((p, idx) => {
+                  let color = '#444';
+                  if (p.Recibido === 0) color = 'red';
+                  if (p.Recibido === -1) color = 'green';
+                  return (
+                    <View key={idx} style={{ marginBottom: 12, borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 8 }}>
+                      <Text style={{ fontWeight: 'bold', color: '#222' }}>
+                        Material: <Text style={{ fontWeight: 'normal', color }}>{p.Material}</Text>
+                      </Text>
+                      <Text style={{ fontWeight: 'bold', color: '#222' }}>
+                        Proveedor: <Text style={{ fontWeight: 'normal', color }}>{p.Proveedor}</Text>
+                      </Text>
+                      <Text style={{ fontWeight: 'bold', color: '#222' }}>
+                        Fecha Prevista: <Text style={{ fontWeight: 'normal', color }}>{p.FechaPrevista ? p.FechaPrevista.split('T')[0] : '-'}</Text>
+                      </Text>
+                      <Text style={{ fontWeight: 'bold', color: '#222' }}>
+                        Recibido: <Text style={{ fontWeight: 'normal', color }}>{p.Recibido}</Text>
+                      </Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+              <Pressable onPress={() => setModalVisible(false)} style={{ marginTop: 10, alignSelf: 'center', backgroundColor: '#2e78b7', borderRadius: 8, paddingHorizontal: 24, paddingVertical: 10 }}>
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Cerrar</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
         <TouchableOpacity style={styles.fab}>
           <Ionicons name="add" size={24} color="#2e78b7" />
         </TouchableOpacity>
@@ -256,5 +401,23 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 10,
     elevation: 8,
+  },
+  filterButton: {
+    backgroundColor: '#e5e7eb',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginHorizontal: 4,
+  },
+  filterButtonActive: {
+    backgroundColor: '#2e78b7',
+  },
+  filterButtonText: {
+    color: '#2e78b7',
+    fontWeight: 'bold',
+  },
+  filterButtonTextActive: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });

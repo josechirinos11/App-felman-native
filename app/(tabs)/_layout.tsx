@@ -10,6 +10,7 @@ function TabBarIcon(props: {
   return <Ionicons size={24} style={{ marginBottom: -3 }} {...props} />;
 }
 
+
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { logout } = useAuth();
@@ -50,7 +51,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="control-entregas"
         options={{
-          title: 'Entregas',
+          title: 'Comerciales',
           tabBarIcon: ({ color }) => <TabBarIcon name="cube-outline" color={color} />,
         }}
       />

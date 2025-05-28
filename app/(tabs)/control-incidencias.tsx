@@ -1,192 +1,158 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Definir tipo para las incidencias
-type Incidencia = {
-  id: string;
-  titulo: string;
-  pedido: string;
-  cliente: string;
-  descripcion: string;
-  fecha: string;
-  prioridad: 'Alta' | 'Media' | 'Baja';
-  estado: 'Abierta' | 'En proceso' | 'Resuelta';
-};
+// Definir tipo para los pedidos
+interface PedidoApi {
+  "NºPedido": string;
+  EstadoPedido: string;
+  Incidencia: boolean;
+  Compromiso: string;
+}
 
-// Datos de ejemplo
-const INCIDENCIAS_EJEMPLO: Incidencia[] = [
-  { 
-    id: '1', 
-    titulo: 'Producto dañado', 
-    pedido: 'P001', 
-    cliente: 'María López', 
-    descripcion: 'El cliente reporta que el producto llegó con daños en el empaque.',
-    fecha: '12/05/2023', 
-    prioridad: 'Alta',
-    estado: 'Abierta' 
-  },
-  { 
-    id: '2', 
-    titulo: 'Entrega incorrecta', 
-    pedido: 'P002', 
-    cliente: 'Juan Rodríguez', 
-    descripcion: 'Se entregó un producto diferente al solicitado por el cliente.',
-    fecha: '14/05/2023', 
-    prioridad: 'Alta',
-    estado: 'En proceso' 
-  },
-  { 
-    id: '3', 
-    titulo: 'Retraso en entrega', 
-    pedido: 'P003', 
-    cliente: 'Carlos Sánchez', 
-    descripcion: 'El pedido se entregó con 2 días de retraso.',
-    fecha: '16/05/2023', 
-    prioridad: 'Media',
-    estado: 'Resuelta' 
-  },
-  { 
-    id: '4', 
-    titulo: 'Falta documentación', 
-    pedido: 'P004', 
-    cliente: 'Ana Martínez', 
-    descripcion: 'No se adjuntó la factura con el pedido.',
-    fecha: '18/05/2023', 
-    prioridad: 'Baja',
-    estado: 'Abierta' 
-  },
-  { 
-    id: '5', 
-    titulo: 'Material incorrecto', 
-    pedido: 'P005', 
-    cliente: 'Pedro Gómez', 
-    descripcion: 'El material del producto no corresponde con lo especificado.',
-    fecha: '20/05/2023', 
-    prioridad: 'Media',
-    estado: 'En proceso' 
-  },
-];
+// Componente para mostrar cada pedido
+const PedidoItem = ({ item }: { item: PedidoApi }) => (
+  <View style={styles.pedidoItem}>
+    <Text style={styles.pedidoNumero}>
+      NºPedido: <Text style={{ color: 'red', fontWeight: 'bold' }}>{item["NºPedido"]}</Text>
+    </Text>
+    <Text style={styles.clienteText}>Estado: {item.EstadoPedido}</Text>
+    <Text style={styles.clienteText}>Incidencia: {item.Incidencia ? 'Sí' : 'No'}</Text>
+    <Text style={styles.fechaText}>Compromiso: {item.Compromiso ? item.Compromiso.split('T')[0] : '-'}</Text>
+  </View>
+);
 
-// Componente para mostrar cada incidencia
-const IncidenciaItem = ({ item }: { item: Incidencia }) => {
-  // Color según la prioridad
-  const getPriorityColor = (priority: Incidencia['prioridad']) => {
-    switch (priority) {
-      case 'Alta':
-        return '#f44336';
-      case 'Media':
-        return '#ff9800';
-      case 'Baja':
-        return '#4caf50';
-      default:
-        return '#757575';
-    }
-  };
-
-  // Color según el estado
-  const getStatusColor = (status: Incidencia['estado']) => {
-    switch (status) {
-      case 'Abierta':
-        return '#f44336';
-      case 'En proceso':
-        return '#2196f3';
-      case 'Resuelta':
-        return '#4caf50';
-      default:
-        return '#757575';
-    }
-  };
-
-  return (
-    <TouchableOpacity style={styles.incidenciaItem}>
-      <View style={styles.incidenciaHeader}>
-        <Text style={styles.incidenciaTitulo}>{item.titulo}</Text>
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(item.estado) }]}>
-          <Text style={styles.statusText}>{item.estado}</Text>
-        </View>
-      </View>
-      
-      <View style={styles.incidenciaInfo}>
-        <Text style={styles.pedidoText}>Pedido: #{item.pedido}</Text>
-        <View style={[styles.prioridadBadge, { backgroundColor: getPriorityColor(item.prioridad) }]}>
-          <Text style={styles.prioridadText}>{item.prioridad}</Text>
-        </View>
-      </View>
-      
-      <Text style={styles.clienteText}>{item.cliente}</Text>
-      <Text style={styles.descripcionText} numberOfLines={2}>{item.descripcion}</Text>
-      <Text style={styles.fechaText}>Reportada: {item.fecha}</Text>
-      
-      <View style={styles.actionsContainer}>
-        <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="chatbubble-outline" size={20} color="#2e78b7" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionButton}>
-          <Ionicons name="checkmark-circle-outline" size={20} color="#2e78b7" />
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
-};
-
-export default function ControlIncidenciasScreen() {
+export default function ControlUsuariosScreen() {
+  const [data, setData] = useState<PedidoApi[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [incidencias, setIncidencias] = useState<Incidencia[]>(INCIDENCIAS_EJEMPLO);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [fetchPedidosFn, setFetchPedidosFn] = useState<() => void>(() => () => {});
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const pageSize = 20;
 
-  // Filtrar incidencias basado en la búsqueda
-  const filteredIncidencias = incidencias.filter(
-    (incidencia) =>
-      incidencia.titulo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      incidencia.pedido.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      incidencia.cliente.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      incidencia.descripcion.toLowerCase().includes(searchQuery.toLowerCase())
+  useEffect(() => {
+    const fetchPedidos = async () => {
+      try {
+        setLoading(true);
+        const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+        if (!apiUrl) throw new Error('EXPO_PUBLIC_API_URL no definida');
+        const res = await fetch(`${apiUrl}/control-access/pedidos`);
+        const result = await res.json();
+        setData(Array.isArray(result) ? result : []);
+        setCurrentPage(1);
+      } catch (error) {
+        console.error('Error al obtener pedidos:', error);
+        setData([]);
+        setCurrentPage(1);
+      } finally {
+        setLoading(false);
+      }
+    };
+    // Hacemos fetchPedidos accesible para el botón de actualizar
+    setFetchPedidosFn(() => fetchPedidos);
+    fetchPedidos();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const userDataString = await AsyncStorage.getItem('userData');
+        console.log('userDataString:', userDataString); // depuración
+        if (userDataString) {
+          const userData = JSON.parse(userDataString);
+          const rol = userData.rol || userData.role || null;
+          console.log('Rol extraído:', rol); // depuración
+          setUserRole(rol);
+        }
+      } catch (e) {
+        setUserRole(null);
+      }
+    })();
+  }, []);
+
+  // Filtrar por búsqueda y solo Incidencia true
+  const filtered = data.filter(p =>
+    p.Incidencia === true && (
+      (typeof p["NºPedido"] === 'string' && p["NºPedido"].toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (typeof p.EstadoPedido === 'string' && p.EstadoPedido.toLowerCase().includes(searchQuery.toLowerCase()))
+    )
   );
+  // Ordenar de mayor a menor por NºPedido
+  const sorted = [...filtered].sort((a, b) => {
+    if (a["NºPedido"] > b["NºPedido"]) return -1;
+    if (a["NºPedido"] < b["NºPedido"]) return 1;
+    return 0;
+  });
+  // Fraccionar para mostrar solo 20 por página
+  const pagedPedidos = sorted.slice(0, currentPage * pageSize);
 
   return (
     <View style={{ flex: 1 }}>
-  
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.title}>Control de Incidencias</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={styles.title}>Incidencia</Text>
+            <TouchableOpacity
+              onPress={() => fetchPedidosFn()}
+              style={{ marginLeft: 12, backgroundColor: '#2e78b7', borderRadius: 8, padding: 6 }}
+              accessibilityLabel="Actualizar lista"
+            >
+              <Ionicons name="refresh" size={22} color="#fff" />
+            </TouchableOpacity>
+          </View>
         </View>
-
         <View style={styles.searchContainer}>
           <Ionicons name="search-outline" size={20} color="#757575" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Buscar incidencia..."
+            placeholder="Buscar por NºPedido, Estado o Incidencia..."
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
         </View>
-
-        <View style={styles.filterContainer}>
-          <TouchableOpacity style={[styles.filterButton, styles.filterActive]}>
-            <Text style={styles.filterActiveText}>Todas</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.filterButton}>
-            <Text style={styles.filterText}>Abiertas</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.filterButton}>
-            <Text style={styles.filterText}>En proceso</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.filterButton}>
-            <Text style={styles.filterText}>Resueltas</Text>
-          </TouchableOpacity>
-        </View>
-
-        <FlatList
-          data={filteredIncidencias}
-          renderItem={({ item }) => <IncidenciaItem item={item} />}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContainer}
-        />
-
-        <TouchableOpacity style={styles.fab}>
-          <Ionicons name="add" size={24} color="white" />
-        </TouchableOpacity>
+        <Text style={{ textAlign: 'center', color: '#888', marginBottom: 4 }}>
+          Página actual: {currentPage}
+        </Text>
+        {(userRole === 'administrador' || userRole === 'developer') ? (
+          loading && currentPage === 1 ? (
+            <Text style={{ textAlign: 'center', marginTop: 20 }}>Cargando...</Text>
+          ) : (
+            <FlatList
+              data={pagedPedidos}
+              renderItem={({ item }) => <PedidoItem item={item} />}
+              keyExtractor={(item, idx) => item["NºPedido"] ? item["NºPedido"] + idx : `row-${idx}`}
+              contentContainerStyle={styles.listContainer}
+              keyboardShouldPersistTaps="handled"
+              initialNumToRender={20}
+              maxToRenderPerBatch={20}
+              windowSize={21}
+              onEndReached={() => {
+                if (!loading && pagedPedidos.length < filtered.length) {
+                  setCurrentPage(prev => prev + 1);
+                }
+              }}
+              onEndReachedThreshold={0.2}
+              ListFooterComponent={
+                loading && currentPage === 1 ? (
+                  <Text style={{ textAlign: 'center', padding: 12, color: '#2e78b7' }}>Cargando...</Text>
+                ) : pagedPedidos.length < filtered.length ? (
+                  <Text style={{ textAlign: 'center', padding: 12, color: '#2e78b7' }}>Desliza para ver más...</Text>
+                ) : (
+                  <Text style={{ textAlign: 'center', padding: 12, color: '#888' }}>Fin del listado</Text>
+                )
+              }
+            />
+          )
+        ) : (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+            <Text style={{ color: '#e53e3e', fontSize: 18, fontWeight: 'bold', textAlign: 'center' }}>
+              Necesitas permiso para ver esta paguina
+            </Text>
+          </View>
+        )}
       </SafeAreaView>
     </View>
   );
@@ -213,7 +179,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f3f4f6',
     margin: 16,
-    marginBottom: 8,
     borderRadius: 12,
     paddingHorizontal: 15,
     paddingVertical: 5,
@@ -231,41 +196,10 @@ const styles = StyleSheet.create({
     height: 50,
     color: '#2e78b7',
   },
-  filterContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  filterButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginRight: 8,
-    borderRadius: 10,
-    backgroundColor: '#f3f4f6',
-    shadowColor: '#000',
-    shadowOffset: { width: 3, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  filterActive: {
-    backgroundColor: '#2e78b7',
-  },
-  filterText: {
-    color: '#718096',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  filterActiveText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   listContainer: {
     padding: 16,
-    paddingBottom: 80,
   },
-  incidenciaItem: {
+  pedidoItem: {
     backgroundColor: '#f3f4f6',
     borderRadius: 12,
     padding: 16,
@@ -276,29 +210,16 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 5,
   },
-  incidenciaHeader: {
+  pedidoHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
   },
-  incidenciaTitulo: {
+  pedidoNumero: {
     fontSize: 16,
     fontWeight: 'bold',
-    flex: 1,
-    marginRight: 8,
-    color: '#2e78b7',
-  },
-  incidenciaInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  pedidoText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#4a5568',
+    color: 'red',
   },
   statusBadge: {
     paddingHorizontal: 10,
@@ -310,30 +231,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  prioridadBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-  },
-  prioridadText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-  },
   clienteText: {
-    fontSize: 14,
+    fontSize: 16,
     marginBottom: 4,
     color: '#4a5568',
   },
-  descripcionText: {
+  fechaText: {
     fontSize: 14,
     color: '#718096',
-    marginBottom: 8,
-  },
-  fechaText: {
-    fontSize: 12,
-    color: '#718096',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   actionsContainer: {
     flexDirection: 'row',
@@ -367,3 +273,33 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
