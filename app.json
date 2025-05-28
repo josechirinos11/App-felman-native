@@ -12,8 +12,11 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.felman.appfelmannative",  
+      "versionCode": 1,                            
+      "icon": "./assets/images/felmalogo.png",  
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/adaptive-icon.png", 
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true
