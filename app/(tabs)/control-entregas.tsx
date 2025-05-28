@@ -35,60 +35,63 @@ const PedidoItem = ({ item }: { item: Pedido }) => {
 export default function ControlUsuariosScreen() {
   const [data, setData] = useState<Pedido[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1); // Iniciar en página 1
   const [loading, setLoading] = useState(true);
-  const pageSize = 50;
+  const pageSize = 20;
+
+  // Nuevo fetchPedidos: trae todo, pero fragmenta para mostrar de 20 en 20 en el FlatList
+  const fetchPedidos = async () => {
+    try {
+      setLoading(true);
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL;
+      if (!apiUrl) throw new Error('EXPO_PUBLIC_API_URL no definida');
+      const res = await fetch(`${apiUrl}/control-access/ConsultaControlPedidoInicio`);
+      const result = await res.json();
+      setData(Array.isArray(result) ? result : []);
+      setCurrentPage(1); // Página 1 al cargar
+    } catch (error) {
+      console.error('Error al obtener pedidos:', error);
+      setData([]);
+      setCurrentPage(1);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchPedidos = async () => {
-      try {
-        const apiUrl = process.env.EXPO_PUBLIC_API_URL;
-        if (!apiUrl) throw new Error('EXPO_PUBLIC_API_URL no definida');
-        const res = await fetch(`${apiUrl}/control-access/formularioControlPedido`);
-        const result = await res.json();
-        
-        setData(Array.isArray(result) ? result : []);
-        setCurrentPage(0);
-      } catch (error) {
-        console.error('Error al obtener pedidos:', error);
-        setData([]);
-        setCurrentPage(0);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchPedidos();
   }, []);
 
-  // Filtrar, ordenar y paginar en el render, no en useEffect
+  // Reiniciar paginación al buscar
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  // Filtrar y ordenar solo los datos ya cargados
   const filtered = searchQuery.trim() === ''
     ? data
     : data.filter(p =>
         typeof p.NºPedido === 'string' &&
         p.NºPedido.toLowerCase().includes(searchQuery.toLowerCase())
       );
-  // Ordenar por Compromiso de mayor a menor (descendente)
   const sorted = [...filtered].sort((a, b) => {
-    // Si ambos tienen compromiso, comparar como fechas
     if (a.Compromiso && b.Compromiso) {
       return new Date(b.Compromiso).getTime() - new Date(a.Compromiso).getTime();
     }
-    // Si solo uno tiene compromiso, ese va primero
     if (a.Compromiso) return -1;
     if (b.Compromiso) return 1;
     return 0;
   });
-  const displayedPedidos = sorted.slice(0, (currentPage + 1) * pageSize);
 
+  // Fragmentar para mostrar solo 20 por página
+  const pagedPedidos = sorted.slice(0, currentPage * pageSize);
+
+  // handleEndReached para mostrar más (20 más)
   const handleEndReached = () => {
-    if (displayedPedidos.length < filtered.length) {
+    if (!loading && pagedPedidos.length < sorted.length) {
       setCurrentPage(prev => prev + 1);
     }
   };
-
-  useEffect(() => {
-    setCurrentPage(0);
-  }, [searchQuery]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -105,14 +108,16 @@ export default function ControlUsuariosScreen() {
             onChangeText={setSearchQuery}
           />
         </View>
-        {loading ? (
+        <Text style={{ textAlign: 'center', color: '#888', marginBottom: 4 }}>
+          Página actual: {currentPage}
+        </Text>
+        {loading && currentPage === 1 ? (
           <Text style={{ textAlign: 'center', marginTop: 20 }}>Cargando...</Text>
         ) : (
           <FlatList
-            data={displayedPedidos}
+            data={pagedPedidos}
             renderItem={({ item, index }) => <PedidoItem item={item} />}
             keyExtractor={(item, idx) => {
-              // Usar NPedido si existe y es string, si no, usar el índice
               const key = typeof item.NºPedido === 'string' && item.NºPedido.trim() !== '' ? item.NºPedido : `row-${idx}`;
               return key;
             }}
@@ -124,9 +129,13 @@ export default function ControlUsuariosScreen() {
             onEndReached={handleEndReached}
             onEndReachedThreshold={0.2}
             ListFooterComponent={
-              displayedPedidos.length < filtered.length && !loading ? (
-                <Text style={{ textAlign: 'center', padding: 12, color: '#2e78b7' }}>Cargando más...</Text>
-              ) : null
+              loading && currentPage === 1 ? (
+                <Text style={{ textAlign: 'center', padding: 12, color: '#2e78b7' }}>Cargando...</Text>
+              ) : pagedPedidos.length < sorted.length ? (
+                <Text style={{ textAlign: 'center', padding: 12, color: '#2e78b7' }}>Desliza para ver más...</Text>
+              ) : (
+                <Text style={{ textAlign: 'center', padding: 12, color: '#888' }}>Fin del listado</Text>
+              )
             }
           />
         )}
