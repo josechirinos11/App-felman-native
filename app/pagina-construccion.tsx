@@ -1,17 +1,12 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
-// Esta configuración oculta la página del menú de pestañas
-export const unstable_settings = {
-  // Ocultar esta ruta de la barra de pestañas
-  isHidden: true,
-};
 
 export default function PaginaEnConstruccionScreen() {
   const params = useLocalSearchParams();
+  const router = useRouter();
   const [title, setTitle] = useState<string>('Página en Construcción');
   const [icon, setIcon] = useState<string>('construct-outline');
 
@@ -24,31 +19,37 @@ export default function PaginaEnConstruccionScreen() {
       setIcon(params.icon as string);
     }
   }, [params]);
+  
   return (
-    <>
-      <Stack.Screen options={{ headerShown: false }} />
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{title}</Text>
-        </View>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.title}>{title}</Text>
+      </View>
 
-        <View style={styles.content}>
-          <View style={styles.constructionContainer}>
-            <View style={styles.iconBackground}>
-              <Ionicons name={icon as any} size={80} color="#ffffff" style={styles.constructionIcon} />
-            </View>
-            <Text style={styles.constructionTitle}>¡Estamos trabajando en ello!</Text>
-            <Text style={styles.constructionText}>
-              Esta sección está actualmente en desarrollo y estará disponible próximamente.
-            </Text>
-            <View style={styles.separator} />
-            <Text style={styles.constructionSubtext}>
-              Gracias por su paciencia mientras mejoramos la aplicación.
-            </Text>
+      <View style={styles.content}>
+        <View style={styles.constructionContainer}>
+          <View style={styles.iconBackground}>
+            <Ionicons name={icon as any} size={80} color="#ffffff" style={styles.constructionIcon} />
           </View>
+          <Text style={styles.constructionTitle}>¡Estamos trabajando en ello!</Text>
+          <Text style={styles.constructionText}>
+            Esta sección está actualmente en desarrollo y estará disponible próximamente.
+          </Text>
+          <View style={styles.separator} />
+          <Text style={styles.constructionSubtext}>
+            Gracias por su paciencia mientras mejoramos la aplicación.
+          </Text>
+          
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back-outline" size={20} color="#ffffff" />
+            <Text style={styles.backButtonText}>Atrás</Text>
+          </TouchableOpacity>
         </View>
-      </SafeAreaView>
-    </>
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -131,5 +132,25 @@ const styles = StyleSheet.create({
     color: '#718096',
     fontStyle: 'italic',
     textAlign: 'center',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2e78b7',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    marginTop: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  backButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });
