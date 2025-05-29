@@ -10,7 +10,6 @@ function TabBarIcon(props: {
   return <Ionicons size={24} style={{ marginBottom: -3 }} {...props} />;
 }
 
-
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const { logout } = useAuth();
@@ -53,6 +52,13 @@ export default function TabLayout() {
         options={{
           title: 'Comerciales',
           tabBarIcon: ({ color }) => <TabBarIcon name="cube-outline" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="control-entregas-diarias"
+        options={{
+          title: 'Entregas',
+          tabBarIcon: ({ color }) => <TabBarIcon name="calendar-outline" color={color} />,
         }}
       />
       <Tabs.Screen

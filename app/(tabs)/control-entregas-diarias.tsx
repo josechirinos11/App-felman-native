@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Definir tipo para las entregas
@@ -23,8 +23,7 @@ interface Entrega {
   NSCaballetes: string | null;
   NoPedido: string;
   RefCliente: string;
-  Cliente: string;
-  Comercial: string;
+  Cliente: string;  Comercial: string;
 }
 
 export default function ControlEntregasDiariasScreen() {
@@ -32,9 +31,6 @@ export default function ControlEntregasDiariasScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'TODOS' | 'PENDIENTE' | 'ENTREGADO'>('TODOS');
-  const [modalVisible, setModalVisible] = useState(false);
-  const [modalGroup, setModalGroup] = useState<Entrega[]>([]);
   const [userName, setUserName] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const pageSize = 20;
@@ -95,7 +91,6 @@ export default function ControlEntregasDiariasScreen() {
   useEffect(() => {
     fetchEntregas();
   }, []);
-
   // Obtener datos de usuario
   useEffect(() => {
     const getUserData = async () => {
@@ -104,90 +99,84 @@ export default function ControlEntregasDiariasScreen() {
         console.log('UserData:', userDataString);
         if (userDataString) {
           const userData = JSON.parse(userDataString);
-          setUserName(userData.nombre || userData.name);
-          setUserRole(userData.rol || userData.role);
+          const userName = userData.nombre || userData.name;
+          const userRole = userData.rol || userData.role;
+          
+          console.log('Nombre de usuario extraído:', userName);
+          console.log('Rol de usuario extraído:', userRole);
+          
+          setUserName(userName);
+          setUserRole(userRole);
         }
       } catch (e) {
         console.error('Error al obtener userData:', e);
       }
     };
     getUserData();
-  }, []);
-
-  const filtrarPorRolYBusqueda = (entregas: Entrega[]) => {
+  }, []);const filtrarPorRolYBusqueda = (entregas: Entrega[]) => {
     let resultado = [...entregas];
 
     // Filtrar por rol
-    if (userRole === 'comercial' && userName) {
-      resultado = resultado.filter(e => e.Comercial.toLowerCase() === userName.toLowerCase());
+    if ((userRole === 'comercial' || userRole === 'Comercial') && userName) {
+      console.log('Filtrando por comercial:', userName);
+      // Limpiar y normalizar los nombres para comparación (quitar espacios extra y convertir a minúsculas)
+      const nombreUsuarioNormalizado = userName.toLowerCase().trim();
+      resultado = resultado.filter(e => {
+        const nombreComercialNormalizado = e.Comercial.toLowerCase().trim();
+        const coincide = nombreComercialNormalizado === nombreUsuarioNormalizado;
+        return coincide;
+      });
+      console.log('Entregas filtradas por comercial:', resultado.length);
+    } else {
+      console.log('No se aplica filtro por comercial. Rol:', userRole, 'Nombre:', userName);
     }
 
     // Filtrar por búsqueda
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       resultado = resultado.filter(e =>
-        e.NoPedido.toLowerCase().includes(query) ||
-        e.Cliente.toLowerCase().includes(query) ||
+        e.NoPedido.toLowerCase().includes(query) ||        e.Cliente.toLowerCase().includes(query) ||
         e.RefCliente.toLowerCase().includes(query)
       );
     }
-
-    // Filtrar por estado
-    if (filter !== 'TODOS') {
-      resultado = resultado.filter(e => {
-        if (filter === 'ENTREGADO') return e.EntregaConfirmada === -1;
-        if (filter === 'PENDIENTE') return e.EntregaConfirmada === 1;
-        return true;
-      });
-    }
+    
+    // Ordenar primero por Id_Entrega (de mayor a menor) y luego por fecha de envío
+    resultado.sort((a, b) => {
+      // Primero ordenar por Id_Entrega (de mayor a menor)
+      if (a.Id_Entrega !== b.Id_Entrega) {
+        return b.Id_Entrega - a.Id_Entrega; // Orden descendente por Id_Entrega
+      }
+      
+      // Si los ID son iguales, ordenar por fecha (de más reciente a más antigua)
+      const fechaA = new Date(a.FechaEnvio).getTime();
+      const fechaB = new Date(b.FechaEnvio).getTime();
+      return fechaB - fechaA;
+    });
 
     return resultado;
-  };
-
-  const renderItem = ({ item }: { item: Entrega }) => (
-    <TouchableOpacity style={styles.itemContainer}>
-      <View style={styles.itemHeader}>
-        <View>
-          <Text style={styles.pedidoNumero}>Nº Pedido: {item.NoPedido}</Text>
-          <Text style={styles.fechaText}>{new Date(item.FechaEnvio).toLocaleDateString()}</Text>
-        </View>
-        <View style={[
-          styles.estadoBadge,
-          { backgroundColor: item.EntregaConfirmada === -1 ? '#4CAF50' : 
-                           item.EntregaConfirmada === 1 ? '#FFA500' : '#FF0000' }
-        ]}>
-          <Text style={styles.estadoText}>
-            {item.EntregaConfirmada === -1 ? 'ENTREGADO' : 
-             item.EntregaConfirmada === 1 ? 'PENDIENTE' : 'NO CONFIRMADO'}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.itemContent}>
-        <Text style={styles.contentText}>Cliente: {item.Cliente}</Text>
-        <Text style={styles.contentText}>Ref. Cliente: {item.RefCliente}</Text>
-        <Text style={styles.contentText}>Estado: {item.EstadoCarga}</Text>
-        <View style={styles.detallesEntrega}>
-          <Text style={styles.detalleText}>Caballetes: {item.NCaballetes}</Text>
-          <Text style={styles.detalleText}>Bultos: {item.NBultos}</Text>
-        </View>
-        {item.ObservaGral && (
-          <Text style={styles.observacionText}>Obs: {item.ObservaGral}</Text>
-        )}
-      </View>
-    </TouchableOpacity>
-  );
-
-  const handleEntregaPress = (entregas: Entrega[]) => {
-    setModalGroup(entregas);
-    setModalVisible(true);
-  };
+  };  // Eliminado renderItem ya que no se usa - ahora usamos renderEntrega
+  // Ya no necesitamos la función handleEntregaPress porque eliminamos el Modal
 
   const renderEntrega = ({ item }: { item: Entrega }) => {
-    // Agrupar entregas por fecha y estado
+    // Agrupar entregas solo por fecha, ya no por estado
     const group = data.filter(
-      e => e.FechaEnvio === item.FechaEnvio && e.EstadoCarga === item.EstadoCarga
+      e => e.FechaEnvio === item.FechaEnvio
     );
+
+    // Formatear la fecha para mostrarla como día, mes y año
+    const formatearFecha = (fecha: string) => {
+      try {
+        const date = new Date(fecha);
+        return date.toLocaleDateString('es-ES', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        });      } catch (error) {
+        return fecha || 'Fecha desconocida';
+      }
+    };
+    
+    const fechaFormateada = formatearFecha(item.FechaEnvio);
 
     return (
       <TouchableOpacity
@@ -195,56 +184,61 @@ export default function ControlEntregasDiariasScreen() {
           styles.entregaItem,
           { backgroundColor: item.EntregaConfirmada ? '#e6ffe6' : '#fff' }
         ]}
-        onPress={() => handleEntregaPress(group)}
       >
-        <Text style={styles.entregaTitle}>Fecha: {item.FechaEnvio}</Text>
-        <Text style={styles.entregaText}>Estado: {item.EstadoCarga}</Text>
-        <Text style={styles.entregaText}>
-          Entregas en grupo: {group.length}
-        </Text>
+        <Text style={styles.pedidoNumero}>Nº Pedido: {item.NoPedido}</Text>
+        <Text style={styles.entregaText}>ID Entrega: {item.Id_Entrega}</Text>
+        <Text style={styles.entregaText}>Comercial: {item.Comercial}</Text>
+        <Text style={styles.entregaText}>Cliente: {item.Cliente}</Text>
+        <Text style={styles.entregaText}>Ref. Cliente: {item.RefCliente}</Text>
+        <Text style={styles.entregaText}>Fecha de envío: {fechaFormateada}</Text>
       </TouchableOpacity>
     );
   };
-
-  // Modificar la lista de datos para mostrar solo un elemento por grupo
-  const groupedData = data.reduce((acc: Entrega[], current) => {
-    if (!current.FechaEnvio || !current.EstadoCarga || !current.Id_Entrega) return acc;
-    
-    const exists = acc.find(
-      item => 
-        item.FechaEnvio === current.FechaEnvio && 
-        item.EstadoCarga === current.EstadoCarga
-    );
-    if (!exists) {
-      acc.push(current);
-    }
-    return acc;
-  }, []);
-
+  // Modificar la lista de datos para mostrar solo un elemento por grupo de fecha
+  const groupedData = data
+    .reduce((acc: Entrega[], current) => {
+      if (!current.FechaEnvio || !current.Id_Entrega) return acc;
+      
+      const exists = acc.find(
+        item => 
+          item.FechaEnvio === current.FechaEnvio
+      );
+      if (!exists) {
+        acc.push(current);      }
+      return acc;
+    }, [])
+    .sort((a, b) => {
+      // Primero ordenar por Id_Entrega (de mayor a menor)
+      if (a.Id_Entrega !== b.Id_Entrega) {
+        return b.Id_Entrega - a.Id_Entrega; // Orden descendente por Id_Entrega
+      }
+      
+      // Si los ID son iguales, ordenar por fecha (de más reciente a más antigua)
+      const fechaA = new Date(a.FechaEnvio).getTime();
+      const fechaB = new Date(b.FechaEnvio).getTime();
+      return fechaB - fechaA;
+    });
   const datosFiltrados = filtrarPorRolYBusqueda(data);
   const datosPaginados = datosFiltrados.slice(0, currentPage * pageSize);
-
   // Función para generar keys únicos para el FlatList
-  const generateKey = (item: Entrega) => {
-    return `${item.Id_Entrega || ''}-${item.FechaEnvio || ''}-${item.EstadoCarga || ''}`;
+  const generateKey = (item: Entrega, index: number) => {
+    // Usamos el índice para garantizar claves únicas incluso si hay duplicados
+    return `${item.Id_Entrega || ''}-${item.FechaEnvio || ''}-${index}`;
   };
 
   const handleRefresh = () => {
     fetchEntregas(0);
   };
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Entregas Diarias</Text>
         <TouchableOpacity
           onPress={handleRefresh}
-          style={styles.refreshButton}
-        >
+          style={styles.refreshButton}        >
           <Ionicons name="refresh" size={22} color="#fff" />
         </TouchableOpacity>
       </View>
-
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
@@ -252,33 +246,6 @@ export default function ControlEntregasDiariasScreen() {
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
-      </View>
-
-      <View style={styles.filterContainer}>
-        <TouchableOpacity
-          style={[styles.filterButton, filter === 'TODOS' && styles.filterButtonActive]}
-          onPress={() => setFilter('TODOS')}
-        >
-          <Text style={[styles.filterButtonText, filter === 'TODOS' && styles.filterButtonTextActive]}>
-            TODOS
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterButton, filter === 'PENDIENTE' && styles.filterButtonActive]}
-          onPress={() => setFilter('PENDIENTE')}
-        >
-          <Text style={[styles.filterButtonText, filter === 'PENDIENTE' && styles.filterButtonTextActive]}>
-            PENDIENTES
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.filterButton, filter === 'ENTREGADO' && styles.filterButtonActive]}
-          onPress={() => setFilter('ENTREGADO')}
-        >
-          <Text style={[styles.filterButtonText, filter === 'ENTREGADO' && styles.filterButtonTextActive]}>
-            ENTREGADOS
-          </Text>
-        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -291,9 +258,12 @@ export default function ControlEntregasDiariasScreen() {
         </View>
       ) : (
         <FlatList
-          data={groupedData}
+          data={datosFiltrados} // Usar los datos filtrados y ordenados por fecha
           renderItem={renderEntrega}
           keyExtractor={generateKey}
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          windowSize={21}
           contentContainerStyle={styles.listContainer}
           onEndReached={() => {
             if (currentPage * pageSize < datosFiltrados.length) {
@@ -308,38 +278,6 @@ export default function ControlEntregasDiariasScreen() {
           }
         />
       )}
-
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.centeredView}>
-          <View style={styles.modalView}>
-            <TouchableOpacity 
-              style={styles.closeButton}
-              onPress={() => setModalVisible(false)}
-            >
-              <Text style={styles.closeButtonText}>✕</Text>
-            </TouchableOpacity>
-            
-            <FlatList
-              data={modalGroup}
-              keyExtractor={generateKey}
-              renderItem={({ item }) => (
-                <View style={styles.modalItem}>
-                  <Text style={styles.modalItemTitle}>ID Entrega: {item.Id_Entrega}</Text>
-                  <Text style={styles.modalItemText}>Fecha de Envío: {item.FechaEnvio}</Text>
-                  <Text style={styles.modalItemText}>Estado: {item.EstadoCarga}</Text>
-                  <Text style={styles.modalItemText}>Entrega Confirmada: {item.EntregaConfirmada ? 'Sí' : 'No'}</Text>
-                  {/* Agregar más campos según necesidad */}
-                </View>
-              )}
-            />
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -377,35 +315,11 @@ const styles = StyleSheet.create({
   searchInput: {
     height: 40,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 8,
+    borderColor: '#e0e0e0',    borderRadius: 8,
     paddingHorizontal: 16,
     backgroundColor: 'white',
   },
-  filterContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 12,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-    backgroundColor: '#f0f0f0',
-  },
-  filterButtonActive: {
-    backgroundColor: '#2e78b7',
-  },
-  filterButtonText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  filterButtonTextActive: {
-    color: 'white',
-  },
+  // Estilos de filtros eliminados
   listContainer: {
     padding: 16,
   },
@@ -481,58 +395,11 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
   },
-  loadingMoreText: {
-    textAlign: 'center',
+  loadingMoreText: {    textAlign: 'center',
     padding: 16,
     color: '#666',
   },
-  centeredView: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalView: {
-    width: '90%',
-    maxHeight: '80%',
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  closeButton: {
-    position: 'absolute',
-    right: 10,
-    top: 10,
-    padding: 10,
-    zIndex: 1,
-  },
-  closeButtonText: {
-    fontSize: 20,
-    color: '#666',
-  },
-  modalItem: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  modalItemTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 5,
-  },
-  modalItemText: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 3,
-  },
+  // Se eliminaron estilos relacionados con el modal que ya no utilizamos
   entregaItem: {
     padding: 16,
     borderRadius: 12,
