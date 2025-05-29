@@ -32,6 +32,7 @@ export default function ControlUsuariosScreen() {
     []
   );
   const [userName, setUserName] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const pageSize = 20;
 
   // Nuevo fetchPedidos: trae todo, pero fragmenta para mostrar de 20 en 20 en el FlatList
@@ -57,24 +58,26 @@ export default function ControlUsuariosScreen() {
     fetchPedidos();
   }, []);
 
-  // Obtener nombre de usuario de AsyncStorage
+  // Obtener nombre de usuario y rol de AsyncStorage
   useEffect(() => {
-    const getUserName = async () => {
+    const getUserData = async () => {
       try {
         const userDataString = await AsyncStorage.getItem('userData');
-        console.log('userDataString:', userDataString); // <-- depuración
         if (userDataString) {
           const userData = JSON.parse(userDataString);
-          // Unificar lógica: usar 'nombre' o 'name'
           const nombre = userData.nombre || userData.name || null;
-          console.log('Nombre extraído:', nombre); // <-- depuración
+          const rol = userData.rol || userData.role || null;
           setUserName(nombre);
+          setUserRole(rol);
+          console.log('nombre extraído:', nombre); // <-- depuración
+            console.log('Rol extraído:', rol); // <-- depuración
         }
       } catch (e) {
         setUserName(null);
+        setUserRole(null);
       }
     };
-    getUserName();
+    getUserData();
   }, []);
 
   // Reiniciar paginación al buscar
@@ -101,45 +104,49 @@ export default function ControlUsuariosScreen() {
     }
   }, [userName, data]);
 
-  // Filtrar por comercial (usuario) ANTES de ordenar y paginar
-  if (userName) {
-    grupos = grupos.filter(grupo => grupo[0].Comercial === userName);
-    console.log('Filtrando por comercial:', userName, 'Grupos resultantes:', grupos.length);
+  // Filtrar por rol y comercial (usuario) ANTES de ordenar y paginar
+  let gruposFiltrados = grupos;
+  if (userRole === 'admin' || userRole === 'developer') {
+    // Mostrar todos los pedidos
+    gruposFiltrados = grupos;
+    console.log('Usuario con rol admin/developer, mostrando todos los pedidos');
+  } else if (userRole === 'Comercial' && userName) {
+    // Mostrar solo los pedidos donde Comercial === nombre extraído
+    gruposFiltrados = grupos.filter(grupo => grupo[0].Comercial === userName);
+    console.log('Usuario Comercial, mostrando solo pedidos de:', userName, 'Total:', gruposFiltrados.length);
+  } else {
+    // Otros roles: mostrar todos los pedidos
+    gruposFiltrados = grupos;
+    console.log('Usuario sin rol especial, mostrando todos los pedidos');
   }
 
   // Aplicar filtros
+  let gruposFiltradosYFiltrados = gruposFiltrados;
   if (filter !== 'TODOS') {
-    grupos = grupos.filter(grupo => grupo.some(p => typeof p.Seccion === 'string' && p.Seccion.toUpperCase().includes(filter)));
+    gruposFiltradosYFiltrados = gruposFiltradosYFiltrados.filter(grupo => grupo.some(p => typeof p.Seccion === 'string' && p.Seccion.toUpperCase().includes(filter)));
   }
   if (searchQuery.trim() !== '') {
     const q = searchQuery.toLowerCase();
-    grupos = grupos.filter(grupo =>
+    gruposFiltradosYFiltrados = gruposFiltradosYFiltrados.filter(grupo =>
       grupo[0].NoPedido.toLowerCase().includes(q) ||
       (grupo[0].Cliente && grupo[0].Cliente.toLowerCase().includes(q)) ||
       (grupo[0].RefCliente && grupo[0].RefCliente.toLowerCase().includes(q))
     );
   }
-  // Ordenar por Compromiso del primer elemento
-  grupos.sort((a, b) => {
-    if (a[0].Compromiso && b[0].Compromiso) {
-      return new Date(b[0].Compromiso).getTime() - new Date(a[0].Compromiso).getTime();
-    }
-    if (a[0].Compromiso) return -1;
-    if (b[0].Compromiso) return 1;
-    return 0;
-  });
   // Ordenar por NoPedido de mayor a menor
-  grupos.sort((a, b) => {
+  gruposFiltradosYFiltrados.sort((a, b) => {
     if (a[0].NoPedido > b[0].NoPedido) return -1;
     if (a[0].NoPedido < b[0].NoPedido) return 1;
     return 0;
   });
-  // Fragmentar para mostrar solo 20 por página
-  const pagedGrupos = grupos.slice(0, currentPage * pageSize);
+  // Fragmentar para mostrar solo 20 por página, excepto admin/developer
+  const pagedGrupos = (userRole === 'admin' || userRole === 'developer')
+    ? gruposFiltradosYFiltrados
+    : gruposFiltradosYFiltrados.slice(0, currentPage * pageSize);
 
   // handleEndReached para mostrar más (20 más)
   const handleEndReached = () => {
-    if (!loading && pagedGrupos.length < grupos.length) {
+    if (!loading && pagedGrupos.length < gruposFiltradosYFiltrados.length) {
       setCurrentPage(prev => prev + 1);
     }
   };
@@ -237,7 +244,7 @@ export default function ControlUsuariosScreen() {
             ListFooterComponent={
               loading && currentPage === 1 ? (
                 <Text style={{ textAlign: 'center', padding: 12, color: '#2e78b7' }}>Cargando...</Text>
-              ) : pagedGrupos.length < grupos.length ? (
+              ) : pagedGrupos.length < gruposFiltradosYFiltrados.length ? (
                 <Text style={{ textAlign: 'center', padding: 12, color: '#2e78b7' }}>Desliza para ver más...</Text>
               ) : (
                 <Text style={{ textAlign: 'center', padding: 12, color: '#888' }}>Fin del listado</Text>

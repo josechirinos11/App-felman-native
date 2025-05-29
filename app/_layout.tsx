@@ -44,11 +44,11 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+      <Stack screenOptions={{ headerShown: false }}>
         {!authenticated ? (
           <>
-            <Stack.Screen name="login" options={{ headerShown: false }} />
-            <Stack.Screen name="register" options={{ headerShown: false }} />
+            <Stack.Screen name="login"  />
+            <Stack.Screen name="register"  />
           </>
         ) : (
           <Stack.Screen 

@@ -2,6 +2,7 @@
 export const options = {
   headerShown: false,
 };
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -12,6 +13,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
 
@@ -72,9 +74,21 @@ export default function LoginScreen() {
           placeholderTextColor="#9ca3af"
           value={password}
           onChangeText={setPassword}
-          secureTextEntry
+          secureTextEntry={!showPassword}
           selectionColor="#2e78b7"
+          autoCapitalize="none"
         />
+        <TouchableOpacity
+          style={{ position: 'absolute', right: 10, top: 12 }}
+          onPress={() => setShowPassword((prev) => !prev)}
+          accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+        >
+          <Ionicons
+            name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+            size={22}
+            color="#2e78b7"
+          />
+        </TouchableOpacity>
       </View>
       <TouchableOpacity
         style={[styles.button, loading && styles.buttonDisabled]}
