@@ -12,11 +12,11 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.felman.appfelmannative",  
-      "versionCode": 1,                            
-      "icon": "./assets/images/felmalogo.png",  
+      "package": "com.felman.appfelmannative",
+      "versionCode": 1,
+      "icon": "./assets/images/felmalogo.png",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png", 
+        "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true
@@ -40,6 +40,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d9cc1079-ff52-4783-861c-f5242470ab58"
+      }
     }
   }
 }

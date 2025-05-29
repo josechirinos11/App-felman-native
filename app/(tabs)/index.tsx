@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
-type RouteNames = '/control-pedidos' | '/control-entregas' | '/control-incidencias';
+type RouteNames = '/control-pedidos' | '/control-entregas' | '/control-incidencias' | '/control-entregas-diarias';
 
 interface MenuItem {
   id: number;
@@ -17,11 +17,10 @@ interface MenuItem {
   route: RouteNames;
 }
 
-const menuItems: MenuItem[] = [
-  { id: 1, title: 'Control de Pedidos', icon: 'clipboard-outline',    route: '/control-pedidos'    },
+const menuItems: MenuItem[] = [  { id: 1, title: 'Control de Pedidos', icon: 'clipboard-outline',    route: '/control-pedidos'    },
   { id: 2, title: 'Control Comerciales', icon: 'cube-outline',         route: '/control-entregas'   },
   { id: 3, title: 'Control de Incidencias', icon: 'alert-circle-outline', route: '/control-incidencias' },
-  { id: 4, title: 'Paguina en Construccion', icon: 'build-outline',      route: '/control-pedidos'    },
+  { id: 4, title: 'Entregas Diarias', icon: 'calendar-outline',      route: '/control-entregas-diarias'    },
   { id: 5, title: 'Paguina en Construccion', icon: 'person-outline',       route: '/control-pedidos'    },
   { id: 6, title: 'Paguina en Construccion', icon: 'cart-outline',         route: '/control-pedidos'    },
 ];
