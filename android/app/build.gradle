@@ -87,9 +87,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.josechirinos11.appNativeFelman'
+    namespace 'com.felman.appfelmannative'
     defaultConfig {
-        applicationId 'com.josechirinos11.appNativeFelman'
+        applicationId 'com.felman.appfelmannative'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

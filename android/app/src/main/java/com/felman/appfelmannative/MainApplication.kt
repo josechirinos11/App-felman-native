@@ -1,4 +1,4 @@
-package com.josechirinos11.appNativeFelman
+package com.felman.appfelmannative
 
 import android.app.Application
 import android.content.res.Configuration

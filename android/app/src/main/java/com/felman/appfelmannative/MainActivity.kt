@@ -1,4 +1,4 @@
-package com.josechirinos11.appNativeFelman
+package com.felman.appfelmannative
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build
