@@ -1,18 +1,16 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, AxiosRequestConfig } from 'axios';
+import { API_URL } from './constants';
 
-// Obtener la URL de la API desde las variables de entorno
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
-
-if (!API_URL) {
-    throw new Error('EXPO_PUBLIC_API_URL no está definida en el archivo .env');
-}
+// Constante para el máximo de reintentos
+const MAX_RETRIES = 2;
+const RETRY_DELAY_BASE = 1000;
 
 console.log('🔌 Conectando a API:', API_URL);
 
 // Crear la instancia de axios con configuración inicial
 const clienteAxios = axios.create({
-    baseURL: API_URL, // Usar la URL de las variables de entorno
+    baseURL: API_URL,
     timeout: 10000,
     headers: {
         'Content-Type': 'application/json',
@@ -20,20 +18,7 @@ const clienteAxios = axios.create({
     }
 });
 
-// Verificar la conexión inicial
-(async () => {
-    try {
-        const testUrl = `${API_URL}/test/test-connection`;
-        console.log('🔄 Probando conexión desde axios:', testUrl);
-        await axios.get(testUrl, { timeout: 2000 });
-        console.log('✅ Conexión exitosa a:', API_URL);
-    } catch (error) {
-        const axiosError = error as AxiosError;
-        console.error('❌ Error al conectar:', axiosError.message);
-    }
-})();
-
-// Interceptor para agregar el token al encabezado de cada solicitud
+// Interceptor para añadir el token a todas las peticiones
 clienteAxios.interceptors.request.use(
     async (config) => {
         try {
@@ -42,40 +27,94 @@ clienteAxios.interceptors.request.use(
                 config.headers.Authorization = `Bearer ${token}`;
             }
             console.log('🚀 Enviando solicitud a:', config.url);
-            return config;
-        } catch (error) {
-            console.error('Error al obtener el token:', error);
-            return config;
+        } catch (e) {
+            console.error('Error al obtener token:', e);
         }
+        return config;
     },
-    (error: AxiosError) => {
-        console.error('Error en interceptor de request:', error);
+    (error) => {
+        console.error('Error en interceptor de petición:', error);
         return Promise.reject(error);
     }
 );
 
-// Interceptor para manejar respuestas y errores
+// Interceptor para manejar respuestas y errores con reintentos
 clienteAxios.interceptors.response.use(
     (response) => {
         console.log('✅ Respuesta exitosa:', response.config.url);
         return response;
-    },    (error: AxiosError) => {
+    },
+    async (error: AxiosError) => {
+        const config = error.config as AxiosRequestConfig & { _retryCount?: number };
+        
+        // Inicializar contador de reintentos si no existe
+        if (!config || !config.url) {
+            console.error('❌ Error sin configuración válida:', error.message);
+            return Promise.reject(error);
+        }
+        
+        config._retryCount = config._retryCount || 0;
+        
+        // Si hay un error de red, timeout, o error 5xx y no hemos excedido los reintentos
+        const shouldRetry = (
+            (error.code === 'ECONNABORTED' || 
+            error.message.includes('timeout') ||
+            error.message.includes('Network Error') ||
+            !error.response || 
+            error.response.status >= 500) && 
+            config._retryCount < MAX_RETRIES
+        );
+        
+        if (shouldRetry) {
+            config._retryCount += 1;
+            
+            // Calcular delay con backoff exponencial
+            const delay = RETRY_DELAY_BASE * Math.pow(2, config._retryCount - 1);
+            console.log(`⏳ Reintentando solicitud (${config._retryCount}/${MAX_RETRIES}) a ${config.url} en ${delay}ms`);
+            
+            // Esperar antes de reintentar
+            await new Promise(resolve => setTimeout(resolve, delay));
+            
+            // Reintentar la solicitud
+            return clienteAxios(config);
+        }
+        
+        // Si ya no debemos reintentar, registrar el error detallado
+        if (config._retryCount > 0) {
+            console.error(`❌ Fallaron todos los reintentos (${config._retryCount}) para: ${config.url}`);
+        }
+        
         if (error.response) {
             console.error('❌ Error de respuesta del servidor:', {
                 status: error.response.status,
-                data: JSON.stringify(error.response.data, null, 2),
-                url: error.config?.url
+                data: error.response.data,
+                url: config.url
             });
         } else if (error.request) {
             console.error('❌ Error de conexión:', {
                 message: error.message,
-                url: error.config?.url
+                url: config.url
             });
         } else {
             console.error('❌ Error de configuración:', error.message);
         }
+        
         return Promise.reject(error);
     }
 );
+
+// Verificar la conexión inicial al módulo
+(async () => {
+    try {
+        const testUrl = `${API_URL}/test/test-connection`;
+        console.log('🔄 Probando conexión inicial desde axios:', testUrl);
+        const response = await axios.get(testUrl, { timeout: 5000 });
+        console.log('✅ Conexión inicial exitosa:', response.data);
+    } catch (error) {
+        const axiosError = error as AxiosError;
+        console.warn('⚠️  No se pudo conectar inicialmente:', axiosError.message);
+        console.log('📱 La app funcionará en modo offline hasta establecer conexión');
+    }
+})();
 
 export default clienteAxios;

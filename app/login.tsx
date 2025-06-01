@@ -98,11 +98,7 @@ export default function LoginScreen() {
           {loading ? 'Entrando...' : 'Entrar'}
         </Text>
       </TouchableOpacity>
-      <TouchableOpacity
-        style={[styles.button, styles.registerButton]}
-        onPress={handleRegister}>
-        <Text style={styles.buttonText}>Registrarse</Text>
-      </TouchableOpacity>
+
     </View>
   );
 }

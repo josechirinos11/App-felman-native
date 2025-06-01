@@ -5,5 +5,6 @@
     "source.sortMembers": "explicit"
   },
   "CodeGPT.apiKey": "CodeGPT Plus Beta",
-  "java.configuration.updateBuildConfiguration": "automatic"
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "java.compile.nullAnalysis.mode": "automatic"
 }

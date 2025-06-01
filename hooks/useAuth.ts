@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
+import { API_URL } from '../config/constants';
 
 interface AuthState {
     token: string | null;
@@ -49,11 +50,8 @@ export function useAuth() {
 
        const login = async (nombre: string, password: string) => {
         try {
-            const apiUrl = process.env.EXPO_PUBLIC_API_URL || '';
-            if (!apiUrl) {
-                throw new Error('La variable de entorno EXPO_PUBLIC_API_URL no está definida');
-            }
-            const url = `${apiUrl}/auth/login`;
+            // Usamos la constante API_URL importada
+            const url = `${API_URL}/auth/login`;
             console.log('📡 Intentando login en:', url);
             const { data } = await axios.post(url, { nombre, password });
 

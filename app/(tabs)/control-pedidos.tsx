@@ -1,8 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
-import { FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { API_URL } from '../../config/constants';
+import { useOfflineMode } from '../../hooks/useOfflineMode';
 
 // Definir tipo para los pedidos
 interface Pedido {
@@ -26,23 +28,34 @@ export default function ControlUsuariosScreen() {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'TODOS' | 'ALUMINIO' | 'PVC'>('TODOS');
-  const [modalVisible, setModalVisible] = useState(false);
-  const [modalGroup, setModalGroup] = useState<Pedido[]>(
+  const [modalVisible, setModalVisible] = useState(false);  const [modalGroup, setModalGroup] = useState<Pedido[]>(
     []
   );
   const [userRole, setUserRole] = useState<string | null>(null);
   const pageSize = 20;
-
+  
+  // Usar el hook de modo offline
+  const { isConnected, serverReachable, isCheckingConnection, tryAction } = useOfflineMode();
+  
   // Nuevo fetchPedidos: trae todo, pero fragmenta para mostrar de 20 en 20 en el FlatList
   const fetchPedidos = async () => {
     try {
       setLoading(true);
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL;
-      if (!apiUrl) throw new Error('EXPO_PUBLIC_API_URL no definida');
-      const res = await fetch(`${apiUrl}/control-access/ConsultaControlPedidoInicio`);
-      const result = await res.json();
-      setData(Array.isArray(result) ? result : []);
-      setCurrentPage(1); // Página 1 al cargar
+      
+      // Usar tryAction para manejar la conexión
+      const result = await tryAction(async () => {
+        const res = await fetch(`${API_URL}/control-access/ConsultaControlPedidoInicio`);
+        const data = await res.json();
+        return Array.isArray(data) ? data : [];
+      }, true, "No se pudieron cargar los pedidos. Verifique su conexión.");
+      
+      if (result !== null) {
+        setData(result);
+        setCurrentPage(1); // Página 1 al cargar
+      } else {
+        // Si no hay conexión, se mantienen los datos existentes o se muestran datos vacíos
+        if (!data.length) setData([]);
+      }
     } catch (error) {
       console.error('Error al obtener pedidos:', error);
       setData([]);
@@ -143,17 +156,37 @@ export default function ControlUsuariosScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <SafeAreaView style={styles.container}>        <View style={styles.header}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
             <Text style={styles.title}>Control de Pedidos</Text>
             <TouchableOpacity
               onPress={fetchPedidos}
               style={{ marginLeft: 12, backgroundColor: '#2e78b7', borderRadius: 8, padding: 6 }}
               accessibilityLabel="Actualizar lista"
+              disabled={isCheckingConnection}
             >
-              <Ionicons name="refresh" size={22} color="#fff" />
+              {isCheckingConnection ? 
+                <ActivityIndicator size="small" color="#fff" /> :
+                <Ionicons name="refresh" size={22} color="#fff" />
+              }
             </TouchableOpacity>
+          </View>
+            {/* Indicador de estado de conexión */}
+          <View style={styles.connectionIndicator}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons 
+                name={serverReachable ? "wifi" : "wifi-outline"}
+                size={14} 
+                color={serverReachable ? "#4CAF50" : "#F44336"} 
+              />
+              <Text style={{ 
+                fontSize: 12, 
+                color: serverReachable ? "#4CAF50" : "#F44336",
+                marginLeft: 4
+              }}>
+                {serverReachable ? "Conectado" : "Sin conexión"}
+              </Text>
+            </View>
           </View>
         </View>
         <View style={styles.searchContainer}>
@@ -273,12 +306,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f3f4f6',
-  },
-  header: {
+  },  header: {
     padding: 16,
     backgroundColor: '#f3f4f6',
     alignItems: 'center',
     marginBottom: 10,
+  },
+  connectionIndicator: {
+    marginTop: 5,
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   title: {
     fontSize: 24,

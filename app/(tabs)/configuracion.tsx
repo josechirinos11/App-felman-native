@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import ConexionDiagnostic from '../../components/ConexionDiagnostic';
 import { useAuth } from '../../hooks/useAuth';
 
 
@@ -22,6 +23,8 @@ type ConfigItem = {
 export default function ConfiguracionScreen() {
    const router = useRouter();
   const { logout } = useAuth();
+  const [showDiagnostic, setShowDiagnostic] = useState(false);
+  
   const [configItems, setConfigItems] = useState<ConfigItem[]>([
     {
       id: '1',
@@ -108,6 +111,14 @@ export default function ConfiguracionScreen() {
         ]
       ),
     },
+    {
+      id: '7',
+      title: 'Diagnóstico de conexión',
+      description: 'Verificar el estado de la conectividad con el servidor',
+      type: 'button',
+      icon: 'wifi-outline',
+      action: () => setShowDiagnostic(!showDiagnostic),
+    },
   ]);
 
   const toggleSwitch = (id: string) => {
@@ -186,6 +197,18 @@ export default function ConfiguracionScreen() {
             <Text style={styles.appName}>App Felman</Text>
           </View>
         </ScrollView>
+
+        {showDiagnostic && (
+          <View style={styles.diagnosticContainer}>
+            <ConexionDiagnostic />
+            <TouchableOpacity 
+              style={styles.closeDiagnostic}
+              onPress={() => setShowDiagnostic(false)}
+            >
+              <Ionicons name="close-outline" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        )}
       </SafeAreaView>
     </View>
   );
@@ -306,5 +329,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#2e78b7',
+  },  diagnosticContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#fff',
+    zIndex: 10,
+    paddingTop: 100, // Baja el contenido aproximadamente un quinto hacia abajo
+  },  closeDiagnostic: {
+    position: 'absolute',
+    top: 60, // Ajustado para que esté visible con el nuevo padding
+    right: 16,
+    backgroundColor: '#2e78b7',
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
   },
 });

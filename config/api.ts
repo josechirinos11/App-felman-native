@@ -1,10 +1,10 @@
 import axios from 'axios';
+import Constants from 'expo-constants';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
-
-if (!API_URL) {
-    throw new Error('EXPO_PUBLIC_API_URL no está definida en el archivo .env');
-}
+// Obtener la URL de la API desde las variables de entorno, desde Constants.expoConfig.extra, o usar la URL por defecto
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 
+               (Constants.expoConfig?.extra?.apiUrl as string) || 
+               'http://85.59.105.234:3000';
 
 console.log('🔌 Conectando a API:', API_URL);
 

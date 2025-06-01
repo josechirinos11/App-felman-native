@@ -14,15 +14,32 @@ module.exports = {
   ios: {
     ...appJson.expo.ios,
     bundleIdentifier: "com.felman.appfelmannative",
-  },
-  // Configuración para EAS Build
+  },  // Configuración para EAS Build
   extra: {
     ...appJson.expo.extra,
     eas: {
       ...((appJson.expo.extra || {}).eas || {}),
       projectId: "d9cc1079-ff52-4783-861c-f5242470ab58"
-    }
-  },  plugins: [
+    },
+    // Asegurar que la URL de la API esté disponible incluso si la variable de entorno no está definida
+    apiUrl: process.env.EXPO_PUBLIC_API_URL || "http://85.59.105.234:3000",
+    // Configuración de red
+    network: {
+      timeouts: {
+        default: 10000,
+        short: 3000,
+        long: 30000
+      },
+      retries: {
+        default: 2,
+        authentication: 3
+      },
+      // Lista de endpoints críticos que necesitan funcionar
+      criticalEndpoints: ['/auth', '/control-access'],
+      // Si true, permite operar algunas funcionalidades en modo offline
+      allowOfflineMode: true    }
+  },
+  plugins: [
     ...appJson.expo.plugins || [],
     // Agregar plugin para asegurar la correcta configuración de Gradle
     ["expo-build-properties", {

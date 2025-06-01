@@ -21,7 +21,7 @@ def reactNativeAndroidDir = new File(
 )
 ext {
     compileSdkVersion = 35
-    targetSdkVersion  = 35
+    targetSdkVersion  = 34  // Mantenemos targetSdk en 34 por compatibilidad
     minSdkVersion     = 24    // mantén la que ya tuvieras
     kotlinVersion     = "2.0.21"  // si lo necesitas
     // cualquier otra variable global que uses

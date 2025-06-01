@@ -3,6 +3,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { API_URL } from '../../config/constants';
+import { useOfflineMode } from '../../hooks/useOfflineMode';
 
 // Definir tipo para las entregas
 interface Entrega {
@@ -35,19 +37,21 @@ export default function ControlEntregasDiariasScreen() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const pageSize = 20;
 
+  // Usar el hook de modo offline
+  const { isConnected, serverReachable, isCheckingConnection, tryAction } = useOfflineMode();
+
   const MAX_RETRIES = 3;
   const RETRY_DELAY = 2000; // 2 segundos
 
   const fetchEntregas = async (retryCount = 0) => {
     try {
       setLoading(true);
-      const apiUrl = process.env.EXPO_PUBLIC_API_URL;
-      if (!apiUrl) throw new Error('EXPO_PUBLIC_API_URL no definida');
-
+      // Usamos la constante API_URL importada en la parte superior del archivo
+      
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout
 
-      const res = await fetch(`${apiUrl}/control-access/controlEntregaDiaria`, {
+      const res = await fetch(`${API_URL}/control-access/controlEntregaDiaria`, {
         signal: controller.signal,
         headers: {
           'Cache-Control': 'no-cache',
@@ -230,14 +234,36 @@ export default function ControlEntregasDiariasScreen() {
     fetchEntregas(0);
   };
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={styles.container}>      <View style={styles.header}>
         <Text style={styles.title}>Entregas Diarias</Text>
         <TouchableOpacity
           onPress={handleRefresh}
-          style={styles.refreshButton}        >
-          <Ionicons name="refresh" size={22} color="#fff" />
+          style={styles.refreshButton}
+          disabled={isCheckingConnection}
+        >
+          {isCheckingConnection ? 
+            <ActivityIndicator size="small" color="#fff" /> :
+            <Ionicons name="refresh" size={22} color="#fff" />
+          }
         </TouchableOpacity>
+      </View>
+      
+      {/* Indicador de estado de conexión */}
+      <View style={styles.connectionIndicator}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Ionicons 
+            name={serverReachable ? "wifi" : "wifi-outline"}
+            size={14} 
+            color={serverReachable ? "#4CAF50" : "#F44336"} 
+          />
+          <Text style={{ 
+            fontSize: 12, 
+            color: serverReachable ? "#4CAF50" : "#F44336",
+            marginLeft: 4
+          }}>
+            {serverReachable ? "Conectado" : "Sin conexión"}
+          </Text>
+        </View>
       </View>
       <View style={styles.searchContainer}>
         <TextInput
@@ -286,8 +312,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-  },
-  header: {
+  },  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -295,6 +320,14 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+  },
+  connectionIndicator: {
+    padding: 8,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   title: {
     fontSize: 20,
