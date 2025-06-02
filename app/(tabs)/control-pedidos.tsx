@@ -115,7 +115,8 @@ export default function ControlUsuariosScreen() {
     if (!pedidosAgrupados[noPedido]) {
       pedidosAgrupados[noPedido] = [];
     }
-    pedidosAgrupados[noPedido].push(pedido);  });
+    pedidosAgrupados[noPedido].push(pedido);
+  });
   // Convertir a array de grupos
   let grupos = Object.values(pedidosAgrupados);
   
@@ -151,7 +152,8 @@ export default function ControlUsuariosScreen() {
   // handleEndReached para mostrar más (20 más)
   const handleEndReached = () => {
     if (!loading && pagedGrupos.length < grupos.length) {
-      setCurrentPage(prev => prev + 1);    }
+      setCurrentPage(prev => prev + 1);
+    }
   };
   
   // Nuevo PedidoItem agrupado
@@ -191,7 +193,8 @@ export default function ControlUsuariosScreen() {
             <TouchableOpacity
               onPress={handleRefresh}
               style={{ marginLeft: 12, backgroundColor: '#2e78b7', borderRadius: 8, padding: 6 }}
-              accessibilityLabel="Actualizar lista"              disabled={isCheckingConnection}
+              accessibilityLabel="Actualizar lista"
+              disabled={isCheckingConnection}
             >
               {isCheckingConnection ?
                 <ActivityIndicator size="small" color="#fff" /> :
@@ -254,7 +257,8 @@ export default function ControlUsuariosScreen() {
           loading && currentPage === 1 ? (
             <Text style={{ textAlign: 'center', marginTop: 20 }}>Cargando...</Text>
           ) : (
-            <FlatList              data={pagedGrupos}
+            <FlatList
+              data={pagedGrupos}
               renderItem={({ item }) => <PedidoAgrupadoItem grupo={item} />}
               keyExtractor={(item, idx) => {
                 if (!item || !item.length || !item[0]) return `empty-${idx}`;
@@ -268,7 +272,8 @@ export default function ControlUsuariosScreen() {
               maxToRenderPerBatch={20}
               windowSize={21}
               onEndReached={handleEndReached}
-              onEndReachedThreshold={0.2}              ListFooterComponent={
+              onEndReachedThreshold={0.2}
+              ListFooterComponent={
                 loading && currentPage === 1 ? (
                   <Text style={{ textAlign: 'center', padding: 12, color: '#2e78b7' }}>Cargando...</Text>
                 ) : pagedGrupos.length < grupos.length ? (

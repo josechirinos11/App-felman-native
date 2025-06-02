@@ -23,13 +23,14 @@ interface Pedido {
   Incidencia?: string | null;
 }
 
-export default function ControlUsuariosScreen() {
+export default function ControlComercialesScreen() {
   const [data, setData] = useState<Pedido[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'TODOS' | 'ALUMINIO' | 'PVC'>('TODOS');
-  const [modalVisible, setModalVisible] = useState(false);  const [modalGroup, setModalGroup] = useState<Pedido[]>([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalGroup, setModalGroup] = useState<Pedido[]>([]);
   const [userName, setUserName] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const pageSize = 20;
@@ -71,7 +72,7 @@ export default function ControlUsuariosScreen() {
           setUserName(nombre);
           setUserRole(rol);
           console.log('nombre extraído:', nombre); // <-- depuración
-            console.log('Rol extraído:', rol); // <-- depuración
+          console.log('Rol extraído:', rol); // <-- depuración
         }
       } catch (e) {
         setUserName(null);
@@ -179,7 +180,8 @@ export default function ControlUsuariosScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <SafeAreaView style={styles.container}>        <View style={styles.header}>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
             <Text style={styles.title}>Control Comerciales</Text>
             <TouchableOpacity
@@ -324,7 +326,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f3f4f6',
-  },  header: {
+  },
+  header: {
     padding: 16,
     backgroundColor: '#f3f4f6',
     alignItems: 'center',
@@ -339,7 +342,8 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     color: '#2e78b7',
-  },  searchContainer: {
+  },
+  searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f3f4f6',
@@ -361,7 +365,8 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 50,
     color: '#2e78b7',
-  },  listContainer: {
+  },
+  listContainer: {
     padding: 16,
   },
   pedidoItem: {
@@ -402,7 +407,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#555', // gris oscuro
     marginBottom: 0,
-  },  actionsContainer: {
+  },
+  actionsContainer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
   },
@@ -415,7 +421,8 @@ const styles = StyleSheet.create({
     // Shadow for iOS
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,    shadowRadius: 2,
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   fab: {
     position: 'absolute',

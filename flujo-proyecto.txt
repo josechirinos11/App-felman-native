@@ -19,7 +19,7 @@ Flujo del Proyecto Expo Router (appNativeFelman)
 4. **Páginas principales:**
    - Dentro de la carpeta `app/(tabs)/` se encuentran los archivos que representan cada página principal:
      - `configuracion.tsx` (Configuración)
-     - `control-entregas.tsx` (Control de Entregas)
+     - `control-comerciales.tsx` (Control de Comerciales)
      - `control-incidencias.tsx` (Control de Incidencias)
      - `control-pedidos.tsx` (Control de Pedidos)
      - `explore.tsx` (Explorar)

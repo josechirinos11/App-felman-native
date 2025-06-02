@@ -5,7 +5,7 @@ export const options = {
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, Linking, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../hooks/useAuth';
 
 export default function LoginScreen() {
@@ -30,9 +30,11 @@ export default function LoginScreen() {
       setError('Todos los campos son obligatorios');
       return;
     }
-
+    
     setLoading(true);
-    setError('');    try {
+    setError('');
+    
+    try {
       const result = await login(email, password);
       if (!result.success) {
         if (result.error?.includes('Network Error') || result.error?.includes('ECONNREFUSED')) {
@@ -52,9 +54,30 @@ export default function LoginScreen() {
       setLoading(false);
     }
   };
-
   const handleRegister = () => {
     router.push('/register');
+  };
+
+  const handleRequestCredentials = async () => {
+    const phoneNumber = '+34662936645';
+    const message = 'Necesito credenciales para accesar a felman mi nombre es: ESCRIBIR-NOMBRE';
+    const whatsappUrl = `whatsapp://send?phone=${phoneNumber}&text=${encodeURIComponent(message)}`;
+    
+    try {
+      // Verificar si WhatsApp está instalado
+      const canOpen = await Linking.canOpenURL(whatsappUrl);
+      if (canOpen) {
+        await Linking.openURL(whatsappUrl);
+      } else {
+        // Si no tiene WhatsApp instalado, abrir en el navegador web
+        const webUrl = `https://wa.me/${phoneNumber.replace('+', '')}?text=${encodeURIComponent(message)}`;
+        await Linking.openURL(webUrl);
+      }
+    } catch (error) {
+      console.error('Error al abrir WhatsApp:', error);
+      // Fallback: copiar número al portapapeles o mostrar alerta
+      alert(`No se pudo abrir WhatsApp. Contacta directamente al número: ${phoneNumber}`);
+    }
   };
 
   return (
@@ -98,12 +121,23 @@ export default function LoginScreen() {
           />
         </TouchableOpacity>
       </View>
+      
       <TouchableOpacity
         style={[styles.button, loading && styles.buttonDisabled]}
         onPress={handleLogin}
         disabled={loading}>
         <Text style={styles.buttonText}>
           {loading ? 'Entrando...' : 'Entrar'}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.whatsappButton}
+        onPress={handleRequestCredentials}
+      >
+        <Ionicons name="logo-whatsapp" size={20} color="#25D366" />
+        <Text style={styles.whatsappButtonText}>
+          Solicitar credenciales
         </Text>
       </TouchableOpacity>
 
@@ -114,11 +148,12 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: 'center',    alignItems: 'center',
     padding: 20,
     backgroundColor: '#f3f4f6',
-  },  logoContainer: {
+  },
+  
+  logoContainer: {
     backgroundColor: '#f3f4f6',
     padding: 20,
     borderRadius: 20,
@@ -141,11 +176,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: '#2e78b7',
   },
-  errorText: {
-    color: '#ef4444',
+  errorText: {    color: '#ef4444',
     marginBottom: 10,
     textAlign: 'center',
-  },  inputContainer: {
+  },
+  
+  inputContainer: {
     width: '100%',
     marginBottom: 15,
     backgroundColor: '#f3f4f6',
@@ -159,11 +195,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  input: {
-    height: 50,
+  input: {    height: 50,
     color: '#2e78b7',
     fontSize: 16,
-  },  button: {
+  },
+  
+  button: {
     width: '100%',
     backgroundColor: '#f3f4f6',
     padding: 15,
@@ -180,13 +217,24 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.7,
   },
-  buttonText: {
-    color: '#2e78b7',
+  buttonText: {    color: '#2e78b7',
     fontSize: 16,
     fontWeight: '600',
   },
+  
   registerButton: {
     backgroundColor: '#f3f4f6',
     marginTop: 10,
+  },  
+  whatsappButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 60,
+  },  whatsappButtonText: {
+    color: '#2e78b7',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });

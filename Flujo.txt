@@ -10,7 +10,7 @@ index.tsx (Pantalla principal/Home)
 Las otras páginas están en:
 
 control-pedidos.tsx
-control-entregas.tsx
+control-comerciales.tsx
 control-incidencias.tsx
 configuracion.tsx
 Para agregar una nueva página:

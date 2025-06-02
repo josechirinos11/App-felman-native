@@ -9,7 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../hooks/useAuth';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
-type RouteNames = '/control-pedidos' | '/control-entregas' | '/control-incidencias' | '/control-entregas-diarias' | '/pagina-construccion' | string;
+type RouteNames = '/control-pedidos' | '/control-comerciales' | '/control-incidencias' | '/control-entregas-diarias' | '/pagina-construccion' | string;
 
 interface MenuItem {
   id: number;
@@ -18,11 +18,13 @@ interface MenuItem {
   route: RouteNames;
 }
 
-const menuItems: MenuItem[] = [  { id: 1, title: 'Control de Pedidos', icon: 'clipboard-outline',    route: '/control-pedidos'    },
-  { id: 2, title: 'Control Comerciales', icon: 'cube-outline',         route: '/control-entregas'   },
-  { id: 3, title: 'Control de Incidencias', icon: 'alert-circle-outline', route: '/control-incidencias' },  { id: 4, title: 'Entregas Diarias', icon: 'calendar-outline',      route: '/control-entregas-diarias'    },
-  { id: 5, title: 'Perfil de Usuario', icon: 'person-outline',       route: '/pagina-construccion?title=Perfil de Usuario&icon=person-outline'    },
-  { id: 6, title: 'Pedidos Proveedores', icon: 'briefcase-outline',     route: '/pagina-construccion?title=Pedidos Proveedores&icon=briefcase-outline'    },
+const menuItems: MenuItem[] = [
+  { id: 1, title: 'Control de Pedidos', icon: 'clipboard-outline', route: '/control-pedidos' },
+  { id: 2, title: 'Control Comerciales', icon: 'cube-outline', route: '/control-comerciales' },
+  { id: 3, title: 'Control de Incidencias', icon: 'alert-circle-outline', route: '/control-incidencias' },
+  { id: 4, title: 'Entregas Diarias', icon: 'calendar-outline', route: '/control-entregas-diarias' },
+  { id: 5, title: 'Perfil de Usuario', icon: 'person-outline', route: '/pagina-construccion?title=Perfil de Usuario&icon=person-outline' },
+  { id: 6, title: 'Pedidos Proveedores', icon: 'briefcase-outline', route: '/pagina-construccion?title=Pedidos Proveedores&icon=briefcase-outline' },
 ];
 
 
@@ -122,9 +124,9 @@ export default function HomeScreen() {
         <View style={styles.mainPanel}>
           <ScrollView style={styles.scrollView}>
             <View style={styles.menuGrid}>
-              {Array.from({ length: Math.ceil(menuItems.length / 2) }).map((_, rowIndex) => (
-                <View key={rowIndex} style={styles.menuRow}>
-                  {menuItems.slice(rowIndex * 2, rowIndex * 2 + 2).map(item => (                    <TouchableOpacity
+              {Array.from({ length: Math.ceil(menuItems.length / 2) }).map((_, rowIndex) => (                <View key={rowIndex} style={styles.menuRow}>
+                  {menuItems.slice(rowIndex * 2, rowIndex * 2 + 2).map(item => (
+                    <TouchableOpacity
                       key={item.id}
                       style={styles.menuItem}
                       onPress={() => router.push(item.route as any)}

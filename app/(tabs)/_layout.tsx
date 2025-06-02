@@ -46,9 +46,8 @@ export default function TabLayout() {
           title: 'Pedidos',
           tabBarIcon: ({ color }) => <TabBarIcon name="clipboard-outline" color={color} />,
         }}
-      />
-      <Tabs.Screen
-        name="control-entregas"
+      />      <Tabs.Screen
+        name="control-comerciales"
         options={{
           title: 'Comerciales',
           tabBarIcon: ({ color }) => <TabBarIcon name="cube-outline" color={color} />,

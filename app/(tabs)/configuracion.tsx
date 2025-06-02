@@ -66,7 +66,8 @@ export default function ConfiguracionScreen() {
       icon: 'trash-outline',
       action: () => Alert.alert('Caché eliminada', 'Los datos temporales han sido eliminados correctamente.'),
     },
-    {      id: '6',
+    {
+      id: '6',
       title: 'Cerrar sesión',
       description: 'Salir de la cuenta actual',
       type: 'button',
@@ -242,7 +243,8 @@ const styles = StyleSheet.create({
     marginVertical: 16,
     marginHorizontal: 16,
     color: '#2e78b7',
-  },  configItem: {
+  },
+  configItem: {
     flexDirection: 'row',
     backgroundColor: '#f3f4f6',
     marginHorizontal: 16,
@@ -255,7 +257,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-  },  iconContainer: {
+  },
+  iconContainer: {
     marginRight: 16,
     justifyContent: 'center',
     width: 32,
@@ -285,9 +288,9 @@ const styles = StyleSheet.create({
   },
   configDescription: {
     fontSize: 14,
-    color: '#718096',
-    width: '70%',
-  },  configControl: {
+    color: '#718096',    width: '70%',
+  },
+  configControl: {
     position: 'absolute',
     right: 0,
     flexDirection: 'row',
@@ -304,9 +307,9 @@ const styles = StyleSheet.create({
   },
   optionText: {
     marginRight: 8,
-    color: '#2e78b7',
-    fontWeight: '500',
-  },  appInfo: {
+    color: '#2e78b7',    fontWeight: '500',
+  },
+  appInfo: {
     alignItems: 'center',
     padding: 24,
     marginBottom: 24,
@@ -327,18 +330,18 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#2e78b7',
-  },  diagnosticContainer: {
+    fontWeight: '600',    color: '#2e78b7',
+  },
+  diagnosticContainer: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
     backgroundColor: '#fff',
-    zIndex: 10,
-    paddingTop: 100, // Baja el contenido aproximadamente un quinto hacia abajo
-  },  closeDiagnostic: {
+    zIndex: 10,    paddingTop: 100, // Baja el contenido aproximadamente un quinto hacia abajo
+  },
+  closeDiagnostic: {
     position: 'absolute',
     top: 60, // Ajustado para que esté visible con el nuevo padding
     right: 16,

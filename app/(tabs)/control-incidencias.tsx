@@ -38,7 +38,8 @@ export default function ControlUsuariosScreen() {
   // Usar el hook de modo offline
   const { isConnected, serverReachable, isCheckingConnection, tryAction } = useOfflineMode();
 
-  useEffect(() => {    const fetchPedidos = async () => {
+  useEffect(() => {
+    const fetchPedidos = async () => {
       try {
         setLoading(true);
         // Usamos la constante API_URL importada en la parte superior del archivo
@@ -91,10 +92,10 @@ export default function ControlUsuariosScreen() {
   });
   // Fraccionar para mostrar solo 20 por página
   const pagedPedidos = sorted.slice(0, currentPage * pageSize);
-
   return (
     <View style={{ flex: 1 }}>
-      <SafeAreaView style={styles.container}>        <View style={styles.header}>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
             <Text style={styles.title}>Incidencia</Text>
             <TouchableOpacity
@@ -162,11 +163,11 @@ export default function ControlUsuariosScreen() {
                 loading && currentPage === 1 ? (
                   <Text style={{ textAlign: 'center', padding: 12, color: '#2e78b7' }}>Cargando...</Text>
                 ) : pagedPedidos.length < filtered.length ? (
-                  <Text style={{ textAlign: 'center', padding: 12, color: '#2e78b7' }}>Desliza para ver más...</Text>
-                ) : (
+                  <Text style={{ textAlign: 'center', padding: 12, color: '#2e78b7' }}>Desliza para ver más...</Text>                ) : (
                   <Text style={{ textAlign: 'center', padding: 12, color: '#888' }}>Fin del listado</Text>
                 )
-              }            />
+              }
+            />
           )
         ) : (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -181,10 +182,11 @@ export default function ControlUsuariosScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  container: {    flex: 1,
     backgroundColor: '#f3f4f6',
-  },  header: {
+  },
+  
+  header: {
     padding: 16,
     backgroundColor: '#f3f4f6',
     alignItems: 'center',
@@ -195,9 +197,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',    color: '#2e78b7',
+  title: {    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2e78b7',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -217,11 +219,12 @@ const styles = StyleSheet.create({
   searchIcon: {
     marginRight: 8,
   },
-  searchInput: {
-    flex: 1,
+  searchInput: {    flex: 1,
     height: 50,
     color: '#2e78b7',
-  },  listContainer: {
+  },
+  
+  listContainer: {
     padding: 16,
   },
   pedidoItem: {
@@ -267,21 +270,23 @@ const styles = StyleSheet.create({
     color: '#718096',
     marginBottom: 12,
   },
-  actionsContainer: {
-    flexDirection: 'row',
+  actionsContainer: {    flexDirection: 'row',
     justifyContent: 'flex-end',
-  },  actionButton: {
+  },
+  
+  actionButton: {
     padding: 10,
     marginLeft: 8,
     backgroundColor: '#f3f4f6',
     borderRadius: 10,
     elevation: 2,
     // Shadow for iOS
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowColor: '#000',    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
-  },  fab: {
+  },
+  
+  fab: {
     position: 'absolute',
     right: 20,
     bottom: 20,

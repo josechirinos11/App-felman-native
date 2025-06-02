@@ -106,9 +106,10 @@ export default function ControlEntregasDiariasScreen() {
       } catch (e) {
         console.error('Error al obtener userData:', e);
       }
-    };
-    getUserData();
-  }, []);const filtrarPorRolYBusqueda = (entregas: Entrega[]) => {
+    };    getUserData();
+  }, []);
+
+  const filtrarPorRolYBusqueda = (entregas: Entrega[]) => {
     let resultado = [...entregas];
 
     // Filtrar por rol
@@ -128,9 +129,9 @@ export default function ControlEntregasDiariasScreen() {
 
     // Filtrar por búsqueda
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      resultado = resultado.filter(e =>
-        e.NoPedido.toLowerCase().includes(query) ||        e.Cliente.toLowerCase().includes(query) ||
+      const query = searchQuery.toLowerCase();      resultado = resultado.filter(e =>
+        e.NoPedido.toLowerCase().includes(query) ||
+        e.Cliente.toLowerCase().includes(query) ||
         e.RefCliente.toLowerCase().includes(query)
       );
     }
@@ -165,8 +166,8 @@ export default function ControlEntregasDiariasScreen() {
         return date.toLocaleDateString('es-ES', {
           day: '2-digit',
           month: '2-digit',
-          year: 'numeric'
-        });      } catch (error) {
+          year: 'numeric'        });
+      } catch (error) {
         return fecha || 'Fecha desconocida';
       }
     };
@@ -194,10 +195,11 @@ export default function ControlEntregasDiariasScreen() {
     .reduce((acc: Entrega[], current) => {
       if (!current.FechaEnvio || !current.Id_Entrega) return acc;
       
-      const exists = acc.find(
-        item => 
+      const exists = acc.find(        item => 
           item.FechaEnvio === current.FechaEnvio
-      );      if (!exists) {
+      );
+      
+      if (!exists) {
         acc.push(current);
       }
       return acc;
@@ -210,20 +212,21 @@ export default function ControlEntregasDiariasScreen() {
       
       // Si los ID son iguales, ordenar por fecha (de más reciente a más antigua)
       const fechaA = new Date(a.FechaEnvio).getTime();
-      const fechaB = new Date(b.FechaEnvio).getTime();
-      return fechaB - fechaA;
+      const fechaB = new Date(b.FechaEnvio).getTime();      return fechaB - fechaA;
     });
+
   const datosFiltrados = filtrarPorRolYBusqueda(data);
-  const datosPaginados = datosFiltrados.slice(0, currentPage * pageSize);
-  // Función para generar keys únicos para el FlatList
+  const datosPaginados = datosFiltrados.slice(0, currentPage * pageSize);  // Función para generar keys únicos para el FlatList
   const generateKey = (item: Entrega, index: number) => {
     // Usamos el índice para garantizar claves únicas incluso si hay duplicados
     return `${item.Id_Entrega || ''}-${item.FechaEnvio || ''}-${index}`;
-  };  const handleRefresh = () => {
-    fetchEntregas(true); // true para mostrar alert si hay error
   };
-  return (
-    <SafeAreaView style={styles.container}>      <View style={styles.header}>
+
+  const handleRefresh = () => {
+    fetchEntregas(true); // true para mostrar alert si hay error
+  };  return (
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
         <Text style={styles.title}>Entregas Diarias</Text>
         <TouchableOpacity
           onPress={handleRefresh}
@@ -297,11 +300,11 @@ export default function ControlEntregasDiariasScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
+const styles = StyleSheet.create({  container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-  },  header: {
+  },
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -336,8 +339,8 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     height: 40,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',    borderRadius: 8,
+    borderWidth: 1,    borderColor: '#e0e0e0',
+    borderRadius: 8,
     paddingHorizontal: 16,
     backgroundColor: 'white',
   },
