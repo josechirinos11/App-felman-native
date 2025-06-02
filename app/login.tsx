@@ -4,7 +4,7 @@ export const options = {
 };
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../hooks/useAuth';
 
@@ -14,8 +14,16 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const { login } = useAuth();
+  const { login, authenticated, loading: authLoading } = useAuth();
   const router = useRouter();
+
+  // Verificar si el usuario ya está autenticado y redirigir
+  useEffect(() => {
+    if (!authLoading && authenticated) {
+      console.log('👤 Usuario ya autenticado, redirigiendo...');
+      router.replace('/');
+    }
+  }, [authenticated, authLoading, router]);
 
   const handleLogin = async () => {
     if (!email || !password) {

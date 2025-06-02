@@ -6,6 +6,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../../hooks/useAuth';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 type RouteNames = '/control-pedidos' | '/control-entregas' | '/control-incidencias' | '/control-entregas-diarias' | '/pagina-construccion' | string;
@@ -35,16 +36,19 @@ interface UserData {
 
 
 export default function HomeScreen() {
-
   const [token, setToken] = useState<string | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { authenticated, loading: authLoading } = useAuth();
+  const router = useRouter();
 
-  
-  
-  
-  
-        const router = useRouter();
+  // Verificar autenticación al cargar
+  useEffect(() => {
+    if (!authLoading && !authenticated) {
+      console.log('🚫 Usuario no autenticado, redirigiendo a login...');
+      router.replace('/login');
+    }
+  }, [authenticated, authLoading, router]);
 
 
   useEffect(() => {

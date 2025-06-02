@@ -10,6 +10,7 @@ import AppStatusManager from '../config/AppStatusManager';
 import { useAuth } from '../hooks/useAuth';
 
 export const unstable_settings = {
+  // Inicializar siempre en login, el hook useAuth decidirá si redirigir o no
   initialRouteName: 'login',
 };
 
@@ -26,6 +27,10 @@ export default function RootLayout() {
   });
   const [showConnectionModal, setShowConnectionModal] = useState(false);
 
+  // Log para debuggear el estado de autenticación
+  useEffect(() => {
+    console.log('🔐 Estado de autenticación:', { loading, authenticated });
+  }, [loading, authenticated]);
   useEffect(() => {
     const checkAppStatus = async () => {
       try {
@@ -48,7 +53,8 @@ export default function RootLayout() {
           } catch (dbError) {
             console.error('❌ Error al probar la conexión a BD:', dbError);
           }
-        }      } catch (error) {
+        }
+      } catch (error) {
         console.error('❌ Error al inicializar estado de la app:', error);
         setConnectionStatus({
           checked: true,
@@ -60,15 +66,15 @@ export default function RootLayout() {
 
       // Mostrar modal de conexión si hay problemas con el servidor
       if (connectionStatus.checked && !connectionStatus.serverReachable) {
-        setShowConnectionModal(true);
-      }
-      
-      if (!loading) {
-        SplashScreen.hideAsync();
+        console.warn('⚠️ El servidor no es alcanzable, mostrando modal de conexión...');
       }
     };
 
-    checkAppStatus();
+    // Solo ejecutar verificación de estado cuando la autenticación haya terminado de cargar
+    if (!loading) {
+      checkAppStatus();
+      SplashScreen.hideAsync();
+    }
   }, [loading]);
 
   if (loading) {
@@ -122,12 +128,17 @@ export default function RootLayout() {
         onRetry={handleRetryConnection}
         onContinue={handleContinueOffline}
       />
-      
-      <Stack screenOptions={{ headerShown: false }}>
+        <Stack screenOptions={{ headerShown: false }}>
         {!authenticated ? (
           <>
-            <Stack.Screen name="login"  />
-            <Stack.Screen name="register"  />
+            <Stack.Screen 
+              name="login" 
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen 
+              name="register" 
+              options={{ headerShown: false }}
+            />
           </>
         ) : (
           <Stack.Screen 
