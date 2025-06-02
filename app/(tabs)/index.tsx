@@ -167,17 +167,17 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f3f4f6',
     paddingTop: 16,
-  },
-  userInfo: {
+  },  userInfo: {
     backgroundColor: '#f3f4f6',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
+    elevation: 3,
+    // Shadow for iOS
     shadowColor: '#000',
-    shadowOffset: { width: 4, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 4,
   },
   welcomeText: {
     fontSize: 14,
@@ -206,18 +206,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 10,
-  },
-  menuItem: {
+  },  menuItem: {
     width: '48%',
     backgroundColor: '#f3f4f6',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
+    elevation: 3,
+    // Shadow for iOS
     shadowColor: '#000',
-    shadowOffset: { width: 5, height: 5 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowRadius: 4,
   },
   menuText: {
     marginTop: 8,

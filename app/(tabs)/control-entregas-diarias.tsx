@@ -25,7 +25,8 @@ interface Entrega {
   NSCaballetes: string | null;
   NoPedido: string;
   RefCliente: string;
-  Cliente: string;  Comercial: string;
+  Cliente: string;
+  Comercial: string;
 }
 
 export default function ControlEntregasDiariasScreen() {
@@ -36,60 +37,50 @@ export default function ControlEntregasDiariasScreen() {
   const [userName, setUserName] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const pageSize = 20;
-
   // Usar el hook de modo offline
   const { isConnected, serverReachable, isCheckingConnection, tryAction } = useOfflineMode();
-
-  const MAX_RETRIES = 3;
-  const RETRY_DELAY = 2000; // 2 segundos
-
-  const fetchEntregas = async (retryCount = 0) => {
+  const fetchEntregas = async (showAlert = false) => {
     try {
       setLoading(true);
-      // Usamos la constante API_URL importada en la parte superior del archivo
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos timeout
-
-      const res = await fetch(`${API_URL}/control-access/controlEntregaDiaria`, {
-        signal: controller.signal,
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
+      if (showAlert) {
+        // Usar tryAction solo cuando el usuario presiona refresh (mostrará alert si hay error)
+        const result = await tryAction(async () => {
+          const res = await fetch(`${API_URL}/control-access/controlEntregaDiaria`);
+          const data = await res.json();
+          return Array.isArray(data) ? data : [];
+        }, true, "No se pudieron cargar las entregas. Verifique su conexión.");
+        
+        if (result !== null) {
+          setData(result);
+          setCurrentPage(1);
+        } else {
+          // Si no hay conexión, se mantienen los datos existentes o se muestran datos vacíos
+          if (!data.length) setData([]);
         }
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
+      } else {
+        // Carga inicial sin mostrar alert
+        try {
+          const res = await fetch(`${API_URL}/control-access/controlEntregaDiaria`);
+          if (res.ok) {
+            const result = await res.json();
+            setData(Array.isArray(result) ? result : []);
+            setCurrentPage(1);
+          } else {
+            console.log('Error en la respuesta del servidor:', res.status);
+            setData([]);
+          }
+        } catch (fetchError) {
+          console.log('Error de conexión en carga inicial:', fetchError);
+          setData([]);
+        }
       }
-
-      const result = await res.json();
-      setData(Array.isArray(result) ? result : []);
-      setCurrentPage(1);
     } catch (error) {
-      console.error('Error al obtener pedidos:', error);
-      
-      // Reintentar si es un error de conexión y no hemos excedido los reintentos
-      if (
-        retryCount < MAX_RETRIES && 
-        (error instanceof TypeError || 
-         (error as any)?.code === 'ECONNRESET' ||
-         (error as any)?.name === 'AbortError')
-      ) {
-        console.log(`Reintentando (${retryCount + 1}/${MAX_RETRIES})...`);
-        setTimeout(() => fetchEntregas(retryCount + 1), RETRY_DELAY);
-        return;
-      }
-
+      console.error('Error al obtener entregas:', error);
       setData([]);
       setCurrentPage(1);
-      // Aquí podrías mostrar un mensaje de error al usuario
     } finally {
-      if (retryCount === 0) { // Solo actualizar loading en el primer intento
-        setLoading(false);
-      }
+      setLoading(false);
     }
   };
   useEffect(() => {
@@ -206,9 +197,9 @@ export default function ControlEntregasDiariasScreen() {
       const exists = acc.find(
         item => 
           item.FechaEnvio === current.FechaEnvio
-      );
-      if (!exists) {
-        acc.push(current);      }
+      );      if (!exists) {
+        acc.push(current);
+      }
       return acc;
     }, [])
     .sort((a, b) => {
@@ -228,10 +219,8 @@ export default function ControlEntregasDiariasScreen() {
   const generateKey = (item: Entrega, index: number) => {
     // Usamos el índice para garantizar claves únicas incluso si hay duplicados
     return `${item.Id_Entrega || ''}-${item.FechaEnvio || ''}-${index}`;
-  };
-
-  const handleRefresh = () => {
-    fetchEntregas(0);
+  };  const handleRefresh = () => {
+    fetchEntregas(true); // true para mostrar alert si hay error
   };
   return (
     <SafeAreaView style={styles.container}>      <View style={styles.header}>
@@ -428,7 +417,8 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
   },
-  loadingMoreText: {    textAlign: 'center',
+  loadingMoreText: {
+    textAlign: 'center',
     padding: 16,
     color: '#666',
   },

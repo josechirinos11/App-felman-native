@@ -13,28 +13,28 @@ export default function LogoHeader() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
+const styles = StyleSheet.create({  container: {
     backgroundColor: '#f3f4f6',
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
+    elevation: 3,
+    // Shadow for iOS
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  logoContainer: {
+    shadowRadius: 4,
+  },  logoContainer: {
     backgroundColor: '#f3f4f6',
     padding: 12,
     borderRadius: 15,
+    elevation: 3,
+    // Shadow for iOS
     shadowColor: '#000',
-    shadowOffset: { width: 5, height: 5 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowRadius: 4,
   },
   logo: {
     width: 120,

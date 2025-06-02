@@ -242,21 +242,20 @@ const styles = StyleSheet.create({
     marginVertical: 16,
     marginHorizontal: 16,
     color: '#2e78b7',
-  },
-  configItem: {
+  },  configItem: {
     flexDirection: 'row',
     backgroundColor: '#f3f4f6',
     marginHorizontal: 16,
     marginBottom: 12,
     padding: 16,
     borderRadius: 12,
+    elevation: 3,
+    // Shadow for iOS
     shadowColor: '#000',
-    shadowOffset: { width: 5, height: 5 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  iconContainer: {
+    shadowRadius: 4,
+  },  iconContainer: {
     marginRight: 16,
     justifyContent: 'center',
     width: 32,
@@ -264,11 +263,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
     borderRadius: 8,
     alignItems: 'center',
+    elevation: 2,
+    // Shadow for iOS
     shadowColor: '#000',
-    shadowOffset: { width: 3, height: 3 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
+    shadowRadius: 2,
   },
   configContent: {
     flex: 1,
@@ -287,8 +287,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#718096',
     width: '70%',
-  },
-  configControl: {
+  },  configControl: {
     position: 'absolute',
     right: 0,
     flexDirection: 'row',
@@ -296,29 +295,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
     padding: 8,
     borderRadius: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
     elevation: 2,
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   optionText: {
     marginRight: 8,
     color: '#2e78b7',
     fontWeight: '500',
-  },
-  appInfo: {
+  },  appInfo: {
     alignItems: 'center',
     padding: 24,
     marginBottom: 24,
     backgroundColor: '#f3f4f6',
     margin: 16,
     borderRadius: 12,
+    elevation: 3,
+    // Shadow for iOS
     shadowColor: '#000',
-    shadowOffset: { width: 5, height: 5 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowRadius: 4,
   },
   appVersion: {
     fontSize: 14,

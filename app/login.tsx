@@ -118,17 +118,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
     backgroundColor: '#f3f4f6',
-  },
-  logoContainer: {
+  },  logoContainer: {
     backgroundColor: '#f3f4f6',
     padding: 20,
     borderRadius: 20,
     marginBottom: 30,
+    elevation: 3,
+    // Shadow for iOS
     shadowColor: '#000',
-    shadowOffset: { width: 5, height: 5 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowRadius: 4,
   },
   logo: {
     width: 120,
@@ -145,37 +145,37 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     marginBottom: 10,
     textAlign: 'center',
-  },
-  inputContainer: {
+  },  inputContainer: {
     width: '100%',
     marginBottom: 15,
     backgroundColor: '#f3f4f6',
     borderRadius: 12,
     paddingHorizontal: 15,
     paddingVertical: 5,
+    elevation: 3,
+    // Shadow for iOS
     shadowColor: '#000',
-    shadowOffset: { width: 5, height: 5 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowRadius: 4,
   },
   input: {
     height: 50,
     color: '#2e78b7',
     fontSize: 16,
-  },
-  button: {
+  },  button: {
     width: '100%',
     backgroundColor: '#f3f4f6',
     padding: 15,
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 10,
+    elevation: 3,
+    // Shadow for iOS
     shadowColor: '#000',
-    shadowOffset: { width: 5, height: 5 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowRadius: 4,
   },
   buttonDisabled: {
     opacity: 0.7,

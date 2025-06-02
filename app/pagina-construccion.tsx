@@ -77,20 +77,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-  },
-  constructionContainer: {
+  },  constructionContainer: {
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 24,
     width: '100%',
     alignItems: 'center',
+    elevation: 3,
+    // Shadow for iOS
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  iconBackground: {
+    shadowRadius: 4,
+  },  iconBackground: {
     width: 140,
     height: 140,
     borderRadius: 70,
@@ -98,11 +97,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
+    elevation: 4,
+    // Shadow for iOS
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 8,
+    shadowRadius: 4,
   },
   constructionIcon: {
     marginBottom: 0,
@@ -132,8 +132,7 @@ const styles = StyleSheet.create({
     color: '#718096',
     fontStyle: 'italic',
     textAlign: 'center',
-  },
-  backButton: {
+  },  backButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#2e78b7',
@@ -141,11 +140,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 8,
     marginTop: 30,
+    elevation: 2,
+    // Shadow for iOS
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 2,
   },
   backButtonText: {
     color: '#ffffff',

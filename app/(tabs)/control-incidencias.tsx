@@ -166,13 +166,12 @@ export default function ControlUsuariosScreen() {
                 ) : (
                   <Text style={{ textAlign: 'center', padding: 12, color: '#888' }}>Fin del listado</Text>
                 )
-              }
-            />
+              }            />
           )
         ) : (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
             <Text style={{ color: '#e53e3e', fontSize: 18, fontWeight: 'bold', textAlign: 'center' }}>
-              Necesitas permiso para ver esta paguina
+              Necesitas permiso para ver esta página
             </Text>
           </View>
         )}
@@ -198,8 +197,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#2e78b7',
+    fontWeight: 'bold',    color: '#2e78b7',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -209,11 +207,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 15,
     paddingVertical: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 5, height: 5 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
     elevation: 5,
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   searchIcon: {
     marginRight: 8,
@@ -222,8 +221,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 50,
     color: '#2e78b7',
-  },
-  listContainer: {
+  },  listContainer: {
     padding: 16,
   },
   pedidoItem: {
@@ -231,11 +229,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
+    elevation: 3,
+    // Shadow for iOS
     shadowColor: '#000',
-    shadowOffset: { width: 5, height: 5 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowRadius: 4,
   },
   pedidoHeader: {
     flexDirection: 'row',
@@ -271,19 +270,18 @@ const styles = StyleSheet.create({
   actionsContainer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-  },
-  actionButton: {
+  },  actionButton: {
     padding: 10,
     marginLeft: 8,
     backgroundColor: '#f3f4f6',
     borderRadius: 10,
+    elevation: 2,
+    // Shadow for iOS
     shadowColor: '#000',
-    shadowOffset: { width: 3, height: 3 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  fab: {
+    shadowRadius: 2,
+  },  fab: {
     position: 'absolute',
     right: 20,
     bottom: 20,
@@ -293,11 +291,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
     alignItems: 'center',
     justifyContent: 'center',
+    elevation: 6,
+    // Shadow for iOS
     shadowColor: '#000',
-    shadowOffset: { width: 5, height: 5 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 8,
+    shadowRadius: 5,
   },
 });
 

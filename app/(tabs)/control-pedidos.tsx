@@ -28,33 +28,50 @@ export default function ControlUsuariosScreen() {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'TODOS' | 'ALUMINIO' | 'PVC'>('TODOS');
-  const [modalVisible, setModalVisible] = useState(false);  const [modalGroup, setModalGroup] = useState<Pedido[]>(
-    []
-  );
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalGroup, setModalGroup] = useState<Pedido[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
   const pageSize = 20;
-  
+
   // Usar el hook de modo offline
   const { isConnected, serverReachable, isCheckingConnection, tryAction } = useOfflineMode();
-  
+
   // Nuevo fetchPedidos: trae todo, pero fragmenta para mostrar de 20 en 20 en el FlatList
-  const fetchPedidos = async () => {
+  const fetchPedidos = async (showAlert = false) => {
     try {
       setLoading(true);
       
-      // Usar tryAction para manejar la conexión
-      const result = await tryAction(async () => {
-        const res = await fetch(`${API_URL}/control-access/ConsultaControlPedidoInicio`);
-        const data = await res.json();
-        return Array.isArray(data) ? data : [];
-      }, true, "No se pudieron cargar los pedidos. Verifique su conexión.");
-      
-      if (result !== null) {
-        setData(result);
-        setCurrentPage(1); // Página 1 al cargar
+      if (showAlert) {
+        // Usar tryAction solo cuando el usuario presiona refresh (mostrará alert si hay error)
+        const result = await tryAction(async () => {
+          const res = await fetch(`${API_URL}/control-access/ConsultaControlPedidoInicio`);
+          const data = await res.json();
+          return Array.isArray(data) ? data : [];
+        }, true, "No se pudieron cargar los pedidos. Verifique su conexión.");
+        
+        if (result !== null) {
+          setData(result);
+          setCurrentPage(1); // Página 1 al cargar
+        } else {
+          // Si no hay conexión, se mantienen los datos existentes o se muestran datos vacíos
+          if (!data.length) setData([]);
+        }
       } else {
-        // Si no hay conexión, se mantienen los datos existentes o se muestran datos vacíos
-        if (!data.length) setData([]);
+        // Carga inicial sin mostrar alert
+        try {
+          const res = await fetch(`${API_URL}/control-access/ConsultaControlPedidoInicio`);
+          if (res.ok) {
+            const result = await res.json();
+            setData(Array.isArray(result) ? result : []);
+            setCurrentPage(1);
+          } else {
+            console.log('Error en la respuesta del servidor:', res.status);
+            setData([]);
+          }
+        } catch (fetchError) {
+          console.log('Error de conexión en carga inicial:', fetchError);
+          setData([]);
+        }
       }
     } catch (error) {
       console.error('Error al obtener pedidos:', error);
@@ -91,33 +108,41 @@ export default function ControlUsuariosScreen() {
       }
     })();
   }, []);
-
   // Agrupar por NoPedido
   const pedidosAgrupados: { [noPedido: string]: Pedido[] } = {};
   data.forEach((pedido) => {
-    if (!pedidosAgrupados[pedido.NoPedido]) {
-      pedidosAgrupados[pedido.NoPedido] = [];
+    const noPedido = pedido?.NoPedido || 'Sin número';
+    if (!pedidosAgrupados[noPedido]) {
+      pedidosAgrupados[noPedido] = [];
     }
-    pedidosAgrupados[pedido.NoPedido].push(pedido);
-  });
+    pedidosAgrupados[noPedido].push(pedido);  });
   // Convertir a array de grupos
   let grupos = Object.values(pedidosAgrupados);
+  
   // Aplicar filtros
   if (filter !== 'TODOS') {
-    grupos = grupos.filter(grupo => grupo.some(p => typeof p.Seccion === 'string' && p.Seccion.toUpperCase().includes(filter)));
+    grupos = grupos.filter(grupo => 
+      grupo && grupo.length > 0 && grupo.some(p => 
+        p && typeof p.Seccion === 'string' && p.Seccion.toUpperCase().includes(filter)
+      )
+    );
   }
   if (searchQuery.trim() !== '') {
     const q = searchQuery.toLowerCase();
     grupos = grupos.filter(grupo =>
-      grupo[0].NoPedido.toLowerCase().includes(q) ||
-      (grupo[0].Cliente && grupo[0].Cliente.toLowerCase().includes(q)) ||
-      (grupo[0].RefCliente && grupo[0].RefCliente.toLowerCase().includes(q))
-    );
+      grupo && grupo.length > 0 && grupo[0] && (
+        (grupo[0].NoPedido && grupo[0].NoPedido.toLowerCase().includes(q)) ||
+        (grupo[0].Cliente && grupo[0].Cliente.toLowerCase().includes(q)) ||
+        (grupo[0].RefCliente && grupo[0].RefCliente.toLowerCase().includes(q))
+      )    );
   }
+  
   // Ordenar por NoPedido de mayor a menor
   grupos.sort((a, b) => {
-    if (a[0].NoPedido > b[0].NoPedido) return -1;
-    if (a[0].NoPedido < b[0].NoPedido) return 1;
+    const aNum = a && a.length > 0 && a[0] ? a[0].NoPedido || '' : '';
+    const bNum = b && b.length > 0 && b[0] ? b[0].NoPedido || '' : '';
+    if (aNum > bNum) return -1;
+    if (aNum < bNum) return 1;
     return 0;
   });
   // Fragmentar para mostrar solo 20 por página
@@ -126,10 +151,9 @@ export default function ControlUsuariosScreen() {
   // handleEndReached para mostrar más (20 más)
   const handleEndReached = () => {
     if (!loading && pagedGrupos.length < grupos.length) {
-      setCurrentPage(prev => prev + 1);
-    }
+      setCurrentPage(prev => prev + 1);    }
   };
-
+  
   // Nuevo PedidoItem agrupado
   const PedidoAgrupadoItem = ({ grupo }: { grupo: Pedido[] }) => {
     // Si algún Recibido === 0 => Falta Material, si todos === -1 => Material Completo
@@ -138,11 +162,11 @@ export default function ControlUsuariosScreen() {
     return (
       <TouchableOpacity onPress={() => { setModalGroup(grupo); setModalVisible(true); }}>
         <View style={styles.pedidoItem}>
-          <Text style={styles.pedidoNumero}>NºPedido: {grupo[0].NoPedido}</Text>
-          <Text style={styles.clienteText}>Sección: {grupo[0].Seccion}</Text>
-          <Text style={styles.clienteText}>Cliente: {grupo[0].Cliente}</Text>
-          <Text style={styles.clienteText}>RefCliente: {grupo[0].RefCliente}</Text>
-          <Text style={styles.fechaText}>Compromiso: {grupo[0].Compromiso ? grupo[0].Compromiso.split('T')[0] : '-'}</Text>
+          <Text style={styles.pedidoNumero}>NºPedido: {grupo[0]?.NoPedido || 'Sin número'}</Text>
+          <Text style={styles.clienteText}>Sección: {grupo[0]?.Seccion || 'Sin sección'}</Text>
+          <Text style={styles.clienteText}>Cliente: {grupo[0]?.Cliente || 'Sin cliente'}</Text>
+          <Text style={styles.clienteText}>RefCliente: {grupo[0]?.RefCliente || 'Sin referencia'}</Text>
+          <Text style={styles.fechaText}>Compromiso: {grupo[0]?.Compromiso ? grupo[0].Compromiso.split('T')[0] : '-'}</Text>
           {/* Estado de material */}
           {faltaMaterial ? (
             <Text style={{ color: 'red', fontWeight: 'bold', marginTop: 6 }}>Falta Material</Text>
@@ -154,24 +178,28 @@ export default function ControlUsuariosScreen() {
     );
   };
 
+  const handleRefresh = () => {
+    fetchPedidos(true); // true para mostrar alert si hay error
+  };
+
   return (
     <View style={{ flex: 1 }}>
-      <SafeAreaView style={styles.container}>        <View style={styles.header}>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
             <Text style={styles.title}>Control de Pedidos</Text>
             <TouchableOpacity
-              onPress={fetchPedidos}
+              onPress={handleRefresh}
               style={{ marginLeft: 12, backgroundColor: '#2e78b7', borderRadius: 8, padding: 6 }}
-              accessibilityLabel="Actualizar lista"
-              disabled={isCheckingConnection}
+              accessibilityLabel="Actualizar lista"              disabled={isCheckingConnection}
             >
-              {isCheckingConnection ? 
+              {isCheckingConnection ?
                 <ActivityIndicator size="small" color="#fff" /> :
                 <Ionicons name="refresh" size={22} color="#fff" />
               }
             </TouchableOpacity>
           </View>
-            {/* Indicador de estado de conexión */}
+          {/* Indicador de estado de conexión */}
           <View style={styles.connectionIndicator}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Ionicons 
@@ -226,11 +254,12 @@ export default function ControlUsuariosScreen() {
           loading && currentPage === 1 ? (
             <Text style={{ textAlign: 'center', marginTop: 20 }}>Cargando...</Text>
           ) : (
-            <FlatList
-              data={pagedGrupos}
+            <FlatList              data={pagedGrupos}
               renderItem={({ item }) => <PedidoAgrupadoItem grupo={item} />}
               keyExtractor={(item, idx) => {
-                const key = typeof item[0].NoPedido === 'string' && item[0].NoPedido.trim() !== '' ? item[0].NoPedido : `row-${idx}`;
+                if (!item || !item.length || !item[0]) return `empty-${idx}`;
+                const noPedido = item[0].NoPedido;
+                const key = typeof noPedido === 'string' && noPedido.trim() !== '' ? noPedido : `row-${idx}`;
                 return key;
               }}
               contentContainerStyle={styles.listContainer}
@@ -239,8 +268,7 @@ export default function ControlUsuariosScreen() {
               maxToRenderPerBatch={20}
               windowSize={21}
               onEndReached={handleEndReached}
-              onEndReachedThreshold={0.2}
-              ListFooterComponent={
+              onEndReachedThreshold={0.2}              ListFooterComponent={
                 loading && currentPage === 1 ? (
                   <Text style={{ textAlign: 'center', padding: 12, color: '#2e78b7' }}>Cargando...</Text>
                 ) : pagedGrupos.length < grupos.length ? (
@@ -254,7 +282,7 @@ export default function ControlUsuariosScreen() {
         ) : (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
             <Text style={{ color: '#e53e3e', fontSize: 18, fontWeight: 'bold', textAlign: 'center' }}>
-              Necesitas permiso para ver esta paguina
+              Necesitas permiso para ver esta página
             </Text>
           </View>
         )}
@@ -276,13 +304,13 @@ export default function ControlUsuariosScreen() {
                   return (
                     <View key={idx} style={{ marginBottom: 12, borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 8 }}>
                       <Text style={{ fontWeight: 'bold', color: '#222' }}>
-                        Material: <Text style={{ fontWeight: 'normal', color }}>{p.Material}</Text>
+                        Material: <Text style={{ fontWeight: 'normal', color }}>{p?.Material || 'Sin material'}</Text>
                       </Text>
                       <Text style={{ fontWeight: 'bold', color: '#222' }}>
-                        Proveedor: <Text style={{ fontWeight: 'normal', color }}>{p.Proveedor}</Text>
+                        Proveedor: <Text style={{ fontWeight: 'normal', color }}>{p?.Proveedor || 'Sin proveedor'}</Text>
                       </Text>
                       <Text style={{ fontWeight: 'bold', color: '#222' }}>
-                        Fecha Prevista: <Text style={{ fontWeight: 'normal', color }}>{p.FechaPrevista ? p.FechaPrevista.split('T')[0] : '-'}</Text>
+                        Fecha Prevista: <Text style={{ fontWeight: 'normal', color }}>{p?.FechaPrevista ? p.FechaPrevista.split('T')[0] : '-'}</Text>
                       </Text>
                     </View>
                   );
@@ -306,7 +334,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f3f4f6',
-  },  header: {
+  },
+  header: {
     padding: 16,
     backgroundColor: '#f3f4f6',
     alignItems: 'center',
@@ -316,8 +345,7 @@ const styles = StyleSheet.create({
     marginTop: 5,
     flexDirection: 'row',
     justifyContent: 'center',
-  },
-  title: {
+  },  title: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#2e78b7',
@@ -330,11 +358,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 15,
     paddingVertical: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 5, height: 5 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
     elevation: 5,
+    // Shadow for iOS
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   searchIcon: {
     marginRight: 8,
@@ -343,8 +372,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 50,
     color: '#2e78b7',
-  },
-  listContainer: {
+  },  listContainer: {
     padding: 16,
   },
   pedidoItem: {
@@ -352,11 +380,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
+    elevation: 3,
+    // Shadow for iOS
     shadowColor: '#000',
-    shadowOffset: { width: 5, height: 5 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowRadius: 4,
   },
   pedidoHeader: {
     flexDirection: 'row',
@@ -384,8 +413,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#555', // gris oscuro
     marginBottom: 0,
-  },
-  actionsContainer: {
+  },  actionsContainer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
   },
@@ -394,11 +422,12 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     backgroundColor: '#f3f4f6',
     borderRadius: 10,
+    elevation: 2,
+    // Shadow for iOS
     shadowColor: '#000',
-    shadowOffset: { width: 3, height: 3 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
+    shadowRadius: 2,
   },
   fab: {
     position: 'absolute',
@@ -410,11 +439,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
     alignItems: 'center',
     justifyContent: 'center',
+    elevation: 6,
+    // Shadow for iOS
     shadowColor: '#000',
-    shadowOffset: { width: 5, height: 5 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 8,
+    shadowRadius: 5,
   },
   filterButton: {
     backgroundColor: '#e5e7eb',
