@@ -226,9 +226,8 @@ const styles = StyleSheet.create({
   
   listContainer: {
     padding: 16,
-  },
-  pedidoItem: {
-    backgroundColor: '#f3f4f6',
+  },  pedidoItem: {
+    backgroundColor: '#d1fae5', // Verde pálido más visible para incidencias  
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -238,6 +237,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    borderLeftWidth: 4,
+    borderLeftColor: '#10b981', // Borde izquierdo verde más intenso para destacar
   },
   pedidoHeader: {
     flexDirection: 'row',
@@ -259,15 +260,14 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: '600',
-  },
-  clienteText: {
+  },  clienteText: {
     fontSize: 16,
     marginBottom: 4,
-    color: '#4a5568',
+    color: '#2d5016', // Verde oscuro para mejor contraste con el fondo verde pálido
   },
   fechaText: {
     fontSize: 14,
-    color: '#718096',
+    color: '#4a5d23', // Verde medio para las fechas
     marginBottom: 12,
   },
   actionsContainer: {    flexDirection: 'row',
