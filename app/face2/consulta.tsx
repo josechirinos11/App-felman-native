@@ -25,7 +25,9 @@ export default function ConsultaScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [data, setData] = useState<ConsultaResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
   const router = useRouter();
+  const pageSize = 20;
   // Función para realizar la consulta
   const handleConsulta = async () => {
     if (!searchQuery.trim()) {
@@ -36,7 +38,7 @@ export default function ConsultaScreen() {
     setLoading(true);
     try {
       // Petición POST a la API de AI21
-      const response = await fetch(`${API_URL}/ai21/generar-sql-inteligente`, {
+      const response = await fetch(`${API_URL}/ai21/consulta-completa`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -44,19 +46,25 @@ export default function ConsultaScreen() {
         body: JSON.stringify({
           textoUsuario: searchQuery,
           instruccionesPersonalizadas: INSTRUCCIONES_PERSONALIZADAS
-        })
-      });
+        })      });
       
       if (response.ok) {
         const result = await response.json();
-                console.log('📊 Respuesta de la API:', result);
+        console.log('📊 Respuesta de la API:', result);
         
-        // Convertir los datos recibidos a formato para FlatList
-        if (Array.isArray(result)) {
-          setData(result);
+        // Acceder a los resultados desde la estructura anidada
+        let resultados = [];
+        if (result && result.data && Array.isArray(result.data.resultados)) {
+          resultados = result.data.resultados;
+        } else if (Array.isArray(result)) {
+          resultados = result;
         } else if (result && typeof result === 'object') {
-          // Si es un objeto, convertirlo a array
-          setData([result]);
+          resultados = [result];
+        }
+        
+        if (resultados.length > 0) {
+          setData(resultados);
+          setCurrentPage(1); // Reiniciar paginación
         } else {
           setData([]);
           alert('No se encontraron resultados');
@@ -76,11 +84,20 @@ export default function ConsultaScreen() {
       setLoading(false);
     }
   };
-
   // Función para regresar a la página anterior
   const handleGoBack = () => {
     router.back();
-  };  // Función auxiliar para renderizar valores complejos
+  };
+
+  // Fragmentar datos para mostrar solo 20 por página
+  const pagedData = data.slice(0, currentPage * pageSize);
+
+  // handleEndReached para mostrar más (20 más)
+  const handleEndReached = () => {
+    if (!loading && pagedData.length < data.length) {
+      setCurrentPage(prev => prev + 1);
+    }
+  };// Función auxiliar para renderizar valores complejos
   const renderValue = (value: any): string => {
     if (value === null || value === undefined) {
       return 'N/A';
@@ -165,18 +182,39 @@ export default function ConsultaScreen() {
           {loading ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={styles.consultaButtonText}>Mostrar Información</Text>
-          )}
+            <Text style={styles.consultaButtonText}>Mostrar Información</Text>          )}
         </TouchableOpacity>
 
         {/* FlatList con resultados */}
         <View style={styles.resultsContainer}>
-          {data.length > 0 ? (            <FlatList
-              data={data}
+          {/* Indicador de página actual */}
+          {data.length > 0 && (
+            <Text style={styles.pageIndicator}>
+              Mostrando {pagedData.length} de {data.length} resultados (Página {currentPage})
+            </Text>
+          )}
+          
+          {pagedData.length > 0 ? (
+            <FlatList
+              data={pagedData}
               renderItem={renderItem}
               keyExtractor={(item, index) => index.toString()}
               contentContainerStyle={styles.listContainer}
               showsVerticalScrollIndicator={false}
+              initialNumToRender={20}
+              maxToRenderPerBatch={20}
+              windowSize={21}
+              onEndReached={handleEndReached}
+              onEndReachedThreshold={0.2}
+              ListFooterComponent={
+                loading ? (
+                  <Text style={styles.loadingText}>Cargando...</Text>
+                ) : pagedData.length < data.length ? (
+                  <Text style={styles.loadMoreText}>Desliza para ver más...</Text>
+                ) : data.length > 0 ? (
+                  <Text style={styles.endText}>Fin del listado</Text>
+                ) : null
+              }
             />
           ) : (
             !loading && (
@@ -297,7 +335,8 @@ const styles = StyleSheet.create({
     color: '#4a5568',
     minWidth: 80,
     marginRight: 8,
-  },  fieldValue: {
+  },
+  fieldValue: {
     fontSize: 14,
     color: '#2d3748',
     flex: 1,
@@ -361,6 +400,32 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     textAlign: 'center',
     marginTop: 12,
+  },
+  pageIndicator: {
+    textAlign: 'center',
+    color: '#2e78b7',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+    paddingHorizontal: 16,
+  },
+  loadingText: {
+    textAlign: 'center',
+    padding: 12,
+    color: '#2e78b7',
+    fontStyle: 'italic',
+  },
+  loadMoreText: {
+    textAlign: 'center',
+    padding: 12,
+    color: '#2e78b7',
+    fontWeight: '600',
+  },
+  endText: {
+    textAlign: 'center',
+    padding: 12,
+    color: '#888',
+    fontStyle: 'italic',
   },
   backButton: {
     flexDirection: 'row',
