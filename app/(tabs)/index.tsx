@@ -23,7 +23,7 @@ const menuItems: MenuItem[] = [
   { id: 2, title: 'Control Comerciales', icon: 'cube-outline', route: '/control-comerciales' },
   { id: 3, title: 'Control de Incidencias', icon: 'alert-circle-outline', route: '/control-incidencias' },
   { id: 4, title: 'Entregas Diarias', icon: 'calendar-outline', route: '/control-entregas-diarias' },
-  { id: 5, title: 'Perfil de Usuario', icon: 'person-outline', route: '/pagina-construccion?title=Perfil de Usuario&icon=person-outline' },
+  { id: 5, title: 'Consultas de Usuario', icon: 'person-outline', route: '/face2/consulta' },
   { id: 6, title: 'Pedidos Proveedores', icon: 'briefcase-outline', route: '/pagina-construccion?title=Pedidos Proveedores&icon=briefcase-outline' },
 ];
 
