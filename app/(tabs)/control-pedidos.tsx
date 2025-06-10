@@ -90,11 +90,6 @@ export default function ControlUsuariosScreen() {
       if (showAlert) {        const result = await tryAction(async () => {
           const res = await fetch(`${API_URL}/control-access/ConsultaControlPedidoInicio`);
           const data = await res.json();
-          console.log('🔍 DATOS DE LA BASE DE DATOS (con showAlert):', JSON.stringify(data, null, 2));
-          console.log('📊 Cantidad de registros recibidos:', data?.length || 0);
-          if (data && data.length > 0) {
-            console.log('🔍 Primer registro de ejemplo:', JSON.stringify(data[0], null, 2));
-          }
           return Array.isArray(data) ? data : [];
         }, true, "No se pudieron cargar los pedidos. Verifique su conexión.");
         
@@ -108,12 +103,6 @@ export default function ControlUsuariosScreen() {
           const res = await fetch(`${API_URL}/control-access/ConsultaControlPedidoInicio`);
           if (res.ok) {
             const result = await res.json();
-            console.log('🔍 DATOS DE LA BASE DE DATOS (carga inicial):', JSON.stringify(result, null, 2));
-            console.log('📊 Cantidad de registros recibidos:', result?.length || 0);
-            if (result && result.length > 0) {
-              console.log('🔍 Primer registro de ejemplo:', JSON.stringify(result[0], null, 2));
-              console.log('🔍 Último registro de ejemplo:', JSON.stringify(result[result.length - 1], null, 2));
-            }
             setData(Array.isArray(result) ? result : []);
             setCurrentPage(1);
           } else {
@@ -150,10 +139,10 @@ export default function ControlUsuariosScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const userDataString = await AsyncStorage.getItem('userData');
-        if (userDataString) {
+        const userDataString = await AsyncStorage.getItem('userData');        if (userDataString) {
           const userData = JSON.parse(userDataString);
           const rol = userData.rol || userData.role || null;
+          console.log('👤 Usuario autenticado con rol:', rol); // Log esencial para testing
           setUserRole(rol);
         }
       } catch (e) {
@@ -166,35 +155,17 @@ export default function ControlUsuariosScreen() {
   data.forEach((pedido) => {
     const noPedido = pedido?.NoPedido || 'Sin número';
     if (!pedidosAgrupados[noPedido]) {
-      pedidosAgrupados[noPedido] = [];
-    }
+      pedidosAgrupados[noPedido] = [];    }
     pedidosAgrupados[noPedido].push(pedido);
   });
-  console.log('🔍 DATOS AGRUPADOS POR NoPedido:', Object.keys(pedidosAgrupados).length, 'grupos');
-  console.log('🔍 Ejemplo de agrupación:', Object.keys(pedidosAgrupados).slice(0, 3).map(key => ({
-    noPedido: key,
-    cantidad: pedidosAgrupados[key].length,
-    fechas: pedidosAgrupados[key].map(p => p.Compromiso)
-  })));
 
   // Estadísticas de fechas
   const todasLasFechas = data.map(p => p.Compromiso).filter(f => f);
   const fechasValidas = todasLasFechas.filter(f => !f.startsWith('1970-01-01'));
   const fechasNulas = todasLasFechas.filter(f => f.startsWith('1970-01-01'));
-  const hoy = new Date('2025-06-10T00:00:00Z');
-  const fechasFuturas = fechasValidas.filter(f => new Date(f) >= hoy);
+  const hoy = new Date('2025-06-10T00:00:00Z');  const fechasFuturas = fechasValidas.filter(f => new Date(f) >= hoy);
   const fechasPasadas = fechasValidas.filter(f => new Date(f) < hoy);
   
-  console.log('📊 ESTADÍSTICAS DE FECHAS:');
-  console.log('  - Total de registros con fecha:', todasLasFechas.length);
-  console.log('  - Fechas válidas:', fechasValidas.length);
-  console.log('  - Fechas nulas (1970-01-01):', fechasNulas.length);
-  console.log('  - Fechas futuras (>= hoy):', fechasFuturas.length);
-  console.log('  - Fechas pasadas (< hoy):', fechasPasadas.length);
-  console.log('  - Rango de fechas válidas:', fechasValidas.length > 0 ? {
-    primera: fechasValidas.sort()[0],
-    ultima: fechasValidas.sort()[fechasValidas.length - 1]
-  } : 'Sin fechas válidas');
   // Convertir a array de grupos
   let grupos = Object.values(pedidosAgrupados);
   
@@ -240,21 +211,8 @@ export default function ControlUsuariosScreen() {
     // Para fechas válidas, ordenar ascendente
     const fechaValidaA = fechaA.getFullYear() > 2000 ? fechaA : new Date('9999-12-31');
     const fechaValidaB = fechaB.getFullYear() > 2000 ? fechaB : new Date('9999-12-31');
-    
-    return fechaValidaA.getTime() - fechaValidaB.getTime();
+      return fechaValidaA.getTime() - fechaValidaB.getTime();
   });
-
-  // Log para verificar el filtrado y ordenamiento
-  console.log('🔍 DESPUÉS DEL FILTRADO Y ORDENAMIENTO:');
-  console.log('  - Total grupos mostrados:', grupos.length);
-  console.log('  - Con búsqueda activa:', searchQuery.trim() !== '');
-  console.log('🔍 PRIMERAS 5 FECHAS DESPUÉS DEL ORDENAMIENTO:', 
-    grupos.slice(0, 5).map(grupo => ({
-      noPedido: grupo[0]?.NoPedido,
-      compromiso: grupo[0]?.Compromiso,
-      fechaFormateada: grupo[0]?.Compromiso ? formatearFechaASemana(grupo[0].Compromiso) : 'Sin fecha'
-    }))
-  );
 
   // Fragmentar para mostrar solo 20 por página
   const pagedGrupos = grupos.slice(0, currentPage * pageSize);
@@ -296,7 +254,7 @@ export default function ControlUsuariosScreen() {
           <Text style={styles.clienteText}>
             {`RefCliente: ${refCliente}`}
           </Text>
-          <Text style={styles.fechaText}>
+          <Text style={styles.pedidoNumero}>
             {`Compromiso: ${compromiso}`}
           </Text>
           {faltaMaterial && (
