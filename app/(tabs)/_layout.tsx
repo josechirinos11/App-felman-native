@@ -41,8 +41,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="control-pedidos"
-        options={{
+        name="control-pedidos"        options={{
           title: 'Pedidos',
           tabBarIcon: ({ color }) => <TabBarIcon name="clipboard-outline" color={color} />,
         }}

@@ -12,16 +12,17 @@ export default function ConexionDiagnostic() {
     serverReachable, 
     isChecking, 
     apiUrl,
-    checkConnectivity, 
-    showConnectionDetails 
-  } = useNetworkStatus();  // Estado adicional para mostrar resultados de ping
+    checkConnectivity,    showConnectionDetails 
+  } = useNetworkStatus();
+  
+  // Estado adicional para mostrar resultados de ping
   const [pingResult, setPingResult] = useState<number | null>(null);
   const [lastChecked, setLastChecked] = useState<string>('');
   
   // Estados para el servidor Access
-  const [accessServerReachable, setAccessServerReachable] = useState<boolean>(false);
-  const [accessPingResult, setAccessPingResult] = useState<number | null>(null);
+  const [accessServerReachable, setAccessServerReachable] = useState<boolean>(false);  const [accessPingResult, setAccessPingResult] = useState<number | null>(null);
   const [isCheckingAccess, setIsCheckingAccess] = useState<boolean>(false);
+  
   // Función para medir el tiempo de respuesta del servidor
   const pingServer = async () => {
     try {
@@ -33,9 +34,9 @@ export default function ConexionDiagnostic() {
       
       const response = await fetch(`${apiUrl}/`, {
         signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);      const endTime = Date.now();
+      });      
+      clearTimeout(timeoutId);
+      const endTime = Date.now();
       
       if (response.status < 400) {
         setPingResult(endTime - startTime);
@@ -43,10 +44,11 @@ export default function ConexionDiagnostic() {
         setPingResult(null);
       }
     } catch (error) {
-      console.log('Error al hacer ping al servidor:', error);
-      setPingResult(null);
+      console.log('Error al hacer ping al servidor:', error);      setPingResult(null);
     }
-  };  // Función para verificar el servidor Access
+  };
+  
+  // Función para verificar el servidor Access
   const checkAccessServer = async () => {
     try {
       setIsCheckingAccess(true);
@@ -94,10 +96,10 @@ export default function ConexionDiagnostic() {
           console.log('📄 Cuerpo del error:', errorText);
         } catch (e) {
           console.log('⚠️ No se pudo leer el cuerpo del error');
-        }
-        setAccessServerReachable(false);
+        }        setAccessServerReachable(false);
         setAccessPingResult(null);
-      }    } catch (error) {
+      }
+    } catch (error) {
       console.log('❌ Error al verificar servidor Access:', error);
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
@@ -121,9 +123,9 @@ export default function ConexionDiagnostic() {
     await checkConnectivity();
     await pingServer();
     await checkAccessServer();
-    setLastChecked(new Date().toLocaleTimeString());
-    console.log('✅ Verificación completa finalizada');
+    setLastChecked(new Date().toLocaleTimeString());    console.log('✅ Verificación completa finalizada');
   };
+  
   // Comprobar al cargar el componente
   useEffect(() => {
     handleCheck();
@@ -170,15 +172,15 @@ export default function ConexionDiagnostic() {
         {isChecking ? (
           <ActivityIndicator size="small" color="#2e78b7" />
         ) : (
-          <View style={styles.statusIndicator}>
-            <Ionicons 
+          <View style={styles.statusIndicator}>            <Ionicons 
               name={serverReachable ? "checkmark-circle" : "close-circle"} 
               size={18} 
               color={serverReachable ? "#4CAF50" : "#F44336"} 
             />
             <Text style={[
               styles.statusText, 
-              { color: serverReachable ? "#4CAF50" : "#F44336" }            ]}>
+              { color: serverReachable ? "#4CAF50" : "#F44336" }
+            ]}>
               {serverReachable ? "Disponible" : "No disponible"}
             </Text>
           </View>
@@ -204,8 +206,7 @@ export default function ConexionDiagnostic() {
               {accessServerReachable ? "Disponible" : "No disponible"}
             </Text>
           </View>
-        )}
-      </View>
+        )}      </View>
 
       {/* Tiempo de respuesta del servidor Sicar2 */}
       {pingResult !== null && (
@@ -222,32 +223,30 @@ export default function ConexionDiagnostic() {
           <Text style={styles.statusText}>{accessPingResult} ms</Text>
         </View>
       )}
-      
-      {/* URL del servidor */}
-      <View style={styles.statusRow}>
-        <Text style={styles.label}>URL del servidor:</Text>
-        <Text style={styles.valueText}>{apiUrl}</Text>
-      </View>
 
       {/* Última comprobación */}
-      {lastChecked && (        <View style={styles.statusRow}>
+      {lastChecked && (
+        <View style={styles.statusRow}>
           <Text style={styles.label}>Última comprobación:</Text>
           <Text style={styles.valueText}>{lastChecked}</Text>
         </View>
       )}
       
       {/* Sección de consejos cuando no hay conexión */}
-      {(!isConnected || !serverReachable || !accessServerReachable) && (
-        <View style={styles.tipContainer}>
+      {(!isConnected || !serverReachable || !accessServerReachable) && (        <View style={styles.tipContainer}>
           <Text style={styles.tipTitle}>Consejos para resolver problemas de conexión:</Text>
+          
           <View style={styles.tipItem}>
             <Ionicons name="wifi" size={18} color="#2e78b7" />
             <Text style={styles.tipText}>Verifique su conexión Wi-Fi o datos móviles</Text>
           </View>
+          
           <View style={styles.tipItem}>
             <Ionicons name="time-outline" size={18} color="#2e78b7" />
             <Text style={styles.tipText}>Espere unos minutos e intente de nuevo</Text>
-          </View>          <View style={styles.tipItem}>
+          </View>
+          
+          <View style={styles.tipItem}>
             <Ionicons name="server-outline" size={18} color="#2e78b7" />
             <Text style={styles.tipText}>Los servidores pueden estar en mantenimiento</Text>
           </View>
@@ -339,13 +338,14 @@ const styles = StyleSheet.create({
   button: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#2e78b7',
+    justifyContent: 'center',    backgroundColor: '#2e78b7',
     borderRadius: 8,
     padding: 12,
     flex: 1,
     marginRight: 8,
-  },  secondaryButton: {
+  },
+  
+  secondaryButton: {
     backgroundColor: '#5c6bc0',
     marginRight: 0,
     marginLeft: 8,

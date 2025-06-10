@@ -106,7 +106,6 @@ export function useNetworkStatus() {
       'Detalles de Conexión',
       `Estado de Internet: ${isConnected ? 'Conectado' : 'Desconectado'}\n` +
       `Servidor alcanzable: ${serverReachable ? 'Sí' : 'No'}\n` +
-      `URL del servidor: ${apiUrl}\n` +
       `Plataforma: ${Platform.OS} ${Platform.Version}`,
       [{ text: 'Entendido' }]
     );

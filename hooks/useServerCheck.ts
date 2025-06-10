@@ -90,7 +90,6 @@ export async function getDiagnosticInfo() {
   const isServerAvailable = await checkServerAvailability();
   
   return {
-    serverUrl: API_URL,
     serverAvailable: isServerAvailable,
     lastCheckTime,
     platform: Platform.OS,
