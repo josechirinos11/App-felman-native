@@ -23,6 +23,51 @@ interface Pedido {
   Incidencia?: string | null;
 }
 
+// Función para convertir fecha a semana del mes
+const formatearFechaASemana = (fechaString: string): string => {
+  try {
+    if (!fechaString || fechaString === null || fechaString === undefined) {
+      return 'Sin fecha';
+    }
+    
+    // Filtrar fechas que representan valores nulos (1970-01-01)
+    if (fechaString.startsWith('1970-01-01')) {
+      return 'Sin fecha';
+    }
+    
+    const fecha = new Date(fechaString);
+    
+    // Verificar que la fecha es válida
+    if (isNaN(fecha.getTime())) {
+      return 'Fecha inválida';
+    }
+    
+    // Verificar que no sea una fecha muy antigua (probablemente nula)
+    if (fecha.getFullYear() < 2000) {
+      return 'Sin fecha';
+    }
+    
+    // Obtener el día del mes (1-31)
+    const dia = fecha.getDate();
+    
+    // Calcular la semana del mes (1-4)
+    const semana = Math.ceil(dia / 7);
+    
+    // Obtener el nombre del mes
+    const meses = [
+      'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
+      'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'
+    ];
+    
+    const mes = meses[fecha.getMonth()];
+    const año = fecha.getFullYear();
+    
+    return `SEMANA ${semana} DE ${mes} ${año}`;
+  } catch (error) {
+    return 'Error en fecha';
+  }
+};
+
 export default function ControlComercialesScreen() {
   const [data, setData] = useState<Pedido[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -119,27 +164,51 @@ export default function ControlComercialesScreen() {
   } else {
     // Otros roles: mostrar todos los pedidos
     gruposFiltrados = grupos;
-    console.log('Usuario sin rol especial, mostrando todos los pedidos');
-  }
+    console.log('Usuario sin rol especial, mostrando todos los pedidos');  }
 
   // Aplicar filtros
   let gruposFiltradosYFiltrados = gruposFiltrados;
   if (filter !== 'TODOS') {
-    gruposFiltradosYFiltrados = gruposFiltradosYFiltrados.filter(grupo => grupo.some(p => typeof p.Seccion === 'string' && p.Seccion.toUpperCase().includes(filter)));
-  }
+    gruposFiltradosYFiltrados = gruposFiltradosYFiltrados.filter(grupo => 
+      grupo && grupo.length > 0 && grupo.some(p => 
+        p && typeof p.Seccion === 'string' && p.Seccion.toUpperCase().includes(filter)
+      )
+    );
+  }// Aplicar filtros por búsqueda
   if (searchQuery.trim() !== '') {
     const q = searchQuery.toLowerCase();
     gruposFiltradosYFiltrados = gruposFiltradosYFiltrados.filter(grupo =>
-      grupo[0].NoPedido.toLowerCase().includes(q) ||
-      (grupo[0].Cliente && grupo[0].Cliente.toLowerCase().includes(q)) ||
-      (grupo[0].RefCliente && grupo[0].RefCliente.toLowerCase().includes(q))
+      grupo && grupo.length > 0 && grupo[0] && (
+        (grupo[0].NoPedido && grupo[0].NoPedido.toLowerCase().includes(q)) ||
+        (grupo[0].Cliente && grupo[0].Cliente.toLowerCase().includes(q)) ||
+        (grupo[0].RefCliente && grupo[0].RefCliente.toLowerCase().includes(q))
+      )
     );
+  } else {
+    // Si NO hay búsqueda, filtrar solo fechas >= hoy
+    const hoy = new Date('2025-06-10T00:00:00Z'); // Fecha actual
+    gruposFiltradosYFiltrados = gruposFiltradosYFiltrados.filter(grupo => {
+      if (!grupo || !grupo.length || !grupo[0] || !grupo[0].Compromiso) return false;
+      
+      // Excluir fechas nulas (1970-01-01)
+      if (grupo[0].Compromiso.startsWith('1970-01-01')) return false;
+      
+      const fechaCompromiso = new Date(grupo[0].Compromiso);
+      // Solo mostrar fechas >= hoy
+      return fechaCompromiso >= hoy;
+    });
   }
-  // Ordenar por NoPedido de mayor a menor
+  
+  // Ordenar por fecha de compromiso (ascendente - más próximas primero)
   gruposFiltradosYFiltrados.sort((a, b) => {
-    if (a[0].NoPedido > b[0].NoPedido) return -1;
-    if (a[0].NoPedido < b[0].NoPedido) return 1;
-    return 0;
+    const fechaA = a && a.length > 0 && a[0] && a[0].Compromiso ? new Date(a[0].Compromiso) : new Date('1900-01-01');
+    const fechaB = b && b.length > 0 && b[0] && b[0].Compromiso ? new Date(b[0].Compromiso) : new Date('1900-01-01');
+    
+    // Para fechas válidas, ordenar ascendente
+    const fechaValidaA = fechaA.getFullYear() > 2000 ? fechaA : new Date('9999-12-31');
+    const fechaValidaB = fechaB.getFullYear() > 2000 ? fechaB : new Date('9999-12-31');
+    
+    return fechaValidaA.getTime() - fechaValidaB.getTime();
   });
   // Fragmentar para mostrar solo 20 por página, excepto admin/developer
   const pagedGrupos = (userRole === 'admin' || userRole === 'developer')
@@ -152,27 +221,53 @@ export default function ControlComercialesScreen() {
       setCurrentPage(prev => prev + 1);
     }
   };
-
-  // Nuevo PedidoItem agrupado
+  // Componente para cada pedido agrupado
   const PedidoAgrupadoItem = ({ grupo }: { grupo: Pedido[] }) => {
-    // Si algún Recibido === 0 => Falta Material, si todos === -1 => Material Completo
-    const faltaMaterial = grupo.some(p => p.Recibido === 0);
-    const materialCompleto = grupo.every(p => p.Recibido === -1);
+    if (!grupo || grupo.length === 0 || !grupo[0]) {
+      return null;
+    }
+
+    const faltaMaterial = grupo.some(p => p && p.Recibido === 0);
+    const materialCompleto = grupo.every(p => p && p.Recibido === -1);
+
+    const noPedido = grupo[0]?.NoPedido || 'Sin número';
+    const seccion = grupo[0]?.Seccion || 'Sin sección';
+    const cliente = grupo[0]?.Cliente || 'Sin cliente';
+    const comercial = grupo[0]?.Comercial || 'Sin comercial';
+    const refCliente = grupo[0]?.RefCliente || 'Sin referencia';
+    const compromiso = grupo[0]?.Compromiso ? formatearFechaASemana(grupo[0].Compromiso) : 'Sin fecha';
+
     return (
       <TouchableOpacity onPress={() => { setModalGroup(grupo); setModalVisible(true); }}>
         <View style={styles.pedidoItem}>
-          <Text style={styles.pedidoNumero}>NºPedido: {grupo[0].NoPedido}</Text>
-          <Text style={styles.clienteText}>Sección: {grupo[0].Seccion}</Text>
-          <Text style={styles.clienteText}>Cliente: {grupo[0].Cliente}</Text>
-          <Text style={styles.clienteText}>Comercial: {grupo[0].Comercial}</Text>
-          <Text style={styles.clienteText}>RefCliente: {grupo[0].RefCliente}</Text>
-          <Text style={styles.fechaText}>Compromiso: {grupo[0].Compromiso ? grupo[0].Compromiso.split('T')[0] : '-'}</Text>
-          {/* Estado de material */}
-          {faltaMaterial ? (
-            <Text style={{ color: 'red', fontWeight: 'bold', marginTop: 6 }}>Falta Material</Text>
-          ) : materialCompleto ? (
-            <Text style={{ color: 'green', fontWeight: 'bold', marginTop: 6 }}>Material Completo</Text>
-          ) : null}
+          <Text style={styles.pedidoNumero}>
+            {`NºPedido: ${noPedido}`}
+          </Text>
+          <Text style={styles.clienteText}>
+            {`Sección: ${seccion}`}
+          </Text>
+          <Text style={styles.clienteText}>
+            {`Cliente: ${cliente}`}
+          </Text>
+          <Text style={styles.clienteText}>
+            {`Comercial: ${comercial}`}
+          </Text>
+          <Text style={styles.clienteText}>
+            {`RefCliente: ${refCliente}`}
+          </Text>
+          <Text style={styles.pedidoNumero}>
+            {`Compromiso: ${compromiso}`}
+          </Text>
+          {faltaMaterial && (
+            <Text style={styles.faltaMaterial}>
+              Falta Material
+            </Text>
+          )}
+          {materialCompleto && (
+            <Text style={styles.materialCompleto}>
+              Material Completo
+            </Text>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -454,9 +549,18 @@ const styles = StyleSheet.create({
   filterButtonText: {
     color: '#2e78b7',
     fontWeight: 'bold',
-  },
-  filterButtonTextActive: {
+  },  filterButtonTextActive: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  faltaMaterial: {
+    color: 'red',
+    fontWeight: 'bold',
+    marginTop: 6,
+  },
+  materialCompleto: {
+    color: 'green',
+    fontWeight: 'bold',
+    marginTop: 6,
   },
 });
