@@ -36,6 +36,9 @@ export default function ControlEntregasDiariasScreen() {
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
+  const [showDateFilter, setShowDateFilter] = useState(false);
   const pageSize = 20;
   // Usar el hook de modo offline
   const { isConnected, serverReachable, isCheckingConnection, tryAction } = useOfflineMode();
@@ -102,13 +105,18 @@ export default function ControlEntregasDiariasScreen() {
           
           setUserName(userName);
           setUserRole(userRole);
-        }
-      } catch (e) {
+        }      } catch (e) {
         console.error('Error al obtener userData:', e);
       }
-    };    getUserData();
+    };
+    
+    getUserData();
   }, []);
 
+  // Reiniciar paginación cuando cambien los filtros
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, fechaDesde, fechaHasta]);
   const filtrarPorRolYBusqueda = (entregas: Entrega[]) => {
     let resultado = [...entregas];
 
@@ -127,9 +135,32 @@ export default function ControlEntregasDiariasScreen() {
       console.log('No se aplica filtro por comercial. Rol:', userRole, 'Nombre:', userName);
     }
 
+    // Filtrar por rango de fechas
+    if (fechaDesde || fechaHasta) {
+      resultado = resultado.filter(e => {
+        const fechaEntrega = new Date(e.FechaEnvio);
+        let cumpleFiltro = true;
+
+        if (fechaDesde) {
+          const fechaInicioFiltro = new Date(fechaDesde);
+          fechaInicioFiltro.setHours(0, 0, 0, 0);
+          cumpleFiltro = cumpleFiltro && fechaEntrega >= fechaInicioFiltro;
+        }
+
+        if (fechaHasta) {
+          const fechaFinFiltro = new Date(fechaHasta);
+          fechaFinFiltro.setHours(23, 59, 59, 999);
+          cumpleFiltro = cumpleFiltro && fechaEntrega <= fechaFinFiltro;
+        }
+
+        return cumpleFiltro;
+      });
+    }
+
     // Filtrar por búsqueda
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();      resultado = resultado.filter(e =>
+      const query = searchQuery.toLowerCase();
+      resultado = resultado.filter(e =>
         e.NoPedido.toLowerCase().includes(query) ||
         e.Cliente.toLowerCase().includes(query) ||
         e.RefCliente.toLowerCase().includes(query)
@@ -146,11 +177,12 @@ export default function ControlEntregasDiariasScreen() {
       // Si los ID son iguales, ordenar por fecha (de más reciente a más antigua)
       const fechaA = new Date(a.FechaEnvio).getTime();
       const fechaB = new Date(b.FechaEnvio).getTime();
-      return fechaB - fechaA;
-    });
+      return fechaB - fechaA;    });
 
     return resultado;
-  };  // Eliminado renderItem ya que no se usa - ahora usamos renderEntrega
+  };
+  
+  // Eliminado renderItem ya que no se usa - ahora usamos renderEntrega
   // Ya no necesitamos la función handleEntregaPress porque eliminamos el Modal
 
   const renderEntrega = ({ item }: { item: Entrega }) => {
@@ -192,10 +224,10 @@ export default function ControlEntregasDiariasScreen() {
   };
   // Modificar la lista de datos para mostrar solo un elemento por grupo de fecha
   const groupedData = data
-    .reduce((acc: Entrega[], current) => {
-      if (!current.FechaEnvio || !current.Id_Entrega) return acc;
+    .reduce((acc: Entrega[], current) => {      if (!current.FechaEnvio || !current.Id_Entrega) return acc;
       
-      const exists = acc.find(        item => 
+      const exists = acc.find(
+        item => 
           item.FechaEnvio === current.FechaEnvio
       );
       
@@ -209,22 +241,48 @@ export default function ControlEntregasDiariasScreen() {
       if (a.Id_Entrega !== b.Id_Entrega) {
         return b.Id_Entrega - a.Id_Entrega; // Orden descendente por Id_Entrega
       }
-      
-      // Si los ID son iguales, ordenar por fecha (de más reciente a más antigua)
+        // Si los ID son iguales, ordenar por fecha (de más reciente a más antigua)
       const fechaA = new Date(a.FechaEnvio).getTime();
-      const fechaB = new Date(b.FechaEnvio).getTime();      return fechaB - fechaA;
+      const fechaB = new Date(b.FechaEnvio).getTime();
+      
+      return fechaB - fechaA;
     });
-
   const datosFiltrados = filtrarPorRolYBusqueda(data);
-  const datosPaginados = datosFiltrados.slice(0, currentPage * pageSize);  // Función para generar keys únicos para el FlatList
+  const datosPaginados = datosFiltrados.slice(0, currentPage * pageSize);
+  
+  // Función para generar keys únicos para el FlatList
   const generateKey = (item: Entrega, index: number) => {
     // Usamos el índice para garantizar claves únicas incluso si hay duplicados
     return `${item.Id_Entrega || ''}-${item.FechaEnvio || ''}-${index}`;
   };
-
   const handleRefresh = () => {
     fetchEntregas(true); // true para mostrar alert si hay error
-  };  return (
+  };
+
+  // Función para formatear fecha a YYYY-MM-DD
+  const formatDateToInput = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Función para limpiar filtros de fecha
+  const limpiarFiltrosFecha = () => {
+    setFechaDesde('');
+    setFechaHasta('');
+  };
+  // Función para establecer filtros rápidos
+  const setFiltroRapido = (dias: number) => {
+    const hoy = new Date();
+    const fechaInicio = new Date();
+    fechaInicio.setDate(hoy.getDate() - dias);
+    
+    setFechaDesde(formatDateToInput(fechaInicio));
+    setFechaHasta(formatDateToInput(hoy));
+  };
+
+  return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Entregas Diarias</Text>
@@ -239,24 +297,23 @@ export default function ControlEntregasDiariasScreen() {
           }
         </TouchableOpacity>
       </View>
-      
-      {/* Indicador de estado de conexión */}
+        {/* Indicador de estado de conexión */}
       <View style={styles.connectionIndicator}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={styles.connectionContent}>
           <Ionicons 
             name={serverReachable ? "wifi" : "wifi-outline"}
             size={14} 
             color={serverReachable ? "#4CAF50" : "#F44336"} 
           />
-          <Text style={{ 
-            fontSize: 12, 
-            color: serverReachable ? "#4CAF50" : "#F44336",
-            marginLeft: 4
-          }}>
+          <Text style={[
+            styles.connectionText,
+            { color: serverReachable ? "#4CAF50" : "#F44336" }
+          ]}>
             {serverReachable ? "Conectado" : "Sin conexión"}
           </Text>
         </View>
       </View>
+      
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
@@ -265,6 +322,99 @@ export default function ControlEntregasDiariasScreen() {
           onChangeText={setSearchQuery}
         />
       </View>
+
+      {/* Filtro de fechas */}
+      <View style={styles.filterContainer}>
+        <TouchableOpacity
+          style={styles.filterToggleButton}
+          onPress={() => setShowDateFilter(!showDateFilter)}
+        >
+          <Ionicons 
+            name={showDateFilter ? "calendar" : "calendar-outline"} 
+            size={20} 
+            color="#2e78b7" 
+          />
+          <Text style={styles.filterToggleText}>Filtrar por fecha</Text>
+          <Ionicons 
+            name={showDateFilter ? "chevron-up" : "chevron-down"} 
+            size={16} 
+            color="#2e78b7" 
+          />
+        </TouchableOpacity>
+
+        {showDateFilter && (
+          <View style={styles.dateFilterContainer}>
+            <View style={styles.dateInputsContainer}>
+              <View style={styles.dateInputGroup}>
+                <Text style={styles.dateLabel}>Desde:</Text>
+                <TextInput
+                  style={styles.dateInput}
+                  placeholder="YYYY-MM-DD"
+                  value={fechaDesde}
+                  onChangeText={setFechaDesde}
+                />
+              </View>
+              <View style={styles.dateInputGroup}>
+                <Text style={styles.dateLabel}>Hasta:</Text>
+                <TextInput
+                  style={styles.dateInput}
+                  placeholder="YYYY-MM-DD"
+                  value={fechaHasta}
+                  onChangeText={setFechaHasta}
+                />
+              </View>
+            </View>
+            
+            {/* Botones de filtros rápidos */}
+            <View style={styles.quickFiltersContainer}>
+              <TouchableOpacity
+                style={styles.quickFilterButton}
+                onPress={() => setFiltroRapido(7)}
+              >
+                <Text style={styles.quickFilterText}>7 días</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.quickFilterButton}
+                onPress={() => setFiltroRapido(30)}
+              >                <Text style={styles.quickFilterText}>30 días</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.quickFilterButton}
+                onPress={() => setFiltroRapido(90)}
+              >
+                <Text style={styles.quickFilterText}>90 días</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.quickFilterButton, styles.clearFilterButton]}
+                onPress={limpiarFiltrosFecha}
+              >
+                <Text style={[styles.quickFilterText, styles.clearFilterText]}>Limpiar</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {/* Mostrar rango actual */}
+            {(fechaDesde || fechaHasta) && (
+              <View style={styles.currentFilterInfo}>
+                <Text style={styles.currentFilterText}>
+                  Filtro activo: {fechaDesde || 'Sin inicio'} → {fechaHasta || 'Sin fin'}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+      </View>
+
+      {/* Información de resultados */}
+      {!loading && (
+        <View style={styles.resultsInfo}>
+          <Text style={styles.resultsText}>
+            {datosFiltrados.length} entrega{datosFiltrados.length !== 1 ? 's' : ''} encontrada{datosFiltrados.length !== 1 ? 's' : ''}
+            {(fechaDesde || fechaHasta) && ' (filtradas por fecha)'}
+          </Text>
+        </View>
+      )}
 
       {loading ? (
         <View style={styles.centerContainer}>
@@ -312,14 +462,21 @@ const styles = StyleSheet.create({  container: {
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
-  },
-  connectionIndicator: {
+  },  connectionIndicator: {
     padding: 8,
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
     flexDirection: 'row',
     justifyContent: 'center',
+  },
+  connectionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  connectionText: {
+    fontSize: 12,
+    marginLeft: 4,
   },
   title: {
     fontSize: 20,
@@ -440,9 +597,108 @@ const styles = StyleSheet.create({  container: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#2e78b7',
-  },
-  entregaText: {
+  },  entregaText: {
     fontSize: 14,
     color: '#444',
+  },
+  // Estilos para filtros de fecha
+  filterContainer: {
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  filterToggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  filterToggleText: {
+    fontSize: 16,
+    color: '#2e78b7',
+    fontWeight: '600',
+    marginHorizontal: 8,
+  },
+  dateFilterContainer: {
+    padding: 16,
+    backgroundColor: '#f8f9fa',
+  },
+  dateInputsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  dateInputGroup: {
+    flex: 1,
+    marginHorizontal: 4,
+  },
+  dateLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  dateInput: {
+    height: 40,
+    borderWidth: 1,
+    borderColor: '#d0d0d0',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    backgroundColor: 'white',
+    fontSize: 14,
+  },
+  quickFiltersContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 12,
+  },
+  quickFilterButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#2e78b7',
+    borderRadius: 6,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  clearFilterButton: {
+    backgroundColor: '#dc3545',
+  },
+  quickFilterText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  clearFilterText: {
+    color: 'white',
+  },
+  currentFilterInfo: {
+    backgroundColor: '#e3f2fd',
+    padding: 8,
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: '#2e78b7',
+  },  currentFilterText: {
+    fontSize: 12,
+    color: '#1565c0',
+    fontWeight: '500',
+  },
+  resultsInfo: {
+    backgroundColor: 'white',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  resultsText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });
