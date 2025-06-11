@@ -426,7 +426,8 @@ export default function ControlEntregasDiariasScreen() {
                   onChangeText={setFechaHasta}
                 />
               </View>
-            </View>            
+            </View>
+            
             {/* Botones de filtros rápidos */}
             <View style={styles.quickFiltersContainer}>
               <TouchableOpacity
@@ -435,12 +436,10 @@ export default function ControlEntregasDiariasScreen() {
               >
                 <Text style={styles.quickFilterText}>7 días</Text>
               </TouchableOpacity>
-              
               <TouchableOpacity
                 style={styles.quickFilterButton}
                 onPress={() => setFiltroRapido(30)}
-              >
-                <Text style={styles.quickFilterText}>30 días</Text>
+              >                <Text style={styles.quickFilterText}>30 días</Text>
               </TouchableOpacity>
               
               <TouchableOpacity

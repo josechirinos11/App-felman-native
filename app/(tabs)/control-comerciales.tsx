@@ -23,7 +23,7 @@ interface Pedido {
   Incidencia?: string | null;
 }
 
-// Función para convertir fecha a semana del mes
+// Función para convertir fecha a semana del año (1-52)
 const formatearFechaASemana = (fechaString: string): string => {
   try {
     if (!fechaString || fechaString === null || fechaString === undefined) {
@@ -47,22 +47,21 @@ const formatearFechaASemana = (fechaString: string): string => {
       return 'Sin fecha';
     }
     
-    // Obtener el día del mes (1-31)
-    const dia = fecha.getDate();
-    
-    // Calcular la semana del mes (1-4)
-    const semana = Math.ceil(dia / 7);
-    
-    // Obtener el nombre del mes
-    const meses = [
-      'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
-      'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'
-    ];
-    
-    const mes = meses[fecha.getMonth()];
+    // Obtener el año
     const año = fecha.getFullYear();
     
-    return `SEMANA ${semana} DE ${mes} ${año}`;
+    // Calcular el primer día del año
+    const primerDiaDelAño = new Date(año, 0, 1);
+    
+    // Calcular la diferencia en días desde el primer día del año
+    const diasTranscurridos = Math.floor((fecha.getTime() - primerDiaDelAño.getTime()) / (24 * 60 * 60 * 1000));
+    
+    // Calcular la semana del año (1-52/53)
+    // Ajustamos según el día de la semana del primer día del año
+    const primerDiaSemana = primerDiaDelAño.getDay(); // 0 = domingo, 1 = lunes, etc.
+    const semanaDelAño = Math.ceil((diasTranscurridos + primerDiaSemana + 1) / 7);
+    
+    return `SEMANA ${semanaDelAño}`;
   } catch (error) {
     return 'Error en fecha';
   }
