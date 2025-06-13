@@ -8,19 +8,19 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus';
  */
 export default function ConexionDiagnostic() {
   const { 
-    isConnected, 
-    serverReachable, 
+    isConnected,    serverReachable, 
     isChecking, 
     apiUrl,
-    checkConnectivity,    showConnectionDetails 
+    checkConnectivity,
+    showConnectionDetails 
   } = useNetworkStatus();
   
   // Estado adicional para mostrar resultados de ping
   const [pingResult, setPingResult] = useState<number | null>(null);
   const [lastChecked, setLastChecked] = useState<string>('');
-  
-  // Estados para el servidor Access
-  const [accessServerReachable, setAccessServerReachable] = useState<boolean>(false);  const [accessPingResult, setAccessPingResult] = useState<number | null>(null);
+    // Estados para el servidor Access
+  const [accessServerReachable, setAccessServerReachable] = useState<boolean>(false);
+  const [accessPingResult, setAccessPingResult] = useState<number | null>(null);
   const [isCheckingAccess, setIsCheckingAccess] = useState<boolean>(false);
   
   // Función para medir el tiempo de respuesta del servidor
@@ -34,7 +34,8 @@ export default function ConexionDiagnostic() {
       
       const response = await fetch(`${apiUrl}/`, {
         signal: controller.signal
-      });      
+      });
+      
       clearTimeout(timeoutId);
       const endTime = Date.now();
       
@@ -42,9 +43,9 @@ export default function ConexionDiagnostic() {
         setPingResult(endTime - startTime);
       } else {
         setPingResult(null);
-      }
-    } catch (error) {
-      console.log('Error al hacer ping al servidor:', error);      setPingResult(null);
+      }    } catch (error) {
+      console.log('Error al hacer ping al servidor:', error);
+      setPingResult(null);
     }
   };
   
@@ -93,10 +94,10 @@ export default function ConexionDiagnostic() {
         // Intentar leer el cuerpo del error
         try {
           const errorText = await response.text();
-          console.log('📄 Cuerpo del error:', errorText);
-        } catch (e) {
+          console.log('📄 Cuerpo del error:', errorText);        } catch (e) {
           console.log('⚠️ No se pudo leer el cuerpo del error');
-        }        setAccessServerReachable(false);
+        }
+        setAccessServerReachable(false);
         setAccessPingResult(null);
       }
     } catch (error) {
@@ -120,10 +121,10 @@ export default function ConexionDiagnostic() {
   // Función para comprobar todo
   const handleCheck = async () => {
     console.log('🔄 Iniciando verificación completa de conectividad...');
-    await checkConnectivity();
-    await pingServer();
+    await checkConnectivity();    await pingServer();
     await checkAccessServer();
-    setLastChecked(new Date().toLocaleTimeString());    console.log('✅ Verificación completa finalizada');
+    setLastChecked(new Date().toLocaleTimeString());
+    console.log('✅ Verificación completa finalizada');
   };
   
   // Comprobar al cargar el componente
@@ -170,10 +171,10 @@ export default function ConexionDiagnostic() {
       <View style={styles.statusRow}>
         <Text style={styles.label}>Servidor Sicar2:</Text>
         {isChecking ? (
-          <ActivityIndicator size="small" color="#2e78b7" />
-        ) : (
-          <View style={styles.statusIndicator}>            <Ionicons 
-              name={serverReachable ? "checkmark-circle" : "close-circle"} 
+          <ActivityIndicator size="small" color="#2e78b7" />        ) : (
+          <View style={styles.statusIndicator}>
+            <Ionicons 
+              name={serverReachable ? "checkmark-circle" : "close-circle"}
               size={18} 
               color={serverReachable ? "#4CAF50" : "#F44336"} 
             />
@@ -203,10 +204,10 @@ export default function ConexionDiagnostic() {
               styles.statusText, 
               { color: accessServerReachable ? "#4CAF50" : "#F44336" }
             ]}>
-              {accessServerReachable ? "Disponible" : "No disponible"}
-            </Text>
+              {accessServerReachable ? "Disponible" : "No disponible"}            </Text>
           </View>
-        )}      </View>
+        )}
+      </View>
 
       {/* Tiempo de respuesta del servidor Sicar2 */}
       {pingResult !== null && (
@@ -231,9 +232,9 @@ export default function ConexionDiagnostic() {
           <Text style={styles.valueText}>{lastChecked}</Text>
         </View>
       )}
-      
-      {/* Sección de consejos cuando no hay conexión */}
-      {(!isConnected || !serverReachable || !accessServerReachable) && (        <View style={styles.tipContainer}>
+        {/* Sección de consejos cuando no hay conexión */}
+      {(!isConnected || !serverReachable || !accessServerReachable) && (
+        <View style={styles.tipContainer}>
           <Text style={styles.tipTitle}>Consejos para resolver problemas de conexión:</Text>
           
           <View style={styles.tipItem}>

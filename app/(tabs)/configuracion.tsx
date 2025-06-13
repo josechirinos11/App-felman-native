@@ -173,10 +173,8 @@ export default function ConfiguracionScreen() {
       </View>
     );
   };
-
   return (
     <View style={{ flex: 1 }}>
-     
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Configuración</Text>
