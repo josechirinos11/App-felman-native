@@ -41,23 +41,9 @@ export default function ControlEntregasDiariasScreen() {
   const [showDateFilter, setShowDateFilter] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedEntrega, setSelectedEntrega] = useState<Entrega | null>(null);
-  const [usingDefaultFilter, setUsingDefaultFilter] = useState(true); // Indica si se está usando el filtro por defecto
-  const [showFilters, setShowFilters] = useState(false); // Controla si se muestran los filtros
-  const [infoModalVisible, setInfoModalVisible] = useState(false); // Modal para observaciones generales
-  const [selectedEntregaInfo, setSelectedEntregaInfo] = useState<Entrega | null>(null);
   const pageSize = 20;
-
-  // Función para obtener la fecha del día anterior en formato YYYY-MM-DD
-  const getYesterdayDate = () => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    return yesterday.toISOString().split('T')[0];
-  };
-  
   // Usar el hook de modo offline
-  const { isConnected, serverReachable, isCheckingConnection, tryAction } = useOfflineMode();
-  
-  const fetchEntregas = async (showAlert = false) => {
+  const { isConnected, serverReachable, isCheckingConnection, tryAction } = useOfflineMode();  const fetchEntregas = async (showAlert = false) => {
     try {
       setLoading(true);
       
@@ -149,25 +135,18 @@ export default function ControlEntregasDiariasScreen() {
           
           setUserName(userName);
           setUserRole(userRole);
-        }
-      } catch (e) {
-        console.error('Error al obtener userData:', e);      }
+        }      } catch (e) {
+        console.error('Error al obtener userData:', e);
+      }
     };
     
     getUserData();
   }, []);
-  
+
   // Reiniciar paginación cuando cambien los filtros
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, fechaDesde, fechaHasta]);
-  
-  // Desactivar filtro por defecto cuando se establezcan fechas personalizadas
-  useEffect(() => {
-    if (fechaDesde || fechaHasta) {
-      setUsingDefaultFilter(false);
-    }  }, [fechaDesde, fechaHasta]);
-
   const filtrarPorRolYBusqueda = (entregas: Entrega[]) => {
     console.log('🔍 Iniciando filtrado. Datos originales:', entregas.length);
     let resultado = [...entregas];
@@ -190,10 +169,9 @@ export default function ControlEntregasDiariasScreen() {
       console.log('ℹ️ No se aplica filtro por comercial. Rol:', userRole, 'Nombre:', userName);
     }
 
-    // Aplicar filtro por defecto (día anterior) o filtro personalizado
+    // Filtrar por rango de fechas
     if (fechaDesde || fechaHasta) {
-      // Filtro personalizado 
-      console.log('📅 Aplicando filtro personalizado. Desde:', fechaDesde, 'Hasta:', fechaHasta);
+      console.log('📅 Aplicando filtro de fechas. Desde:', fechaDesde, 'Hasta:', fechaHasta);
       const resultadoAntesFechas = resultado.length;
       resultado = resultado.filter(e => {
         const fechaEntrega = new Date(e.FechaEnvio);
@@ -212,26 +190,11 @@ export default function ControlEntregasDiariasScreen() {
         }
 
         if (cumpleFiltro) {
-          console.log('📅 Entrega dentro del rango personalizado:', e.NoPedido, '- Fecha:', e.FechaEnvio);
+          console.log('📅 Entrega dentro del rango:', e.NoPedido, '- Fecha:', e.FechaEnvio);
         }
         return cumpleFiltro;
       });
-      console.log(`📊 Filtrado por fechas personalizadas: ${resultadoAntesFechas} → ${resultado.length}`);
-    } else if (usingDefaultFilter) {
-      // Filtro por defecto - solo el día anterior
-      const yesterday = getYesterdayDate();
-      console.log('📅 Aplicando filtro por defecto (día anterior):', yesterday);
-      const resultadoAntesFechas = resultado.length;
-      resultado = resultado.filter(e => {
-        const fechaEntrega = new Date(e.FechaEnvio);
-        const fechaEntregaStr = fechaEntrega.toISOString().split('T')[0];
-        const coincide = fechaEntregaStr === yesterday;
-        if (coincide) {
-          console.log('📅 Entrega del día anterior:', e.NoPedido, '- Fecha:', e.FechaEnvio);
-        }
-        return coincide;
-      });
-      console.log(`📊 Filtrado por día anterior: ${resultadoAntesFechas} → ${resultado.length}`);
+      console.log(`📊 Filtrado por fechas: ${resultadoAntesFechas} → ${resultado.length}`);
     }
 
     // Filtrar por búsqueda
@@ -253,11 +216,11 @@ export default function ControlEntregasDiariasScreen() {
       if (a.Id_Entrega !== b.Id_Entrega) {
         return b.Id_Entrega - a.Id_Entrega; // Orden descendente por Id_Entrega
       }
-        // Si los ID son iguales, ordenar por fecha (de más reciente a más antigua)
+      
+      // Si los ID son iguales, ordenar por fecha (de más reciente a más antigua)
       const fechaA = new Date(a.FechaEnvio).getTime();
       const fechaB = new Date(b.FechaEnvio).getTime();
-      return fechaB - fechaA;
-    });
+      return fechaB - fechaA;    });
 
     console.log('✅ Filtrado completado. Resultado final:', resultado.length);
     if (resultado.length > 0) {
@@ -277,15 +240,16 @@ export default function ControlEntregasDiariasScreen() {
     // Agrupar entregas solo por fecha, ya no por estado
     const group = data.filter(
       e => e.FechaEnvio === item.FechaEnvio
-    );    // Formatear la fecha para mostrarla como día, mes y año
+    );
+
+    // Formatear la fecha para mostrarla como día, mes y año
     const formatearFecha = (fecha: string) => {
       try {
         const date = new Date(fecha);
         return date.toLocaleDateString('es-ES', {
           day: '2-digit',
           month: '2-digit',
-          year: 'numeric'
-        });
+          year: 'numeric'        });
       } catch (error) {
         return fecha || 'Fecha desconocida';
       }
@@ -321,11 +285,9 @@ export default function ControlEntregasDiariasScreen() {
       </TouchableOpacity>
     );
   };
-  
   // Modificar la lista de datos para mostrar solo un elemento por grupo de fecha
   const groupedData = data
-    .reduce((acc: Entrega[], current) => {
-      if (!current.FechaEnvio || !current.Id_Entrega) return acc;
+    .reduce((acc: Entrega[], current) => {      if (!current.FechaEnvio || !current.Id_Entrega) return acc;
       
       const exists = acc.find(
         item => 
@@ -342,13 +304,12 @@ export default function ControlEntregasDiariasScreen() {
       if (a.Id_Entrega !== b.Id_Entrega) {
         return b.Id_Entrega - a.Id_Entrega; // Orden descendente por Id_Entrega
       }
-      
-      // Si los ID son iguales, ordenar por fecha (de más reciente a más antigua)
+        // Si los ID son iguales, ordenar por fecha (de más reciente a más antigua)
       const fechaA = new Date(a.FechaEnvio).getTime();
       const fechaB = new Date(b.FechaEnvio).getTime();
-        return fechaB - fechaA;
+      
+      return fechaB - fechaA;
     });
-
   const datosFiltrados = filtrarPorRolYBusqueda(data);
   const datosPaginados = datosFiltrados.slice(0, currentPage * pageSize);
   
@@ -368,40 +329,12 @@ export default function ControlEntregasDiariasScreen() {
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
-  
+
   // Función para limpiar filtros de fecha
   const limpiarFiltrosFecha = () => {
     setFechaDesde('');
     setFechaHasta('');
-    setUsingDefaultFilter(false); // Desactivar filtro por defecto para mostrar todos los datos (90 días)
   };
-  
-  // Función para activar el filtro por defecto (día anterior)
-  const activarFiltroDiaAnterior = () => {
-    setFechaDesde('');
-    setFechaHasta('');    setUsingDefaultFilter(true);
-  };
-
-  // Función para obtener el texto del estado del filtro
-  const getFilterStatusText = () => {
-    if (fechaDesde || fechaHasta) {
-      return 'personalizado';
-    }
-    if (usingDefaultFilter) {
-      return '1d';
-    }
-    return 'todas';
-  };
-
-  // Función para mostrar el modal de observaciones generales
-  const mostrarInfoObservaciones = () => {
-    // Buscar una entrega que tenga observaciones generales
-    const entregaConObservaciones = datosFiltrados.find(entrega => entrega.ObservaGral);
-    if (entregaConObservaciones) {
-      setSelectedEntregaInfo(entregaConObservaciones);
-      setInfoModalVisible(true);    }
-  };
-
   // Función para establecer filtros rápidos
   const setFiltroRapido = (dias: number) => {
     const hoy = new Date();
@@ -409,166 +342,140 @@ export default function ControlEntregasDiariasScreen() {
     fechaInicio.setDate(hoy.getDate() - dias);
     
     setFechaDesde(formatDateToInput(fechaInicio));
-    setFechaHasta(formatDateToInput(hoy));    // No necesitamos setUsingDefaultFilter(false) aquí, el useEffect se encarga de eso
+    setFechaHasta(formatDateToInput(hoy));
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header compacto con información de estado */}
-      <View style={styles.compactHeader}>
-        <View style={styles.headerRow}>
-          <Text style={styles.title}>Entregas Diarias</Text>
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.infoButton}
-              onPress={mostrarInfoObservaciones}
-            >
-              <Ionicons name="information-circle-outline" size={20} color="#2e78b7" />
-              <Text style={styles.infoButtonText}>Info</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.filterIndicatorButton}
-              onPress={() => setShowFilters(!showFilters)}
-            >
-              <Ionicons 
-                name={showFilters ? "chevron-up" : "filter"} 
-                size={20} 
-                color="#2e78b7" 
-              />
-              <Text style={styles.filterIndicatorText}>
-                {getFilterStatusText()}
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              onPress={handleRefresh} 
-              style={styles.compactRefreshButton}
-              disabled={isCheckingConnection}
-            >
-              {isCheckingConnection ? 
-                <ActivityIndicator size="small" color="#2e78b7" /> :
-                <Ionicons name="refresh" size={20} color="#2e78b7" />
-              }
-            </TouchableOpacity>
-          </View>
-        </View>
-        
-        {/* Información de conexión y resultados en una línea */}
-        <View style={styles.statusRow}>
-          <View style={styles.connectionBadge}>
-            <Ionicons 
-              name={serverReachable ? "wifi" : "wifi-outline"}
-              size={12} 
-              color={serverReachable ? "#4CAF50" : "#F44336"} 
-            />
-            <Text style={[styles.connectionBadgeText, { color: serverReachable ? "#4CAF50" : "#F44336" }]}>
-              {serverReachable ? "Online" : "Offline"}
-            </Text>
-          </View>
-          
-          {!loading && (
-            <Text style={styles.resultsCount}>
-              {datosFiltrados.length} entregas ({getFilterStatusText()})
-            </Text>
-          )}
+      <View style={styles.header}>
+        <Text style={styles.title}>Entregas Diarias</Text>
+        <TouchableOpacity
+          onPress={handleRefresh}
+          style={styles.refreshButton}
+          disabled={isCheckingConnection}
+        >
+          {isCheckingConnection ? 
+            <ActivityIndicator size="small" color="#fff" /> :
+            <Ionicons name="refresh" size={22} color="#fff" />
+          }
+        </TouchableOpacity>
+      </View>
+        {/* Indicador de estado de conexión */}
+      <View style={styles.connectionIndicator}>
+        <View style={styles.connectionContent}>
+          <Ionicons 
+            name={serverReachable ? "wifi" : "wifi-outline"}
+            size={14} 
+            color={serverReachable ? "#4CAF50" : "#F44336"} 
+          />
+          <Text style={[
+            styles.connectionText,
+            { color: serverReachable ? "#4CAF50" : "#F44336" }
+          ]}>
+            {serverReachable ? "Conectado" : "Sin conexión"}
+          </Text>
         </View>
       </View>
-
-      {/* Barra de búsqueda siempre visible pero compacta */}
-      <View style={styles.compactSearchContainer}>
+      
+      <View style={styles.searchContainer}>
         <TextInput
-          style={styles.compactSearchInput}
+          style={styles.searchInput}
           placeholder="Buscar entregas..."
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
-      </View>      {/* Panel de filtros plegable */}
-      {showFilters && (
-        <View style={styles.collapsibleFilters}>
-          {/* Filtros horizontales compactos */}
-          <View style={styles.compactFiltersContainer}>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false} 
-              contentContainerStyle={styles.horizontalFilters}
-            >
-              <TouchableOpacity
-                style={[
-                  styles.compactFilterButton, 
-                  usingDefaultFilter && !fechaDesde && !fechaHasta ? styles.activeCompactFilter : null
-                ]}
-                onPress={activarFiltroDiaAnterior}
-              >
-                <Text style={[
-                  styles.compactFilterText, 
-                  usingDefaultFilter && !fechaDesde && !fechaHasta ? styles.activeCompactText : null
-                ]}>
-                  1d
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.compactFilterButton} 
-                onPress={() => setFiltroRapido(7)}
-              >
-                <Text style={styles.compactFilterText}>7d</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.compactFilterButton} 
-                onPress={() => setFiltroRapido(30)}
-              >
-                <Text style={styles.compactFilterText}>30d</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.compactFilterButton} 
-                onPress={() => setFiltroRapido(90)}
-              >
-                <Text style={styles.compactFilterText}>90d</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.compactFilterButton, styles.customDateButton]} 
-                onPress={() => setShowDateFilter(!showDateFilter)}
-              >
-                <Ionicons name="calendar-outline" size={16} color="#2e78b7" />
-                <Text style={styles.compactFilterText}>Personalizar</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
+      </View>
 
-          {/* Filtros de fecha personalizados (solo se muestra cuando se necesita) */}
-          {showDateFilter && (
-            <View style={styles.customDateContainer}>
-              <View style={styles.dateRow}>
+      {/* Filtro de fechas */}
+      <View style={styles.filterContainer}>
+        <TouchableOpacity
+          style={styles.filterToggleButton}
+          onPress={() => setShowDateFilter(!showDateFilter)}
+        >
+          <Ionicons 
+            name={showDateFilter ? "calendar" : "calendar-outline"} 
+            size={20} 
+            color="#2e78b7" 
+          />
+          <Text style={styles.filterToggleText}>Filtrar por fecha</Text>
+          <Ionicons 
+            name={showDateFilter ? "chevron-up" : "chevron-down"} 
+            size={16} 
+            color="#2e78b7" 
+          />
+        </TouchableOpacity>
+
+        {showDateFilter && (
+          <View style={styles.dateFilterContainer}>
+            <View style={styles.dateInputsContainer}>
+              <View style={styles.dateInputGroup}>
+                <Text style={styles.dateLabel}>Desde:</Text>
                 <TextInput
-                  style={styles.compactDateInput}
-                  placeholder="Desde (YYYY-MM-DD)"
+                  style={styles.dateInput}
+                  placeholder="YYYY-MM-DD"
                   value={fechaDesde}
                   onChangeText={setFechaDesde}
                 />
+              </View>
+              <View style={styles.dateInputGroup}>
+                <Text style={styles.dateLabel}>Hasta:</Text>
                 <TextInput
-                  style={styles.compactDateInput}
-                  placeholder="Hasta (YYYY-MM-DD)"
+                  style={styles.dateInput}
+                  placeholder="YYYY-MM-DD"
                   value={fechaHasta}
                   onChangeText={setFechaHasta}
                 />
-                <TouchableOpacity 
-                  style={styles.closeDateButton} 
-                  onPress={() => setShowDateFilter(false)}
-                >
-                  <Ionicons name="close" size={20} color="#666" />
-                </TouchableOpacity>
               </View>
-              
-              {/* Mostrar rango actual */}
-              {(fechaDesde || fechaHasta) && (
-                <View style={styles.compactFilterInfo}>
-                  <Text style={styles.compactFilterInfoText}>
-                    Filtro: {fechaDesde || 'Sin inicio'} → {fechaHasta || 'Sin fin'}
-                  </Text>
-                </View>
-              )}
             </View>
-          )}
+            
+            {/* Botones de filtros rápidos */}
+            <View style={styles.quickFiltersContainer}>
+              <TouchableOpacity
+                style={styles.quickFilterButton}
+                onPress={() => setFiltroRapido(7)}
+              >
+                <Text style={styles.quickFilterText}>7 días</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.quickFilterButton}
+                onPress={() => setFiltroRapido(30)}
+              >                <Text style={styles.quickFilterText}>30 días</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.quickFilterButton}
+                onPress={() => setFiltroRapido(90)}
+              >
+                <Text style={styles.quickFilterText}>90 días</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.quickFilterButton, styles.clearFilterButton]}
+                onPress={limpiarFiltrosFecha}
+              >
+                <Text style={[styles.quickFilterText, styles.clearFilterText]}>Limpiar</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {/* Mostrar rango actual */}
+            {(fechaDesde || fechaHasta) && (
+              <View style={styles.currentFilterInfo}>
+                <Text style={styles.currentFilterText}>
+                  Filtro activo: {fechaDesde || 'Sin inicio'} → {fechaHasta || 'Sin fin'}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+      </View>
+
+      {/* Información de resultados */}
+      {!loading && (
+        <View style={styles.resultsInfo}>
+          <Text style={styles.resultsText}>
+            {datosFiltrados.length} entrega{datosFiltrados.length !== 1 ? 's' : ''} encontrada{datosFiltrados.length !== 1 ? 's' : ''}
+            {(fechaDesde || fechaHasta) && ' (filtradas por fecha)'}
+          </Text>
         </View>
       )}
 
@@ -594,47 +501,14 @@ export default function ControlEntregasDiariasScreen() {
               setCurrentPage(prev => prev + 1);
             }
           }}
-          onEndReachedThreshold={0.5}          ListFooterComponent={
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
             currentPage * pageSize < datosFiltrados.length ? (
               <Text style={styles.loadingMoreText}>Cargando más entregas...</Text>
             ) : null
           }
         />
       )}
-
-      {/* Modal para información de observaciones generales */}
-      <Modal
-        visible={infoModalVisible}
-        animationType="slide"
-        transparent={true}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Observaciones Generales</Text>
-            
-            {selectedEntregaInfo && selectedEntregaInfo.ObservaGral ? (
-              <ScrollView style={styles.modalScrollView}>
-                <View style={styles.observacionesContainer}>
-                  <Text style={styles.observacionesTexto}>
-                    {selectedEntregaInfo.ObservaGral}
-                  </Text>
-                </View>
-              </ScrollView>
-            ) : (
-              <View style={styles.centerContainer}>
-                <Text style={styles.noDataText}>No hay observaciones generales disponibles</Text>
-              </View>
-            )}
-
-            <TouchableOpacity
-              style={styles.cerrarModalButton}
-              onPress={() => setInfoModalVisible(false)}
-            >
-              <Text style={styles.cerrarModalTexto}>Cerrar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
 
       {/* Modal para detalles de entrega */}
       <Modal
@@ -678,8 +552,20 @@ export default function ControlEntregasDiariasScreen() {
                   
                   <Text style={styles.detalleTitulo}>Caballetes:</Text>
                   <Text style={styles.detalleTexto}>{selectedEntrega.NCaballetes}</Text>
-                    <Text style={styles.detalleTitulo}>Bultos:</Text>
+                  
+                  <Text style={styles.detalleTitulo}>Bultos:</Text>
                   <Text style={styles.detalleTexto}>{selectedEntrega.NBultos}</Text>
+                  
+                  {selectedEntrega.ObservaGral && (
+                    <>
+                      <Text style={styles.detalleTitulo}>Observaciones Generales:</Text>
+                      <View style={styles.observacionesContainer}>
+                        <Text style={styles.observacionesTexto}>
+                          {selectedEntrega.ObservaGral}
+                        </Text>
+                      </View>
+                    </>
+                  )}
                   
                   {selectedEntrega.Observaciones && (
                     <>
@@ -708,195 +594,10 @@ export default function ControlEntregasDiariasScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
+const styles = StyleSheet.create({  container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  // Nuevos estilos para header compacto
-  compactHeader: {
-    backgroundColor: 'white',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#2e78b7',
-  },  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  infoButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: '#e8f5e8',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#4CAF50',
-  },
-  infoButtonText: {
-    fontSize: 12,
-    color: '#4CAF50',
-    marginLeft: 4,
-    fontWeight: '500',
-  },
-  filterIndicatorButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    backgroundColor: '#f0f8ff',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#2e78b7',
-  },
-  filterIndicatorText: {
-    fontSize: 12,
-    color: '#2e78b7',
-    marginLeft: 4,
-    fontWeight: '500',
-  },
-  compactRefreshButton: {
-    padding: 6,
-    backgroundColor: '#f0f8ff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#2e78b7',
-  },
-  statusRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  connectionBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-  },
-  connectionBadgeText: {
-    fontSize: 10,
-    marginLeft: 2,
-    fontWeight: '500',
-  },
-  resultsCount: {
-    fontSize: 12,
-    color: '#666',
-    fontStyle: 'italic',
-  },
-  compactSearchContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: 'white',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  compactSearchInput: {
-    height: 36,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    backgroundColor: 'white',
-    fontSize: 14,
-  },
-  collapsibleFilters: {
-    backgroundColor: '#f8f9fa',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  compactFiltersContainer: {
-    marginBottom: 8,
-  },
-  horizontalFilters: {
-    paddingRight: 16,
-    gap: 8,
-  },
-  compactFilterButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#e9ecef',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#dee2e6',
-    minWidth: 50,
-    alignItems: 'center',
-  },
-  activeCompactFilter: {
-    backgroundColor: '#28a745',
-    borderColor: '#28a745',
-  },
-  compactFilterText: {
-    fontSize: 12,
-    color: '#495057',
-    fontWeight: '600',
-  },
-  activeCompactText: {
-    color: 'white',
-  },
-  customDateButton: {
-    flexDirection: 'row',
-    gap: 4,
-    paddingHorizontal: 8,
-  },
-  clearFilterButton: {
-    backgroundColor: '#dc3545',
-    borderColor: '#dc3545',
-  },
-  clearFilterText: {
-    color: 'white',
-  },
-  customDateContainer: {
-    marginTop: 8,
-  },
-  dateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  compactDateInput: {
-    flex: 1,
-    height: 36,
-    borderWidth: 1,
-    borderColor: '#d0d0d0',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    backgroundColor: 'white',
-    fontSize: 12,
-  },
-  closeDateButton: {
-    padding: 4,
-  },
-  compactFilterInfo: {
-    backgroundColor: '#e3f2fd',
-    padding: 6,
-    borderRadius: 6,
-    borderLeftWidth: 3,
-    borderLeftColor: '#2e78b7',
-    marginTop: 8,
-  },
-  compactFilterInfoText: {
-    fontSize: 11,
-    color: '#1565c0',
-    fontWeight: '500',
-  },
-  // Estilos originales (mantenidos para compatibilidad)
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -905,8 +606,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
-  },
-  connectionIndicator: {
+  },  connectionIndicator: {
     padding: 8,
     backgroundColor: 'white',
     borderBottomWidth: 1,
@@ -922,6 +622,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginLeft: 4,
   },
+  title: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#2e78b7',
+  },
   refreshButton: {
     backgroundColor: '#2e78b7',
     padding: 8,
@@ -935,12 +640,12 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     height: 40,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderWidth: 1,    borderColor: '#e0e0e0',
     borderRadius: 8,
     paddingHorizontal: 16,
     backgroundColor: 'white',
   },
+  // Estilos de filtros eliminados
   listContainer: {
     padding: 16,
   },
@@ -1021,6 +726,7 @@ const styles = StyleSheet.create({
     padding: 16,
     color: '#666',
   },
+  // Se eliminaron estilos relacionados con el modal que ya no utilizamos
   entregaItem: {
     padding: 16,
     borderRadius: 12,
@@ -1035,12 +741,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#2e78b7',
-  },
-  entregaText: {
+  },  entregaText: {
     fontSize: 14,
     color: '#444',
   },
-  // Estilos para filtros de fecha (originales, para compatibilidad)
+  // Estilos para filtros de fecha
   filterContainer: {
     backgroundColor: 'white',
     borderBottomWidth: 1,
@@ -1105,10 +810,16 @@ const styles = StyleSheet.create({
     minWidth: 60,
     alignItems: 'center',
   },
+  clearFilterButton: {
+    backgroundColor: '#dc3545',
+  },
   quickFilterText: {
     color: 'white',
     fontSize: 12,
     fontWeight: '600',
+  },
+  clearFilterText: {
+    color: 'white',
   },
   currentFilterInfo: {
     backgroundColor: '#e3f2fd',
@@ -1116,8 +827,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     borderLeftWidth: 3,
     borderLeftColor: '#2e78b7',
-  },
-  currentFilterText: {
+  },  currentFilterText: {
     fontSize: 12,
     color: '#1565c0',
     fontWeight: '500',
@@ -1135,6 +845,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
   },
+  
   // Estilos para el Modal
   modalContainer: {
     flex: 1,
@@ -1221,13 +932,5 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
-  },
-  // Estilos para botón de filtro activo
-  activeFilterButton: {
-    backgroundColor: '#28a745',
-  },
-  activeFilterText: {
-    color: 'white',
-    fontWeight: 'bold',
   },
 });
