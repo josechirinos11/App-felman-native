@@ -149,9 +149,9 @@ export default function ControlEntregasDiariasScreen() {
           
           setUserName(userName);
           setUserRole(userRole);
-        }
-      } catch (e) {
-        console.error('Error al obtener userData:', e);      }
+        }      } catch (e) {
+        console.error('Error al obtener userData:', e);
+      }
     };
     
     getUserData();
@@ -161,12 +161,12 @@ export default function ControlEntregasDiariasScreen() {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, fechaDesde, fechaHasta]);
-  
-  // Desactivar filtro por defecto cuando se establezcan fechas personalizadas
+    // Desactivar filtro por defecto cuando se establezcan fechas personalizadas
   useEffect(() => {
     if (fechaDesde || fechaHasta) {
       setUsingDefaultFilter(false);
-    }  }, [fechaDesde, fechaHasta]);
+    }
+  }, [fechaDesde, fechaHasta]);
 
   const filtrarPorRolYBusqueda = (entregas: Entrega[]) => {
     console.log('🔍 Iniciando filtrado. Datos originales:', entregas.length);
@@ -379,7 +379,8 @@ export default function ControlEntregasDiariasScreen() {
   // Función para activar el filtro por defecto (día anterior)
   const activarFiltroDiaAnterior = () => {
     setFechaDesde('');
-    setFechaHasta('');    setUsingDefaultFilter(true);
+    setFechaHasta('');
+    setUsingDefaultFilter(true);
   };
 
   // Función para obtener el texto del estado del filtro
@@ -396,20 +397,21 @@ export default function ControlEntregasDiariasScreen() {
   // Función para mostrar el modal de observaciones generales
   const mostrarInfoObservaciones = () => {
     // Buscar una entrega que tenga observaciones generales
-    const entregaConObservaciones = datosFiltrados.find(entrega => entrega.ObservaGral);
+    const entregaConObservaciones = data.find(entrega => entrega.ObservaGral);
     if (entregaConObservaciones) {
       setSelectedEntregaInfo(entregaConObservaciones);
-      setInfoModalVisible(true);    }
+      setInfoModalVisible(true);
+    }
   };
 
   // Función para establecer filtros rápidos
   const setFiltroRapido = (dias: number) => {
     const hoy = new Date();
-    const fechaInicio = new Date();
-    fechaInicio.setDate(hoy.getDate() - dias);
+    const fechaInicio = new Date();    fechaInicio.setDate(hoy.getDate() - dias);
     
     setFechaDesde(formatDateToInput(fechaInicio));
-    setFechaHasta(formatDateToInput(hoy));    // No necesitamos setUsingDefaultFilter(false) aquí, el useEffect se encarga de eso
+    setFechaHasta(formatDateToInput(hoy));
+    // No necesitamos setUsingDefaultFilter(false) aquí, el useEffect se encarga de eso
   };
 
   return (
@@ -481,9 +483,9 @@ export default function ControlEntregasDiariasScreen() {
           style={styles.compactSearchInput}
           placeholder="Buscar entregas..."
           value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>      {/* Panel de filtros plegable */}
+          onChangeText={setSearchQuery}        />
+      </View>
+      {/* Panel de filtros plegable */}
       {showFilters && (
         <View style={styles.collapsibleFilters}>
           {/* Filtros horizontales compactos */}
@@ -594,7 +596,8 @@ export default function ControlEntregasDiariasScreen() {
               setCurrentPage(prev => prev + 1);
             }
           }}
-          onEndReachedThreshold={0.5}          ListFooterComponent={
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={
             currentPage * pageSize < datosFiltrados.length ? (
               <Text style={styles.loadingMoreText}>Cargando más entregas...</Text>
             ) : null
