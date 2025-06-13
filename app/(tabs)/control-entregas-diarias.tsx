@@ -704,9 +704,12 @@ export default function ControlEntregasDiariasScreen() {
             >
               <Text style={styles.cerrarModalTexto}>Cerrar</Text>
             </TouchableOpacity>
-          </View>
-        </View>
+          </View>        </View>
       </Modal>
+
+      <TouchableOpacity style={styles.fab}>
+        <Ionicons name="add" size={24} color="#2e78b7" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -1224,13 +1227,28 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
-  },
-  // Estilos para botón de filtro activo
+  },  // Estilos para botón de filtro activo
   activeFilterButton: {
     backgroundColor: '#28a745',
   },
   activeFilterText: {
     color: 'white',
     fontWeight: 'bold',
+  },
+  fab: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#f3f4f6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
   },
 });

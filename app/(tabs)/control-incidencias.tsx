@@ -174,8 +174,11 @@ export default function ControlUsuariosScreen() {
             <Text style={{ color: '#e53e3e', fontSize: 18, fontWeight: 'bold', textAlign: 'center' }}>
               Necesitas permiso para ver esta página
             </Text>
-          </View>
-        )}
+          </View>        )}
+
+        <TouchableOpacity style={styles.fab}>
+          <Ionicons name="add" size={24} color="#2e78b7" />
+        </TouchableOpacity>
       </SafeAreaView>
     </View>
   );
