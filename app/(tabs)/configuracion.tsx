@@ -195,17 +195,17 @@ export default function ConfiguracionScreen() {
             <Text style={styles.appVersion}>Versión {Application.nativeApplicationVersion}</Text>
             <Text style={styles.appName}>App Felman</Text>
           </View>
-        </ScrollView>
-
-        {showDiagnostic && (
+        </ScrollView>        {showDiagnostic && (
           <View style={styles.diagnosticContainer}>
-            <ConexionDiagnostic />
-            <TouchableOpacity 
-              style={styles.closeDiagnostic}
-              onPress={() => setShowDiagnostic(false)}
-            >
-              <Ionicons name="close-outline" size={24} color="#fff" />
-            </TouchableOpacity>
+            <View style={styles.diagnosticModal}>
+              <ConexionDiagnostic />
+              <TouchableOpacity 
+                style={styles.closeDiagnostic}
+                onPress={() => setShowDiagnostic(false)}
+              >
+                <Ionicons name="close-outline" size={20} color="#fff" />
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </SafeAreaView>
@@ -329,24 +329,36 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 16,
     fontWeight: '600',    color: '#2e78b7',
-  },
-  diagnosticContainer: {
+  },  diagnosticContainer: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },  diagnosticModal: {
     backgroundColor: '#fff',
-    zIndex: 10,    paddingTop: 100, // Baja el contenido aproximadamente un quinto hacia abajo
-  },
-  closeDiagnostic: {
+    borderRadius: 12,
+    padding: 16,
+    height: '70%',
+    width: '90%',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },closeDiagnostic: {
     position: 'absolute',
-    top: 60, // Ajustado para que esté visible con el nuevo padding
-    right: 16,
+    top: 10,
+    right: 10,
     backgroundColor: '#2e78b7',
     borderRadius: 20,
-    width: 40,
-    height: 40,
+    width: 32,
+    height: 32,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',

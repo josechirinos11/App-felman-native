@@ -8,9 +8,9 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus';
  */
 export default function ConexionDiagnostic() {
   const { 
-    isConnected,    serverReachable, 
-    isChecking, 
-    apiUrl,
+    isConnected, 
+    serverReachable, 
+    isChecking,    apiUrl,
     checkConnectivity,
     showConnectionDetails 
   } = useNetworkStatus();
@@ -31,8 +31,7 @@ export default function ConexionDiagnostic() {
       // Crear un AbortController para establecer un timeout
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 segundos de timeout
-      
-      const response = await fetch(`${apiUrl}/`, {
+        const response = await fetch(`${apiUrl}/`, {
         signal: controller.signal
       });
       
@@ -43,9 +42,9 @@ export default function ConexionDiagnostic() {
         setPingResult(endTime - startTime);
       } else {
         setPingResult(null);
-      }    } catch (error) {
-      console.log('Error al hacer ping al servidor:', error);
-      setPingResult(null);
+      }
+    } catch (error) {
+      console.log('Error al hacer ping al servidor:', error);      setPingResult(null);
     }
   };
   
@@ -291,11 +290,10 @@ export default function ConexionDiagnostic() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
+const styles = StyleSheet.create({  container: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#ffffff',
   },
   title: {
     fontSize: 18,
