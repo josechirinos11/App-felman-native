@@ -66,27 +66,77 @@ const formatearFechaASemana = (fechaString: string): string => {
   }
 };
 
-export default function ControlUsuariosScreen() {
-  const [data, setData] = useState<Pedido[]>([]);
+export default function ControlUsuariosScreen() {  const [data, setData] = useState<Pedido[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [loadingComplete, setLoadingComplete] = useState(false); // Para indicar si la carga completa terminó
   const [filter, setFilter] = useState<'TODOS' | 'ALUMINIO' | 'PVC'>('TODOS');
   const [modalVisible, setModalVisible] = useState(false);
   const [modalGroup, setModalGroup] = useState<Pedido[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const pageSize = 20;
-
   // Usar el hook de modo offline
   const { isConnected, serverReachable, isCheckingConnection, tryAction } = useOfflineMode();
 
-  // Función para obtener pedidos
+  // Función para carga rápida inicial (40 registros)
+  const fetchPedidosRapido = async () => {
+    try {
+      console.log('🚀 Iniciando carga rápida de pedidos (40 registros)...');
+      const res = await fetch(`${API_URL}/control-access/ConsultaControlPedidoInicio40Registro`);
+      
+      if (res.ok) {
+        const result = await res.json();
+        const pedidosRapidos = Array.isArray(result) ? result : [];
+        console.log('⚡ Carga rápida completada:', pedidosRapidos.length, 'registros');
+        setData(pedidosRapidos);
+        setLoading(false); // Quitar el loading para mostrar los datos rápidamente
+        
+        // Inmediatamente después, cargar todos los datos en segundo plano
+        fetchPedidosCompleto();
+      } else {
+        console.log('❌ Error en carga rápida:', res.status);
+        // Si falla la carga rápida, intentar carga completa directamente
+        fetchPedidosCompleto();
+      }
+    } catch (error) {
+      console.error('❌ Error en carga rápida:', error);
+      // Si falla la carga rápida, intentar carga completa directamente
+      fetchPedidosCompleto();
+    }
+  };
+
+  // Función para carga completa (todos los registros)
+  const fetchPedidosCompleto = async () => {
+    try {
+      console.log('📊 Iniciando carga completa de pedidos (todos los registros)...');
+      const res = await fetch(`${API_URL}/control-access/ConsultaControlPedidoInicio`);
+      
+      if (res.ok) {
+        const result = await res.json();
+        const pedidosCompletos = Array.isArray(result) ? result : [];
+        console.log('✅ Carga completa terminada:', pedidosCompletos.length, 'registros');
+        setData(pedidosCompletos);
+        setLoadingComplete(true);
+      } else {
+        console.log('❌ Error en carga completa:', res.status);
+        setLoadingComplete(true);
+      }
+    } catch (error) {
+      console.error('❌ Error en carga completa:', error);
+      setLoadingComplete(true);
+    }
+  };
+
+  // Función para refrescar (usada por el botón de refresh)
   const fetchPedidos = async (showAlert = false) => {
     try {
       setLoading(true);
+      setLoadingComplete(false);
       
-      if (showAlert) {        const result = await tryAction(async () => {
+      if (showAlert) {
+        const result = await tryAction(async () => {
           const res = await fetch(`${API_URL}/control-access/ConsultaControlPedidoInicio`);
           const data = await res.json();
           return Array.isArray(data) ? data : [];
@@ -95,22 +145,20 @@ export default function ControlUsuariosScreen() {
         if (result !== null) {
           setData(result);
           setCurrentPage(1);
+          setLoadingComplete(true);
         } else {
           if (!data.length) setData([]);
         }
-      } else {        try {
-          const res = await fetch(`${API_URL}/control-access/ConsultaControlPedidoInicio`);
-          if (res.ok) {
-            const result = await res.json();
-            setData(Array.isArray(result) ? result : []);
-            setCurrentPage(1);
-          } else {
-            console.log('Error en la respuesta del servidor:', res.status);
-            setData([]);
-          }
-        } catch (fetchError) {
-          console.log('Error de conexión en carga inicial:', fetchError);
-          setData([]);
+      } else {
+        // Para refresh manual, usar carga completa directa
+        const res = await fetch(`${API_URL}/control-access/ConsultaControlPedidoInicio`);
+        if (res.ok) {
+          const result = await res.json();
+          setData(Array.isArray(result) ? result : []);
+          setCurrentPage(1);
+          setLoadingComplete(true);
+        } else {
+          console.log('Error en la respuesta del servidor:', res.status);
         }
       }
     } catch (error) {
@@ -121,10 +169,10 @@ export default function ControlUsuariosScreen() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     setMounted(true);
-    fetchPedidos();
+    // Usar carga rápida inicial en lugar de carga completa
+    fetchPedidosRapido();
   }, []);
 
   // Reiniciar paginación al buscar
@@ -145,10 +193,18 @@ export default function ControlUsuariosScreen() {
           setUserRole(rol);
         }
       } catch (e) {
-        setUserRole(null);
-      }
+        setUserRole(null);      }
     })();
   }, []);
+
+  // Debug logs para monitorear el estado
+  console.log('🔍 [PEDIDOS] Estado actual:', {
+    dataLength: data?.length || 0,
+    loading,
+    loadingComplete,
+    hasData: data && data.length > 0,
+    loadingStatus: loading ? 'Cargando inicial' : loadingComplete ? 'Carga completa' : 'Carga rápida en progreso'
+  });
   // Agrupar por NoPedido
   const pedidosAgrupados: { [noPedido: string]: Pedido[] } = {};
   data.forEach((pedido) => {
@@ -304,8 +360,7 @@ export default function ControlUsuariosScreen() {
               )}
             </TouchableOpacity>
           </View>
-          
-          <View style={styles.connectionIndicator}>
+            <View style={styles.connectionIndicator}>
             <View style={styles.connectionContent}>
               <Ionicons 
                 name={serverReachable ? "wifi" : "wifi-outline"}
@@ -318,6 +373,25 @@ export default function ControlUsuariosScreen() {
               ]}>
                 {serverReachable ? "Conectado" : "Sin conexión"}
               </Text>
+              
+              {/* Indicador de estado de carga */}
+              {!loadingComplete && data.length > 0 && (
+                <>
+                  <Ionicons name="sync" size={12} color="#2e78b7" style={{ marginLeft: 8 }} />
+                  <Text style={[styles.connectionText, { color: "#2e78b7", marginLeft: 4 }]}>
+                    Cargando todos...
+                  </Text>
+                </>
+              )}
+              
+              {loadingComplete && data.length > 0 && (
+                <>
+                  <Ionicons name="checkmark-circle" size={12} color="#4CAF50" style={{ marginLeft: 8 }} />
+                  <Text style={[styles.connectionText, { color: "#4CAF50", marginLeft: 4 }]}>
+                    {data.length} registros
+                  </Text>
+                </>
+              )}
             </View>
           </View>
         </View>
