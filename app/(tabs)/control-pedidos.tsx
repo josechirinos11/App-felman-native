@@ -66,7 +66,8 @@ const formatearFechaASemana = (fechaString: string): string => {
   }
 };
 
-export default function ControlUsuariosScreen() {  const [data, setData] = useState<Pedido[]>([]);
+export default function ControlUsuariosScreen() {
+  const [data, setData] = useState<Pedido[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -181,22 +182,22 @@ export default function ControlUsuariosScreen() {  const [data, setData] = useSt
       setCurrentPage(1);
     }
   }, [searchQuery, mounted]);
-
   // Obtener rol de usuario
   useEffect(() => {
     (async () => {
       try {
-        const userDataString = await AsyncStorage.getItem('userData');        if (userDataString) {
+        const userDataString = await AsyncStorage.getItem('userData');
+        if (userDataString) {
           const userData = JSON.parse(userDataString);
           const rol = userData.rol || userData.role || null;
           console.log('👤 Usuario autenticado con rol:', rol); // Log esencial para testing
           setUserRole(rol);
         }
       } catch (e) {
-        setUserRole(null);      }
+        setUserRole(null);
+      }
     })();
   }, []);
-
   // Debug logs para monitorear el estado
   console.log('🔍 [PEDIDOS] Estado actual:', {
     dataLength: data?.length || 0,
@@ -205,24 +206,37 @@ export default function ControlUsuariosScreen() {  const [data, setData] = useSt
     hasData: data && data.length > 0,
     loadingStatus: loading ? 'Cargando inicial' : loadingComplete ? 'Carga completa' : 'Carga rápida en progreso'
   });
+
   // Agrupar por NoPedido
   const pedidosAgrupados: { [noPedido: string]: Pedido[] } = {};
   data.forEach((pedido) => {
     const noPedido = pedido?.NoPedido || 'Sin número';
     if (!pedidosAgrupados[noPedido]) {
-      pedidosAgrupados[noPedido] = [];    }
+      pedidosAgrupados[noPedido] = [];
+    }
     pedidosAgrupados[noPedido].push(pedido);
   });
-
+  
   // Estadísticas de fechas
   const todasLasFechas = data.map(p => p.Compromiso).filter(f => f);
   const fechasValidas = todasLasFechas.filter(f => !f.startsWith('1970-01-01'));
   const fechasNulas = todasLasFechas.filter(f => f.startsWith('1970-01-01'));
-  const hoy = new Date('2025-06-10T00:00:00Z');  const fechasFuturas = fechasValidas.filter(f => new Date(f) >= hoy);
+  const hoy = new Date(); // Fecha actual real
+  const fechasFuturas = fechasValidas.filter(f => new Date(f) >= hoy);
   const fechasPasadas = fechasValidas.filter(f => new Date(f) < hoy);
+  
+  console.log('📊 [ESTADÍSTICAS FECHAS]:', {
+    totalFechas: todasLasFechas.length,
+    fechasValidas: fechasValidas.length,
+    fechasNulas: fechasNulas.length,
+    fechasFuturas: fechasFuturas.length,
+    fechasPasadas: fechasPasadas.length,
+    fechaActual: hoy.toISOString().split('T')[0]
+  });
   
   // Convertir a array de grupos
   let grupos = Object.values(pedidosAgrupados);
+  console.log('🔍 [GRUPOS] Grupos totales creados:', grupos.length);
   
   // Aplicar filtros por sección
   if (filter !== 'TODOS') {
@@ -239,23 +253,35 @@ export default function ControlUsuariosScreen() {  const [data, setData] = useSt
     grupos = grupos.filter(grupo =>
       grupo && grupo.length > 0 && grupo[0] && (
         (grupo[0].NoPedido && grupo[0].NoPedido.toLowerCase().includes(q)) ||
-        (grupo[0].Cliente && grupo[0].Cliente.toLowerCase().includes(q)) ||
-        (grupo[0].RefCliente && grupo[0].RefCliente.toLowerCase().includes(q))
+        (grupo[0].Cliente && grupo[0].Cliente.toLowerCase().includes(q)) ||        (grupo[0].RefCliente && grupo[0].RefCliente.toLowerCase().includes(q))
       )
-    );
-  } else {
+    );  } else {
     // Si NO hay búsqueda, filtrar solo fechas >= hoy
-    const hoy = new Date('2025-06-10T00:00:00Z'); // Fecha actual
+    const hoy = new Date(); // Fecha actual real
+    console.log('🔍 [FILTRO FECHA] Fecha actual para filtrar:', hoy.toISOString());
+    console.log('🔍 [FILTRO FECHA] Grupos antes del filtro:', grupos.length);
+    
     grupos = grupos.filter(grupo => {
-      if (!grupo || !grupo.length || !grupo[0] || !grupo[0].Compromiso) return false;
+      if (!grupo || !grupo.length || !grupo[0] || !grupo[0].Compromiso) {
+        console.log('❌ [FILTRO] Grupo sin compromiso válido:', grupo);
+        return false;
+      }
       
       // Excluir fechas nulas (1970-01-01)
-      if (grupo[0].Compromiso.startsWith('1970-01-01')) return false;
+      if (grupo[0].Compromiso.startsWith('1970-01-01')) {
+        console.log('❌ [FILTRO] Fecha nula (1970-01-01):', grupo[0].NoPedido);
+        return false;
+      }
       
       const fechaCompromiso = new Date(grupo[0].Compromiso);
+      const esValida = fechaCompromiso >= hoy;
+      console.log(`${esValida ? '✅' : '❌'} [FILTRO] Pedido: ${grupo[0].NoPedido}, Fecha: ${grupo[0].Compromiso}, Válida: ${esValida}`);
+      
       // Solo mostrar fechas >= hoy
-      return fechaCompromiso >= hoy;
+      return esValida;
     });
+    
+    console.log('🔍 [FILTRO FECHA] Grupos después del filtro:', grupos.length);
   }
   
   // Ordenar por fecha de compromiso (ascendente - más próximas primero)
@@ -266,7 +292,7 @@ export default function ControlUsuariosScreen() {  const [data, setData] = useSt
     // Para fechas válidas, ordenar ascendente
     const fechaValidaA = fechaA.getFullYear() > 2000 ? fechaA : new Date('9999-12-31');
     const fechaValidaB = fechaB.getFullYear() > 2000 ? fechaB : new Date('9999-12-31');
-      return fechaValidaA.getTime() - fechaValidaB.getTime();
+    return fechaValidaA.getTime() - fechaValidaB.getTime();
   });
 
   // Fragmentar para mostrar solo 20 por página
@@ -293,9 +319,24 @@ export default function ControlUsuariosScreen() {  const [data, setData] = useSt
     const cliente = grupo[0]?.Cliente || 'Sin cliente';
     const refCliente = grupo[0]?.RefCliente || 'Sin referencia';
     const compromiso = grupo[0]?.Compromiso ? formatearFechaASemana(grupo[0].Compromiso) : 'Sin fecha';
+    const estadoPedido = grupo[0]?.EstadoPedido || 'Sin estado';
 
     return (
-      <TouchableOpacity onPress={() => { setModalGroup(grupo); setModalVisible(true); }}>
+      <TouchableOpacity onPress={() => { 
+        // Imprimir datos completos del pedido en consola
+        console.log('🔍 [PEDIDO CLICKEADO] Datos completos del grupo:', grupo);
+        console.log('📋 [PRIMER PEDIDO] Datos del primer elemento:', grupo[0]);
+        console.log('🏷️ [ESTADO PEDIDO] Valor de EstadoPedido:', grupo[0]?.EstadoPedido);
+        console.log('📊 [TODOS LOS ESTADOS] Estados de todos los pedidos del grupo:', 
+          grupo.map((p, index) => ({ 
+            index, 
+            NoPedido: p.NoPedido, 
+            EstadoPedido: p.EstadoPedido 
+          }))
+        );
+        
+        setModalGroup(grupo); 
+        setModalVisible(true);      }}>
         <View style={styles.pedidoItem}>
           <Text style={styles.pedidoNumero}>
             {`NºPedido: ${noPedido}`}
@@ -311,6 +352,9 @@ export default function ControlUsuariosScreen() {  const [data, setData] = useSt
           </Text>
           <Text style={styles.pedidoNumero}>
             {`Compromiso: ${compromiso}`}
+          </Text>
+          <Text style={styles.clienteText}>
+            {`Estado Pedido: ${estadoPedido}`}
           </Text>
           {faltaMaterial && (
             <Text style={styles.faltaMaterial}>
@@ -356,11 +400,10 @@ export default function ControlUsuariosScreen() {  const [data, setData] = useSt
               {isCheckingConnection ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
-                <Ionicons name="refresh" size={22} color="#fff" />
-              )}
+                <Ionicons name="refresh" size={22} color="#fff" />              )}
             </TouchableOpacity>
           </View>
-            <View style={styles.connectionIndicator}>
+          <View style={styles.connectionIndicator}>
             <View style={styles.connectionContent}>
               <Ionicons 
                 name={serverReachable ? "wifi" : "wifi-outline"}

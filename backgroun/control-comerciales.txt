@@ -72,122 +72,27 @@ export default function ControlComercialesScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const [loadingComplete, setLoadingComplete] = useState(false); // Para indicar si la carga completa terminó
   const [filter, setFilter] = useState<'TODOS' | 'ALUMINIO' | 'PVC'>('TODOS');
   const [modalVisible, setModalVisible] = useState(false);
   const [modalGroup, setModalGroup] = useState<Pedido[]>([]);
   const [userName, setUserName] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
   const pageSize = 20;
 
   // Usar el hook de modo offline
   const { isConnected, serverReachable, isCheckingConnection, tryAction } = useOfflineMode();
-  // Función para carga rápida inicial (40 registros)
-  const fetchPedidosRapido = async () => {
-    try {
-      console.log('🚀 Iniciando carga rápida de pedidos comerciales (40 registros)...');
-      // Intentar primero con parámetro limit, si falla usar carga completa y filtrar
-      let res = await fetch(`${API_URL}/control-access/pedidosComerciales?limit=40`);
-      
-      // Si el endpoint con parámetro no funciona, usar el endpoint completo
-      if (!res.ok) {
-        console.log('⚠️ Endpoint con limit no disponible, usando carga completa...');
-        res = await fetch(`${API_URL}/control-access/pedidosComerciales`);
-      }
-      
-      if (res.ok) {
-        const result = await res.json();
-        let pedidosRapidos = Array.isArray(result) ? result : [];
-        
-        // Si obtuvimos más de 40 registros, tomar solo los primeros 40
-        if (pedidosRapidos.length > 40) {
-          const todosLosDatos = pedidosRapidos;
-          pedidosRapidos = pedidosRapidos.slice(0, 40);
-          console.log('⚡ Carga rápida (simulada) completada:', pedidosRapidos.length, 'registros de', todosLosDatos.length, 'totales');
-          setData(pedidosRapidos);
-          setLoading(false);
-          
-          // Agregar delay de 1 segundo y luego cargar todos los datos
-          setTimeout(() => {
-            console.log('📊 Cargando datos completos...');
-            setData(todosLosDatos);
-            setLoadingComplete(true);
-          }, 1000);
-        } else {
-          // Si hay 40 o menos registros, mostrar todos y marcar como completo
-          console.log('⚡ Carga rápida completada:', pedidosRapidos.length, 'registros');
-          setData(pedidosRapidos);
-          setLoading(false);
-          setLoadingComplete(true);
-        }
-      } else {
-        console.log('❌ Error en carga rápida:', res.status);
-        // Si falla todo, intentar carga completa directamente
-        fetchPedidosCompleto();
-      }
-    } catch (error) {
-      console.error('❌ Error en carga rápida:', error);
-      // Si falla la carga rápida, intentar carga completa directamente
-      fetchPedidosCompleto();
-    }
-  };
 
-  // Función para carga completa (todos los registros)
-  const fetchPedidosCompleto = async () => {
-    try {
-      console.log('📊 Iniciando carga completa de pedidos comerciales (todos los registros)...');
-      const res = await fetch(`${API_URL}/control-access/pedidosComerciales`);
-      
-      if (res.ok) {
-        const result = await res.json();
-        const pedidosCompletos = Array.isArray(result) ? result : [];
-        console.log('✅ Carga completa terminada:', pedidosCompletos.length, 'registros');
-        setData(pedidosCompletos);
-        setLoadingComplete(true);
-      } else {
-        console.log('❌ Error en carga completa:', res.status);
-        setLoadingComplete(true);
-      }
-    } catch (error) {
-      console.error('❌ Error en carga completa:', error);
-      setLoadingComplete(true);
-    }
-  };
-  // Función para refrescar (usada por el botón de refresh)
-  const fetchPedidos = async (showAlert = false) => {
+  // Nuevo fetchPedidos: trae todo, pero fragmenta para mostrar de 20 en 20 en el FlatList
+  const fetchPedidos = async () => {
     try {
       setLoading(true);
-      setLoadingComplete(false);
-      
-      if (showAlert) {
-        const result = await tryAction(async () => {
-          const res = await fetch(`${API_URL}/control-access/pedidosComerciales`);
-          const data = await res.json();
-          return Array.isArray(data) ? data : [];
-        }, true, "No se pudieron cargar los pedidos comerciales. Verifique su conexión.");
-        
-        if (result !== null) {
-          setData(result);
-          setCurrentPage(1);
-          setLoadingComplete(true);
-        } else {
-          if (!data.length) setData([]);
-        }
-      } else {
-        // Para refresh manual, usar carga completa directa
-        const res = await fetch(`${API_URL}/control-access/pedidosComerciales`);
-        if (res.ok) {
-          const result = await res.json();
-          setData(Array.isArray(result) ? result : []);
-          setCurrentPage(1);
-          setLoadingComplete(true);
-        } else {
-          console.log('Error en la respuesta del servidor:', res.status);
-        }
-      }
+      // Usamos la constante API_URL importada en la parte superior del archivo
+      const res = await fetch(`${API_URL}/control-access/pedidosComerciales`);
+      const result = await res.json();
+      setData(Array.isArray(result) ? result : []);
+      setCurrentPage(1); // Página 1 al cargar
     } catch (error) {
-      console.error('Error al obtener pedidos comerciales:', error);
+      console.error('Error al obtener pedidos:', error);
       setData([]);
       setCurrentPage(1);
     } finally {
@@ -195,15 +100,8 @@ export default function ControlComercialesScreen() {
     }
   };
 
-  // Función específica para el botón de refresh
-  const handleRefresh = () => {
-    fetchPedidos(true);
-  };
-
   useEffect(() => {
-    setMounted(true);
-    // Usar carga rápida inicial en lugar de carga completa
-    fetchPedidosRapido();
+    fetchPedidos();
   }, []);
 
   // Obtener nombre de usuario y rol de AsyncStorage
@@ -227,21 +125,11 @@ export default function ControlComercialesScreen() {
     };
     getUserData();
   }, []);
+
   // Reiniciar paginación al buscar
   useEffect(() => {
-    if (mounted) {
-      setCurrentPage(1);
-    }
-  }, [searchQuery, mounted]);
-
-  // Debug logs para monitorear el estado
-  console.log('🔍 [PEDIDOS COMERCIALES] Estado actual:', {
-    dataLength: data?.length || 0,
-    loading,
-    loadingComplete,
-    hasData: data && data.length > 0,
-    loadingStatus: loading ? 'Cargando inicial' : loadingComplete ? 'Carga completa' : 'Carga rápida en progreso'
-  });
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   // Agrupar por NoPedido
   const pedidosAgrupados: { [noPedido: string]: Pedido[] } = {};
@@ -271,32 +159,33 @@ export default function ControlComercialesScreen() {
   } else if (userRole === 'Comercial' && userName) {
     // Mostrar solo los pedidos donde Comercial === nombre extraído
     gruposFiltrados = grupos.filter(grupo => grupo[0].Comercial === userName);
-    console.log('Usuario Comercial, mostrando solo pedidos de:', userName, 'Total:', gruposFiltrados.length);  } else {
+    console.log('Usuario Comercial, mostrando solo pedidos de:', userName, 'Total:', gruposFiltrados.length);
+  } else {
     // Otros roles: mostrar todos los pedidos
     gruposFiltrados = grupos;
-    console.log('Usuario sin rol especial, mostrando todos los pedidos');
-  }
+    console.log('Usuario sin rol especial, mostrando todos los pedidos');  }
 
   // Aplicar filtros
   let gruposFiltradosYFiltrados = gruposFiltrados;
   if (filter !== 'TODOS') {
     gruposFiltradosYFiltrados = gruposFiltradosYFiltrados.filter(grupo => 
       grupo && grupo.length > 0 && grupo.some(p => 
-        p && typeof p.Seccion === 'string' && p.Seccion.toUpperCase().includes(filter)      )
+        p && typeof p.Seccion === 'string' && p.Seccion.toUpperCase().includes(filter)
+      )
     );
-  }
-  // Aplicar filtros por búsqueda
+  }// Aplicar filtros por búsqueda
   if (searchQuery.trim() !== '') {
     const q = searchQuery.toLowerCase();
     gruposFiltradosYFiltrados = gruposFiltradosYFiltrados.filter(grupo =>
       grupo && grupo.length > 0 && grupo[0] && (
         (grupo[0].NoPedido && grupo[0].NoPedido.toLowerCase().includes(q)) ||
-        (grupo[0].Cliente && grupo[0].Cliente.toLowerCase().includes(q)) ||        (grupo[0].RefCliente && grupo[0].RefCliente.toLowerCase().includes(q))
+        (grupo[0].Cliente && grupo[0].Cliente.toLowerCase().includes(q)) ||
+        (grupo[0].RefCliente && grupo[0].RefCliente.toLowerCase().includes(q))
       )
     );
   } else {
     // Si NO hay búsqueda, filtrar solo fechas >= hoy
-    const hoy = new Date(); // Fecha actual real
+    const hoy = new Date('2025-06-10T00:00:00Z'); // Fecha actual
     gruposFiltradosYFiltrados = gruposFiltradosYFiltrados.filter(grupo => {
       if (!grupo || !grupo.length || !grupo[0] || !grupo[0].Compromiso) return false;
       
@@ -330,7 +219,8 @@ export default function ControlComercialesScreen() {
     if (!loading && pagedGrupos.length < gruposFiltradosYFiltrados.length) {
       setCurrentPage(prev => prev + 1);
     }
-  };  // Componente para cada pedido agrupado
+  };
+  // Componente para cada pedido agrupado
   const PedidoAgrupadoItem = ({ grupo }: { grupo: Pedido[] }) => {
     if (!grupo || grupo.length === 0 || !grupo[0]) {
       return null;
@@ -345,25 +235,9 @@ export default function ControlComercialesScreen() {
     const comercial = grupo[0]?.Comercial || 'Sin comercial';
     const refCliente = grupo[0]?.RefCliente || 'Sin referencia';
     const compromiso = grupo[0]?.Compromiso ? formatearFechaASemana(grupo[0].Compromiso) : 'Sin fecha';
-    const estadoPedido = grupo[0]?.EstadoPedido || 'Sin estado';
 
     return (
-      <TouchableOpacity onPress={() => { 
-        // Imprimir datos completos del pedido en consola
-        console.log('🔍 [PEDIDO COMERCIAL CLICKEADO] Datos completos del grupo:', grupo);
-        console.log('📋 [PRIMER PEDIDO] Datos del primer elemento:', grupo[0]);
-        console.log('🏷️ [ESTADO PEDIDO] Valor de EstadoPedido:', grupo[0]?.EstadoPedido);
-        console.log('📊 [TODOS LOS ESTADOS] Estados de todos los pedidos del grupo:', 
-          grupo.map((p, index) => ({ 
-            index, 
-            NoPedido: p.NoPedido, 
-            EstadoPedido: p.EstadoPedido 
-          }))
-        );
-        
-        setModalGroup(grupo); 
-        setModalVisible(true); 
-      }}>
+      <TouchableOpacity onPress={() => { setModalGroup(grupo); setModalVisible(true); }}>
         <View style={styles.pedidoItem}>
           <Text style={styles.pedidoNumero}>
             {`NºPedido: ${noPedido}`}
@@ -383,9 +257,6 @@ export default function ControlComercialesScreen() {
           <Text style={styles.pedidoNumero}>
             {`Compromiso: ${compromiso}`}
           </Text>
-          <Text style={styles.clienteText}>
-            {`Estado Pedido: ${estadoPedido}`}
-          </Text>
           {faltaMaterial && (
             <Text style={styles.faltaMaterial}>
               Falta Material
@@ -394,21 +265,12 @@ export default function ControlComercialesScreen() {
           {materialCompleto && (
             <Text style={styles.materialCompleto}>
               Material Completo
-            </Text>          )}
+            </Text>
+          )}
         </View>
       </TouchableOpacity>
     );
   };
-
-  // Evitar renderizado hasta que el componente esté completamente montado
-  if (!mounted) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f4f6' }}>
-        <ActivityIndicator size="large" color="#2e78b7" />
-        <Text style={{ textAlign: 'center', marginTop: 20, color: '#2e78b7' }}>Cargando...</Text>
-      </View>
-    );
-  }
 
   return (
     <View style={{ flex: 1 }}>
@@ -417,14 +279,15 @@ export default function ControlComercialesScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
             <Text style={styles.title}>Control Comerciales</Text>
             <TouchableOpacity
-              onPress={handleRefresh}
+              onPress={fetchPedidos}
               style={{ marginLeft: 12, backgroundColor: '#2e78b7', borderRadius: 8, padding: 6 }}
               accessibilityLabel="Actualizar lista"
               disabled={isCheckingConnection}
             >
               {isCheckingConnection ? 
                 <ActivityIndicator size="small" color="#fff" /> :
-                <Ionicons name="refresh" size={22} color="#fff" />              }
+                <Ionicons name="refresh" size={22} color="#fff" />
+              }
             </TouchableOpacity>
           </View>
           {/* Indicador de estado de conexión */}
@@ -442,25 +305,6 @@ export default function ControlComercialesScreen() {
               }}>
                 {serverReachable ? "Conectado" : "Sin conexión"}
               </Text>
-              
-              {/* Indicador de estado de carga */}
-              {!loadingComplete && data.length > 0 && (
-                <>
-                  <Ionicons name="sync" size={12} color="#2e78b7" style={{ marginLeft: 8 }} />
-                  <Text style={{ fontSize: 12, color: "#2e78b7", marginLeft: 4 }}>
-                    Cargando todos...
-                  </Text>
-                </>
-              )}
-              
-              {loadingComplete && data.length > 0 && (
-                <>
-                  <Ionicons name="checkmark-circle" size={12} color="#4CAF50" style={{ marginLeft: 8 }} />
-                  <Text style={{ fontSize: 12, color: "#4CAF50", marginLeft: 4 }}>
-                    {data.length} registros
-                  </Text>
-                </>
-              )}
             </View>
           </View>
         </View>
