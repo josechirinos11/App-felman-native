@@ -245,44 +245,51 @@ export default function ControlUsuariosScreen() {
         p && typeof p.Seccion === 'string' && p.Seccion.toUpperCase().includes(filter)
       )
     );
-  }
-
-  // Aplicar filtros por búsqueda
+  }  // Aplicar filtros por búsqueda
   if (searchQuery.trim() !== '') {
     const q = searchQuery.toLowerCase();
     grupos = grupos.filter(grupo =>
       grupo && grupo.length > 0 && grupo[0] && (
         (grupo[0].NoPedido && grupo[0].NoPedido.toLowerCase().includes(q)) ||
-        (grupo[0].Cliente && grupo[0].Cliente.toLowerCase().includes(q)) ||        (grupo[0].RefCliente && grupo[0].RefCliente.toLowerCase().includes(q))
+        (grupo[0].Cliente && grupo[0].Cliente.toLowerCase().includes(q)) ||
+        (grupo[0].RefCliente && grupo[0].RefCliente.toLowerCase().includes(q))
       )
-    );  } else {
-    // Si NO hay búsqueda, filtrar solo fechas >= hoy
-    const hoy = new Date(); // Fecha actual real
-    console.log('🔍 [FILTRO FECHA] Fecha actual para filtrar:', hoy.toISOString());
-    console.log('🔍 [FILTRO FECHA] Grupos antes del filtro:', grupos.length);
-    
-    grupos = grupos.filter(grupo => {
-      if (!grupo || !grupo.length || !grupo[0] || !grupo[0].Compromiso) {
-        console.log('❌ [FILTRO] Grupo sin compromiso válido:', grupo);
-        return false;
-      }
-      
-      // Excluir fechas nulas (1970-01-01)
-      if (grupo[0].Compromiso.startsWith('1970-01-01')) {
-        console.log('❌ [FILTRO] Fecha nula (1970-01-01):', grupo[0].NoPedido);
-        return false;
-      }
-      
-      const fechaCompromiso = new Date(grupo[0].Compromiso);
-      const esValida = fechaCompromiso >= hoy;
-      console.log(`${esValida ? '✅' : '❌'} [FILTRO] Pedido: ${grupo[0].NoPedido}, Fecha: ${grupo[0].Compromiso}, Válida: ${esValida}`);
-      
-      // Solo mostrar fechas >= hoy
-      return esValida;
-    });
-    
-    console.log('🔍 [FILTRO FECHA] Grupos después del filtro:', grupos.length);
+    );
   }
+  
+  // Debug: logging para verificar filtros
+  console.log('🔍 [DEBUG GRUPOS] Antes del filtro de fechas:', grupos.length);
+  
+  // Filtrar fechas válidas - permitir pedidos sin fecha de compromiso
+  grupos = grupos.filter(grupo => {
+    // Verificar que el grupo tenga estructura válida
+    if (!grupo || !grupo.length || !grupo[0]) {
+      console.log('❌ [FILTRO] Grupo sin estructura válida');
+      return false;
+    }
+    
+    const compromiso = grupo[0].Compromiso;
+      // Permitir pedidos sin fecha de compromiso (null, undefined, "")
+    if (!compromiso || compromiso === null || compromiso === undefined || compromiso === '') {
+      console.log('✅ [FILTRO] Pedido sin fecha incluido:', grupo[0].NoPedido, 'Compromiso:', compromiso);
+      return true;
+    }
+    
+    // Incluir también fechas nulas (1970-01-01) - se mostrarán como "Sin fecha"
+    if (compromiso.startsWith('1970-01-01')) {
+      console.log('✅ [FILTRO] Pedido con fecha nula incluido (se mostrará como Sin fecha):', {
+        NoPedido: grupo[0].NoPedido,
+        Cliente: grupo[0].Cliente,
+        Compromiso: compromiso
+      });
+      return true;
+    }
+    
+    console.log('✅ [FILTRO] Pedido incluido con fecha válida:', grupo[0].NoPedido, 'Compromiso:', compromiso);
+    return true;
+  });
+  
+  console.log('🔍 [DEBUG GRUPOS] Después del filtro de fechas:', grupos.length);
   
   // Ordenar por fecha de compromiso (ascendente - más próximas primero)
   grupos.sort((a, b) => {
@@ -551,8 +558,7 @@ export default function ControlUsuariosScreen() {
                   const fechaPrevista = p?.FechaPrevista ? p.FechaPrevista.split('T')[0] : '-';
                   
                   return (
-                    <View key={idx} style={styles.modalItem}>
-                      <Text style={styles.modalItemText}>
+                    <View key={idx} style={styles.modalItem}>                      <Text style={styles.modalItemText}>
                         <Text style={styles.modalLabel}>Material: </Text>
                         <Text style={[styles.modalValue, { color }]}>{material}</Text>
                       </Text>
@@ -563,6 +569,10 @@ export default function ControlUsuariosScreen() {
                       <Text style={styles.modalItemText}>
                         <Text style={styles.modalLabel}>Fecha Prevista: </Text>
                         <Text style={[styles.modalValue, { color }]}>{fechaPrevista}</Text>
+                      </Text>
+                      <Text style={styles.modalItemText}>
+                        <Text style={styles.modalLabel}>Recibido: </Text>
+                        <Text style={[styles.modalValue, { color }]}>{p.Recibido}</Text>
                       </Text>
                     </View>
                   );
