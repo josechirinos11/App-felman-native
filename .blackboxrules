@@ -1,0 +1,52 @@
+{
+  "enabled": true,
+  "languages": ["python", "javascript", "typescript", "java", "cpp", "ruby", "go"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    ".git",
+    "*.log",
+    "__pycache__",
+    "*.pyc",
+    "*.class",
+    "*.o"
+  ],
+  "autocomplete": {
+    "enabled": true,
+    "max_suggestions": 5,
+    "min_confidence": 0.7,
+    "context_lines": 10
+  },
+  "code_chat": {
+    "enabled": true,
+    "max_context_lines": 15,
+    "response_language": "es"
+  },
+  "error_detection": {
+    "enabled": true,
+    "severity_levels": ["error", "warning"],
+    "ignore_rules": [
+      "W191", 
+      "E501" 
+    ]
+  },
+  "formatting": {
+    "enabled": true,
+    "style": {
+      "indentation": "spaces",
+      "indent_size": 4,
+      "line_length": 120,
+      "naming_convention": {
+        "variables": "snake_case",
+        "functions": "snake_case",
+        "classes": "PascalCase"
+      }
+    }
+  },
+  "comments": {
+    "enabled": true,
+    "generate_docstrings": true,
+    "docstring_style": "google" 
+  }
+}
