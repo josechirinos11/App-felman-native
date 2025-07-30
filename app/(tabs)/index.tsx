@@ -19,12 +19,12 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { id: 1, title: 'Control de Pedidos', icon: 'clipboard-outline', route: '/control-pedidos' },
-  { id: 2, title: 'Control Comerciales', icon: 'cube-outline', route: '/control-comerciales' },
+  { id: 1, title: 'Control Terminales', icon: 'clipboard-outline', route: '/control-pedidos' },
+  { id: 2, title: 'Control Pedidos y Comerciales', icon: 'cube-outline', route: '/control-comerciales' },
   { id: 3, title: 'Control de Incidencias', icon: 'alert-circle-outline', route: '/control-incidencias' },
   { id: 4, title: 'Entregas Diarias', icon: 'calendar-outline', route: '/control-entregas-diarias' },
   { id: 5, title: 'Consultas de Usuario', icon: 'person-outline', route: '/face2/consulta' },
-  { id: 6, title: 'Pedidos Proveedores', icon: 'briefcase-outline', route: '/pagina-construccion?title=Pedidos Proveedores&icon=briefcase-outline' },
+  { id: 6, title: 'Almacén', icon: 'briefcase-outline', route: '/almacen' },
 ];
 
 
@@ -111,7 +111,7 @@ export default function HomeScreen() {
         <View style={styles.sidePanel}>
           {userData ? (
             <View style={styles.userInfo}>
-              <Text style={styles.welcomeText}>Bienvenido,</Text>
+              <Text style={styles.welcomeText}>Bienvenido a felman,</Text>
               <Text style={styles.userName}>{userData.nombre || userData.name || 'Sin nombre'}</Text>
               <Text style={styles.userRole}>{userData.rol || userData.role || 'Sin rol'}</Text>
             </View>

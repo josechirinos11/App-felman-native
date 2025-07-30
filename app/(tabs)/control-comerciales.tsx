@@ -600,6 +600,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
   },
   header: {
+
+
+
+
+    
     padding: 16,
     backgroundColor: '#f3f4f6',
     alignItems: 'center',

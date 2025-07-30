@@ -195,7 +195,8 @@ export default function ConfiguracionScreen() {
             <Text style={styles.appVersion}>Versión {Application.nativeApplicationVersion}</Text>
             <Text style={styles.appName}>App Felman</Text>
           </View>
-        </ScrollView>        {showDiagnostic && (
+        </ScrollView>        
+        {showDiagnostic && (
           <View style={styles.diagnosticContainer}>
             <View style={styles.diagnosticModal}>
               <ConexionDiagnostic />
