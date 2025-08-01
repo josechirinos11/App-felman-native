@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
     paddingTop: 16,
   },  userInfo: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#fff',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },  menuItem: {
     width: '48%',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#fff',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
