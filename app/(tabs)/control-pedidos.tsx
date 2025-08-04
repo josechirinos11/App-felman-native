@@ -11,6 +11,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { API_URL } from '../../config/constants';
@@ -77,7 +78,7 @@ export default function ControlTerminalesScreen() {
   // Obtener tareas relevantes
   const getTareasRelevantes = (item: Lote) => {
     const tareas: string[] = [];
-    
+
     // Agregar tareas según el mapeo
     for (const [numero, nombre] of Object.entries(tareaNombres)) {
       const num = parseInt(numero);
@@ -98,8 +99,8 @@ export default function ControlTerminalesScreen() {
   const [modules, setModules] = useState<Linea[]>([]);
   const [loadingModules, setLoadingModules] = useState(false);
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
-  const [details, setDetails] = useState<Fabricacion[]>([]);
-  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [tiemposAcumulados, setTiemposAcumulados] = useState<any[]>([]);
+  const [loadingTiempos, setLoadingTiempos] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
 
   const { serverReachable } = useOfflineMode();
@@ -197,22 +198,29 @@ export default function ControlTerminalesScreen() {
   const loadDetails = (mod: Linea) => {
     if (!selectedLote) return;
     setSelectedModule(mod.Módulo);
-    setLoadingDetails(true);
-    fetch(`${API_URL}/control-terminales/lotesfabricaciones?num_manual=${encodeURIComponent(selectedLote)}&modulo=${encodeURIComponent(mod.Módulo)}`)
+    setLoadingTiempos(true);
+    fetch(`${API_URL}/control-terminales/tiempos-acumulados-modulo?num_manual=${encodeURIComponent(selectedLote)}&modulo=${encodeURIComponent(mod.Módulo)}`)
       .then(res => {
-        log('Respuesta de detalles:', res.status, res.ok);
+        log('Respuesta de tiempos acumulados:', res.status, res.ok);
         return res.json();
       })
-      .then((json: Fabricacion[]) => {
-        log('Detalles recibidos:', json);
-        setDetails(json);
-        log('Detalles actualizados:', json.length);
+      .then((json: any[]) => {
+        log('Tiempos recibidos:', json);
+        const tiemposProcesados = json
+          .map(item => ({
+            ...item,
+            NumeroTarea: tareaNombres[item.NumeroTarea as keyof typeof tareaNombres],
+          }))
+          .filter(item => item.NumeroTarea); // Filtra las tareas que no están en el mapeo
+
+        setTiemposAcumulados(tiemposProcesados);
+        log('Tiempos actualizados:', tiemposProcesados.length);
       })
       .catch(error => {
-        log('Error al cargar detalles:', error);
+        log('Error al cargar tiempos:', error);
         console.error(error);
       })
-      .finally(() => setLoadingDetails(false));
+      .finally(() => setLoadingTiempos(false));
   };
 
   if (!['admin', 'developer', 'administrador'].includes(userRole || '')) {
@@ -264,11 +272,11 @@ export default function ControlTerminalesScreen() {
           data={filteredLotes}
           keyExtractor={(item, idx) => `${item.NumeroManual}-${idx}`}
           renderItem={({ item }) => {
-            const cardStyle = item.Fabricado === 0 
+            const cardStyle = item.Fabricado === 0
               ? item.FechaRealInicio ? styles.cardEnFabricacion : styles.cardEnCola
               : styles.cardFinalizada;
-            
-            const fabricadoText = item.Fabricado === 0 
+
+            const fabricadoText = item.Fabricado === 0
               ? item.FechaRealInicio ? 'EN FABRICACIÓN' : 'EN COLA'
               : 'FINALIZADA LA FABRICACIÓN';
 
@@ -284,8 +292,8 @@ export default function ControlTerminalesScreen() {
                   {getTareasRelevantes(item).map((tarea, idx) => {
                     const [nombre] = tarea.split(':');
                     return (
-                      <View 
-                        key={idx} 
+                      <View
+                        key={idx}
                         style={[
                           styles.tareaCard,
                           tarea.includes(' - -') ? styles.tareaCardPendiente : styles.tareaCardFinalizada
@@ -306,44 +314,41 @@ export default function ControlTerminalesScreen() {
       <Modal visible={modalVisible} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Módulos de {selectedLote}</Text>
+            <Text style={styles.modalTitle}>Módulos {selectedLote}</Text>
             {loadingModules ? (
               <ActivityIndicator />
             ) : selectedModule ? (
-              loadingDetails ? (
+              loadingTiempos ? (
                 <ActivityIndicator />
               ) : (
                 <View style={styles.modalContent}>
-                  <Text style={styles.modalTitle}>Detalles de {selectedModule}</Text>
-                  {details.map((detail, idx) => (
-                    <View key={idx} style={styles.detailCard}>
-                      <Text style={styles.detailText}>{detail.Módulo}</Text>
-                      {Object.entries(detail)
-                        .filter(([key]) => key.startsWith('Tarea General'))
-                        .map(([key, value]) => (
-                          <Text key={key} style={styles.detailText}>
-                            {key}: {value}
-                          </Text>
-                        ))}
-                    </View>
-                  ))}
+                  <Text style={styles.modalTitle}>Tiempos de: {selectedModule}</Text>
+                  <ScrollView>
+                    {tiemposAcumulados.map((item, idx) => (
+                      <View key={idx} style={styles.detailCard}>
+                        <Text style={styles.detailTextBold}>{item.NumeroTarea}</Text>
+                        <Text style={styles.detailText}>{formatSeconds(item.TiempoAcumulado)}</Text>
+                      </View>
+                    ))}
+                  </ScrollView>
                 </View>
               )
             ) : (
               <View style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Módulos de {selectedLote}</Text>
-                {modules.map((mod, idx) => (
-                  <TouchableOpacity
-                    key={idx}
-                    style={[
-                      styles.cardSmall,
-                      mod.Fabricada === 1 ? styles.moduleFabricado : styles.modulePendiente
-                    ]}
-                    onPress={() => loadDetails(mod)}
-                  >
-                    <Text style={styles.cardTitleSmall}>{mod.Módulo}</Text>
-                  </TouchableOpacity>
-                ))}
+                <ScrollView style={{ maxHeight: '100%', maxWidth: '100%', }}>
+                  {modules.map((mod, idx) => (
+                    <TouchableOpacity
+                      key={idx}
+                      style={[
+                        styles.cardSmall,
+                        mod.Fabricada === 1 ? styles.moduleFabricado : styles.modulePendiente
+                      ]}
+                      onPress={() => loadDetails(mod)}
+                    >
+                      <Text style={styles.cardTitleSmall}>{mod.Módulo}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
             )}
             <Pressable style={styles.closeButton} onPress={() => selectedModule ? setSelectedModule(null) : setModalVisible(false)}>
@@ -391,12 +396,12 @@ const styles = StyleSheet.create({
   },
   tareaCardFinalizada: {
     backgroundColor: '#d4edda',
-    borderColor: '#a3e635',
+    borderColor: 'transparent',
     shadowColor: '#a3e635',
   },
   tareaCardPendiente: {
     backgroundColor: '#ffd7d7',
-    borderColor: '#ef4444',
+    borderColor: 'transparent',
     shadowColor: '#ef4444',
   },
   tareaText: { fontSize: 12, fontWeight: 'bold' },
@@ -406,7 +411,8 @@ const styles = StyleSheet.create({
   modulePendiente: { backgroundColor: '#ffd7d7' },
   closeButton: { marginTop: 12, backgroundColor: '#2e78b7', padding: 10, borderRadius: 8 },
   closeText: { color: '#fff', textAlign: 'center', fontWeight: 'bold' },
-  detailCard: { backgroundColor: '#f9f9f9', padding: 10, borderRadius: 8, marginVertical: 4 },
-  detailText: { fontSize: 14, color: '#333' },
+  detailCard: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee', alignItems: 'center' },
+  detailText: { fontSize: 16 },
+  detailTextBold: { fontSize: 16, fontWeight: 'bold' },
   refreshButton: { marginLeft: 8, padding: 4 }
 });
