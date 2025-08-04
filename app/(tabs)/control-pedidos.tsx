@@ -16,151 +16,241 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { API_URL } from '../../config/constants';
 import { useOfflineMode } from '../../hooks/useOfflineMode';
 
-// Tipos
+// Define los campos que devuelve el backend
 type Lote = {
-  ['Num. manual']: string;
+  NumeroManual: string;
   Fabricado: number | null;
-  ['% Comp.']: number | null;
-  Cargado: number;
+  FabricadoFecha: string | null;
+  FechaRealInicio: string | null;
+  Descripcion: string | null;
+  TotalTiempo: number | null;
+  TotalUnidades: number | null;
+} & {
+  [key in `TareaInicio0${number}` | `TareaFinal0${number}`]: string | null;
 };
-type Linea = { Módulo: string };
-type Fabricacion = { Módulo: string; [key: string]: string | number | undefined };
+type Linea = {
+  Módulo: string;
+  Fabricada: number | null;
+  [key: string]: string | number | null | undefined;
+};
+
+type Fabricacion = {
+  Módulo: string;
+  [key: string]: string | number | null | undefined;
+};
 
 export default function ControlTerminalesScreen() {
+  const debugLogs = true;
+  const log = (...args: any[]) => {
+    if (debugLogs) {
+      console.log('[ControlPedidos]', ...args);
+    }
+  };
+
+  // Mapeo de tareas
+  const tareaNombres = {
+    1: 'CORTE',
+    2: 'PRE-ARMADO',
+    3: 'ARMADO',
+    4: 'HERRAJE',
+    6: 'MATRIMONIO',
+    7: 'COMPACTO',
+    9: 'ACRISTALADO',
+    10: 'EMBALAJE'
+  };
+
+  // Formatear fecha y hora
+  const formatDateTime = (dateStr: string | null) => {
+    if (!dateStr) return '-';
+    const date = new Date(dateStr);
+    return `${date.getDate().toString().padStart(2, '0')}/${(date.getMonth() + 1).toString().padStart(2, '0')}/${date.getFullYear()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+  };
+
+  // Formatear segundos a HH:MM:SS
+  const formatSeconds = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Obtener tareas relevantes
+  const getTareasRelevantes = (item: Lote) => {
+    const tareas: string[] = [];
+    
+    // Agregar tareas según el mapeo
+    for (const [numero, nombre] of Object.entries(tareaNombres)) {
+      const num = parseInt(numero);
+      const inicio = item[`TareaInicio0${num}`] as string | null;
+      const fin = item[`TareaFinal0${num}`] as string | null;
+      tareas.push(`${nombre}: ${formatDateTime(inicio)} - ${formatDateTime(fin)}`);
+    }
+    return tareas;
+  };
+
   const [lotes, setLotes] = useState<Lote[]>([]);
+  const [filteredLotes, setFilteredLotes] = useState<Lote[]>([]);
   const [loadingLotes, setLoadingLotes] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedLote, setSelectedLote] = useState<string | null>(null);
-  const [modules, setModules] = useState<string[]>([]);
+  const [modules, setModules] = useState<Linea[]>([]);
   const [loadingModules, setLoadingModules] = useState(false);
   const [selectedModule, setSelectedModule] = useState<string | null>(null);
   const [details, setDetails] = useState<Fabricacion[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
 
-  // Conexión offline
   const { serverReachable } = useOfflineMode();
 
-  // Obtener rol de usuario
+  // Obtiene rol de usuario
   useEffect(() => {
     AsyncStorage.getItem('userData')
       .then(str => {
-        if (str) {
-          const user = JSON.parse(str);
-          setUserRole(user.rol || user.role || null);
-        }
+        if (str) setUserRole(JSON.parse(str).rol || JSON.parse(str).role);
       })
       .catch(console.error);
   }, []);
 
+  // Carga lotes desde el backend
+  const refreshLotes = () => {
+    log('Actualizando lotes manualmente...');
+    setLoadingLotes(true);
+    fetch(`${API_URL}/control-terminales/lotes`)
+      .then(res => {
+        log('Respuesta de lotes:', res.status, res.ok);
+        return res.json();
+      })
+      .then((json: any) => {
+        log('Datos recibidos de lotes:', json);
+        const data = Array.isArray(json) ? json as Lote[] : [];
+        setLotes(data);
+        log('Lotes actualizados:', data.length);
+      })
+      .catch(error => {
+        log('Error al cargar lotes:', error);
+        console.error(error);
+      })
+      .finally(() => setLoadingLotes(false));
+  };
+
   // Carga inicial de lotes
   useEffect(() => {
-    fetch(`${API_URL}/control-terminales/lotes`)
-      .then(res => res.json())
-      .then((json: Lote[]) => setLotes(json))
-      .catch(console.error)
-      .finally(() => setLoadingLotes(false));
+    refreshLotes();
   }, []);
 
-  // Filtrar lotes según búsqueda avanzada
-  const filteredLotes = lotes.filter(item => {
+  // Filtra lotes según búsqueda
+  useEffect(() => {
+    if (!Array.isArray(lotes)) {
+      setFilteredLotes([]);
+      return;
+    }
     const q = searchQuery.trim().toLowerCase();
-    // Filtrar por Num. manual
-    if (item['Num. manual'].toLowerCase().includes(q)) return true;
-    // Condicional para Fabricado exacto
-    if (/^[<>]?\d+$/.test(q)) {
-      const num = parseInt(q.replace(/[<>]/g, ''), 10);
-      if (q.startsWith('>') && (item.Fabricado ?? 0) > num) return true;
-      if (q.startsWith('<') && (item.Fabricado ?? 0) < num) return true;
-      if (!q.startsWith('>') && !q.startsWith('<') && (item.Fabricado ?? 0) === num) return true;
+    if (!q) {
+      setFilteredLotes(lotes);
+      return;
     }
-    // Condicional para % Comp. con operadores
-    if (/^[<>]?\d+(?:\.\d+)?$/.test(q)) {
-      const isPercent = item['% Comp.'] != null;
-      const value = parseFloat(q.replace(/[<>]/g, ''));
-      if (q.startsWith('>') && (item['% Comp.'] ?? 0) > value) return true;
-      if (q.startsWith('<') && (item['% Comp.'] ?? 0) < value) return true;
-      if (!q.startsWith('>') && !q.startsWith('<') && (item['% Comp.'] ?? 0) === value) return true;
-    }
-    return false;
-  });
+    const newFiltered = lotes.filter(item => {
+      // Buscar por número manual
+      if (item.NumeroManual.toLowerCase().includes(q)) return true;
+      // Buscar en descripción
+      if (item.Descripcion?.toLowerCase().includes(q)) return true;
+      // Filtrar por Fabricado con operadores >,< o exacto
+      if (/^[<>]?\d+$/.test(q)) {
+        const num = parseInt(q.replace(/[<>]/g, ''), 10);
+        if (q.startsWith('>') && (item.Fabricado ?? 0) > num) return true;
+        if (q.startsWith('<') && (item.Fabricado ?? 0) < num) return true;
+        if (!q.startsWith('>') && !q.startsWith('<') && (item.Fabricado ?? 0) === num) return true;
+      }
+      return false;
+    });
+    setFilteredLotes(newFiltered);
+    log('Lotes filtrados:', newFiltered.length);
+  }, [lotes, searchQuery]);
 
-  // Abrir modal y cargar módulos
-  const openModal = (numManual: string) => {
-    setSelectedLote(numManual);
+  // Abrir modal para módulos
+  const openModal = (num: string) => {
+    setSelectedLote(num);
     setModalVisible(true);
     setModules([]);
     setSelectedModule(null);
     setLoadingModules(true);
-    fetch(
-      `${API_URL}/control-terminales/loteslineas?num_manual=${encodeURIComponent(
-        numManual
-      )}`
-    )
-      .then(res => res.json())
-      .then((rows: Linea[]) => {
-        const uniques = Array.from(new Set(rows.map(r => r.Módulo)));
-        setModules(uniques);
+    fetch(`${API_URL}/control-terminales/loteslineas?num_manual=${encodeURIComponent(num)}`)
+      .then(res => {
+        log('Respuesta de módulos:', res.status, res.ok);
+        return res.json();
       })
-      .catch(console.error)
+      .then((rows: Linea[]) => {
+        log('Módulos recibidos:', rows);
+        setModules(rows);
+        log('Módulos actualizados:', rows);
+      })
+      .catch(error => {
+        log('Error al cargar módulos:', error);
+        console.error(error);
+      })
       .finally(() => setLoadingModules(false));
   };
 
-  // Cargar detalles de módulo
-  const loadDetails = (mod: string) => {
+  // Carga detalles de módulo
+  const loadDetails = (mod: Linea) => {
     if (!selectedLote) return;
-    setSelectedModule(mod);
+    setSelectedModule(mod.Módulo);
     setLoadingDetails(true);
-    fetch(
-      `${API_URL}/control-terminales/lotesfabricaciones?num_manual=${encodeURIComponent(
-        selectedLote
-      )}&modulo=${encodeURIComponent(mod)}`
-    )
-      .then(res => res.json())
-      .then((json: Fabricacion[]) => setDetails(json))
-      .catch(console.error)
+    fetch(`${API_URL}/control-terminales/lotesfabricaciones?num_manual=${encodeURIComponent(selectedLote)}&modulo=${encodeURIComponent(mod.Módulo)}`)
+      .then(res => {
+        log('Respuesta de detalles:', res.status, res.ok);
+        return res.json();
+      })
+      .then((json: Fabricacion[]) => {
+        log('Detalles recibidos:', json);
+        setDetails(json);
+        log('Detalles actualizados:', json.length);
+      })
+      .catch(error => {
+        log('Error al cargar detalles:', error);
+        console.error(error);
+      })
       .finally(() => setLoadingDetails(false));
   };
 
-  // Si no tiene rol admin/developer/administrador bloquea acceso
-  if (userRole !== 'admin' && userRole !== 'developer' && userRole !== 'administrador') {
+  if (!['admin', 'developer', 'administrador'].includes(userRole || '')) {
     return (
       <View style={styles.center}>
-        <Text style={styles.errorText}>
-          No tiene credenciales para ver esta información
-        </Text>
+        <Text style={styles.errorText}>No tiene credenciales para ver esta información</Text>
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header con conexión y contador */}
+      {/* Header */}
       <View style={styles.header}>
-        <Ionicons
-          name={serverReachable ? 'wifi' : 'wifi-outline'}
-          size={20}
-          color={serverReachable ? '#4CAF50' : '#F44336'}
-        />
-        <Text
-          style={[
-            styles.statusText,
-            serverReachable ? styles.connected : styles.disconnected,
-          ]}
-        >
+        <Ionicons name={serverReachable ? 'wifi' : 'wifi-outline'} size={20} color={serverReachable ? '#4CAF50' : '#F44336'} />
+        <Text style={[styles.statusText, serverReachable ? styles.connected : styles.disconnected]}>
           {serverReachable ? 'Conectado' : 'Sin conexión'}
         </Text>
         <Ionicons name="layers" size={20} color="#2e78b7" />
         <Text style={styles.statusText}>{filteredLotes.length} lotes</Text>
+        <Pressable
+          style={styles.refreshButton}
+          onPress={refreshLotes}
+        >
+          <Ionicons
+            name="refresh-circle-outline"
+            size={24}
+            color="#2e78b7"
+          />
+        </Pressable>
       </View>
 
-      {/* Filtro de búsqueda */}
+      {/* Búsqueda */}
       <View style={styles.searchContainer}>
         <Ionicons name="search-outline" size={20} color="#757575" />
         <TextInput
           style={styles.searchInput}
-          placeholder="Buscar por Num. manual / Fabricado / % Comp."
+          placeholder="Buscar por Num. manual / Descripción / Fabricado"
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
@@ -172,18 +262,43 @@ export default function ControlTerminalesScreen() {
       ) : (
         <FlatList
           data={filteredLotes}
-          keyExtractor={(item, idx) => `${item['Num. manual']}-${idx}`}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() => openModal(item['Num. manual'])}
-            >
-              <Text style={styles.cardTitle}>{item['Num. manual']}</Text>
-              <Text>Fabricado: {item.Fabricado}</Text>
-              <Text>% Comp.: {item['% Comp.']}</Text>
-              <Text>Cargado: {item.Cargado}</Text>
-            </TouchableOpacity>
-          )}
+          keyExtractor={(item, idx) => `${item.NumeroManual}-${idx}`}
+          renderItem={({ item }) => {
+            const cardStyle = item.Fabricado === 0 
+              ? item.FechaRealInicio ? styles.cardEnFabricacion : styles.cardEnCola
+              : styles.cardFinalizada;
+            
+            const fabricadoText = item.Fabricado === 0 
+              ? item.FechaRealInicio ? 'EN FABRICACIÓN' : 'EN COLA'
+              : 'FINALIZADA LA FABRICACIÓN';
+
+            return (
+              <TouchableOpacity style={cardStyle} onPress={() => openModal(item.NumeroManual)}>
+                <Text style={styles.cardTitle}>{item.NumeroManual}</Text>
+                <Text style={styles.cardTitleStatus}>{fabricadoText}</Text>
+                <Text>Fecha Fabricado: {formatDateTime(item.FabricadoFecha)}</Text>
+                <Text>Inicio Real: {formatDateTime(item.FechaRealInicio)}</Text>
+                <Text>Descripción: {item.Descripcion ?? '-'}</Text>
+                <Text>Total Tiempo: {formatSeconds(item.TotalTiempo ?? 0)}</Text>
+                <View style={styles.tareasContainer}>
+                  {getTareasRelevantes(item).map((tarea, idx) => {
+                    const [nombre] = tarea.split(':');
+                    return (
+                      <View 
+                        key={idx} 
+                        style={[
+                          styles.tareaCard,
+                          tarea.includes(' - -') ? styles.tareaCardPendiente : styles.tareaCardFinalizada
+                        ]}
+                      >
+                        <Text style={styles.tareaText}>{nombre.trim()}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </TouchableOpacity>
+            );
+          }}
         />
       )}
 
@@ -192,52 +307,47 @@ export default function ControlTerminalesScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Módulos de {selectedLote}</Text>
-
             {loadingModules ? (
               <ActivityIndicator />
             ) : selectedModule ? (
               loadingDetails ? (
                 <ActivityIndicator />
               ) : (
-                <FlatList
-                  data={details}
-                  keyExtractor={(item, idx) => `${selectedModule}-${idx}`}
-                  renderItem={({ item }) => (
-                    <View style={styles.detailCard}>
-                      {Object.entries(item).map(([key, val]) => (
-                        <Text key={key} style={styles.detailText}>
-                          {key}: {val}
-                        </Text>
-                      ))}
+                <View style={styles.modalContent}>
+                  <Text style={styles.modalTitle}>Detalles de {selectedModule}</Text>
+                  {details.map((detail, idx) => (
+                    <View key={idx} style={styles.detailCard}>
+                      <Text style={styles.detailText}>{detail.Módulo}</Text>
+                      {Object.entries(detail)
+                        .filter(([key]) => key.startsWith('Tarea General'))
+                        .map(([key, value]) => (
+                          <Text key={key} style={styles.detailText}>
+                            {key}: {value}
+                          </Text>
+                        ))}
                     </View>
-                  )}
-                />
+                  ))}
+                </View>
               )
             ) : (
-              <FlatList
-                data={modules}
-                keyExtractor={(mod, idx) => `${mod}-${idx}`}
-                renderItem={({ item: mod }) => (
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Módulos de {selectedLote}</Text>
+                {modules.map((mod, idx) => (
                   <TouchableOpacity
-                    style={styles.cardSmall}
+                    key={idx}
+                    style={[
+                      styles.cardSmall,
+                      mod.Fabricada === 1 ? styles.moduleFabricado : styles.modulePendiente
+                    ]}
                     onPress={() => loadDetails(mod)}
                   >
-                    <Text style={styles.cardTitleSmall}>{mod}</Text>
+                    <Text style={styles.cardTitleSmall}>{mod.Módulo}</Text>
                   </TouchableOpacity>
-                )}
-              />
+                ))}
+              </View>
             )}
-
-            <Pressable
-              style={styles.closeButton}
-              onPress={() => {
-                if (selectedModule) setSelectedModule(null);
-                else setModalVisible(false);
-              }}
-            >
-              <Text style={styles.closeText}>
-                {selectedModule ? 'Volver' : 'Cerrar'}
-              </Text>
+            <Pressable style={styles.closeButton} onPress={() => selectedModule ? setSelectedModule(null) : setModalVisible(false)}>
+              <Text style={styles.closeText}>{selectedModule ? 'Volver' : 'Cerrar'}</Text>
             </Pressable>
           </View>
         </View>
@@ -250,39 +360,53 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f3f4f6' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   errorText: { color: 'red', fontSize: 16 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-  },
+  header: { flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: '#fff', justifyContent: 'center' },
   statusText: { marginHorizontal: 6, fontSize: 16, fontWeight: 'bold' },
   connected: { color: '#4CAF50' },
   disconnected: { color: '#F44336' },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    margin: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    elevation: 2,
-  },
-  searchInput: {
-    flex: 1,
-    height: 40,
-    marginLeft: 8,
-  },
-  card: { backgroundColor: '#fff', margin: 8, padding: 16, borderRadius: 12, elevation: 3 },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', margin: 8, paddingHorizontal: 12, borderRadius: 8, elevation: 2 },
+  searchInput: { flex: 1, height: 40, marginLeft: 8 },
+  card: { margin: 8, padding: 16, borderRadius: 12, elevation: 3, backgroundColor: '#fff' },
+  cardEnCola: { margin: 8, padding: 16, borderRadius: 12, elevation: 3, backgroundColor: '#ffd7d7' },
+  cardEnFabricacion: { margin: 8, padding: 16, borderRadius: 12, elevation: 3, backgroundColor: '#fff9c4' },
+  cardFinalizada: { margin: 8, padding: 16, borderRadius: 12, elevation: 3, backgroundColor: '#d4edda' },
   cardTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 4 },
+  cardTitleStatus: { color: '#666', fontSize: 14 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { backgroundColor: '#fff', borderRadius: 12, padding: 16, width: '80%', maxHeight: '80%' },
   modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 12, color: '#2e78b7', textAlign: 'center' },
+  tareasContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  tareaCard: {
+    padding: 8,
+    borderRadius: 6,
+    minWidth: 80,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  tareaCardFinalizada: {
+    backgroundColor: '#d4edda',
+    borderColor: '#a3e635',
+    shadowColor: '#a3e635',
+  },
+  tareaCardPendiente: {
+    backgroundColor: '#ffd7d7',
+    borderColor: '#ef4444',
+    shadowColor: '#ef4444',
+  },
+  tareaText: { fontSize: 12, fontWeight: 'bold' },
   cardSmall: { backgroundColor: '#eef6fb', padding: 12, borderRadius: 8, marginVertical: 4 },
   cardTitleSmall: { color: '#2e78b7', fontWeight: 'bold' },
+  moduleFabricado: { backgroundColor: '#d4edda' },
+  modulePendiente: { backgroundColor: '#ffd7d7' },
   closeButton: { marginTop: 12, backgroundColor: '#2e78b7', padding: 10, borderRadius: 8 },
   closeText: { color: '#fff', textAlign: 'center', fontWeight: 'bold' },
   detailCard: { backgroundColor: '#f9f9f9', padding: 10, borderRadius: 8, marginVertical: 4 },
   detailText: { fontSize: 14, color: '#333' },
+  refreshButton: { marginLeft: 8, padding: 4 }
 });
