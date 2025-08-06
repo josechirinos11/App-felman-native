@@ -6,14 +6,15 @@ import {
   FlatList,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import SQLModal from '../../components/SQLModal';
 import { API_URL } from '../../config/constants';
 import { useOfflineMode } from '../../hooks/useOfflineMode';
 
@@ -102,6 +103,9 @@ export default function ControlTerminalesScreen() {
   const [tiemposAcumulados, setTiemposAcumulados] = useState<any[]>([]);
   const [loadingTiempos, setLoadingTiempos] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
+
+  const [sqlVisible, setSqlVisible] = useState(false);
+
 
   const { serverReachable } = useOfflineMode();
 
@@ -251,6 +255,15 @@ export default function ControlTerminalesScreen() {
             color="#2e78b7"
           />
         </Pressable>
+
+        <Pressable
+          style={styles.refreshButton}
+          onPress={() => setSqlVisible(true)}
+        >
+          <Ionicons name="code-slash-outline" size={24} color="#2e78b7" />
+        </Pressable>
+
+
       </View>
 
       {/* Búsqueda */}
@@ -357,6 +370,9 @@ export default function ControlTerminalesScreen() {
           </View>
         </View>
       </Modal>
+      {/* SQL Debug Modal */}
+      {sqlVisible && <SQLModal visible={sqlVisible} onClose={() => setSqlVisible(false)} />}
+
     </SafeAreaView>
   );
 }
