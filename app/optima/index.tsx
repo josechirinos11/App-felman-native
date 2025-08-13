@@ -19,12 +19,12 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { id: 1, title: 'Control Terminales', icon: 'clipboard-outline', route: '/control-pedidos' },
-  { id: 2, title: 'Control Pedidos y Comerciales', icon: 'cube-outline', route: '/control-comerciales' },
-  { id: 3, title: 'Control de Incidencias', icon: 'alert-circle-outline', route: '/control-incidencias' },
-  { id: 4, title: 'Entregas Diarias', icon: 'calendar-outline', route: '/control-entregas-diarias' },
-  { id: 5, title: 'Optima', icon: 'person-outline', route: '/optima' },
-  { id: 6, title: 'Almacén', icon: 'briefcase-outline', route: '/almacen' },
+  { id: 1, title: 'Control Terminales', icon: 'clipboard-outline', route: 'optima/control-terminales' },
+  { id: 2, title: 'Control Operarios', icon: 'cube-outline', route: 'optima/control-operarios' },
+  { id: 3, title: 'Dashboard Barcoder',      icon: 'barcode-outline', route: '/optima/control-dashboard-barcoder' },
+  { id: 4, title: 'Barcoder Detallado',      icon: 'document-text-outline', route: '/optima/control-dashboard-barcoder-det' },
+  { id: 5, title: 'Estado de Pedidos',       icon: 'list-outline',  route: '/optima/control-dashboard-barcoder-order' },
+  
 ];
 
 
