@@ -14,8 +14,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AppHeader from '../../components/AppHeader';
 import SQLModal from '../../components/SQLModal';
 import { API_URL } from '../../config/constants';
+import COLORS from '../../constants/Colors';
 import { useOfflineMode } from '../../hooks/useOfflineMode';
 
 // Define los campos que devuelve el backend
@@ -238,33 +240,31 @@ export default function ControlTerminalesScreen() {
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
-      <View style={styles.header}>
-        <Ionicons name={serverReachable ? 'wifi' : 'wifi-outline'} size={20} color={serverReachable ? '#4CAF50' : '#F44336'} />
-        <Text style={[styles.statusText, serverReachable ? styles.connected : styles.disconnected]}>
-          {serverReachable ? 'Conectado' : 'Sin conexión'}
-        </Text>
-        <Ionicons name="layers" size={20} color="#2e78b7" />
-        <Text style={styles.statusText}>{filteredLotes.length} lotes</Text>
-        <Pressable
-          style={styles.refreshButton}
-          onPress={refreshLotes}
-        >
-          <Ionicons
-            name="refresh-circle-outline"
-            size={24}
-            color="#2e78b7"
-          />
-        </Pressable>
-
-        <Pressable
-          style={styles.refreshButton}
-          onPress={() => setSqlVisible(true)}
-        >
-          <Ionicons name="code-slash-outline" size={24} color="#2e78b7" />
-        </Pressable>
 
 
-      </View>
+
+
+
+
+
+      <AppHeader
+        count={filteredLotes.length}
+        titleOverride="Terminales"        // o filtered.length, items.length, etc.
+        onRefresh={refreshLotes}          // opcional
+      // serverReachableOverride={serverReachable} // sólo si NO usas useOfflineMode
+      />
+
+      {/*
+<Pressable
+  style={styles.refreshButton}
+  onPress={() => setSqlVisible(true)}
+>
+  <Ionicons name="code-slash-outline" size={24} color={COLORS.primary} />
+</Pressable>
+*/}
+
+
+
 
       {/* Búsqueda */}
       <View style={styles.searchContainer}>
@@ -378,14 +378,14 @@ export default function ControlTerminalesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f3f4f6' },
+  container: { flex: 1, backgroundColor: COLORS.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   errorText: { color: 'red', fontSize: 16 },
-  header: { flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: '#fff', justifyContent: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', padding: 12, backgroundColor: COLORS.surface, justifyContent: 'center' },
   statusText: { marginHorizontal: 6, fontSize: 16, fontWeight: 'bold' },
-  connected: { color: '#4CAF50' },
-  disconnected: { color: '#F44336' },
-  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', margin: 8, paddingHorizontal: 12, borderRadius: 8, elevation: 2 },
+  connected: { color: COLORS.success },
+  disconnected: { color: COLORS.error },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, margin: 8, paddingHorizontal: 12, borderRadius: 8, elevation: 2 },
   searchInput: { flex: 1, height: 40, marginLeft: 8 },
   card: { margin: 8, padding: 16, borderRadius: 12, elevation: 3, backgroundColor: '#fff' },
   cardEnCola: { margin: 8, padding: 16, borderRadius: 12, elevation: 3, backgroundColor: '#ffd7d7' },
@@ -395,7 +395,7 @@ const styles = StyleSheet.create({
   cardTitleStatus: { color: '#666', fontSize: 14 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { backgroundColor: '#fff', borderRadius: 12, padding: 16, width: '80%', maxHeight: '80%' },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 12, color: '#2e78b7', textAlign: 'center' },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 12, color: COLORS.primary, textAlign: 'center' },
   tareasContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
   tareaCard: {
     padding: 8,
@@ -422,10 +422,10 @@ const styles = StyleSheet.create({
   },
   tareaText: { fontSize: 12, fontWeight: 'bold' },
   cardSmall: { backgroundColor: '#eef6fb', padding: 12, borderRadius: 8, marginVertical: 4 },
-  cardTitleSmall: { color: '#2e78b7', fontWeight: 'bold' },
+  cardTitleSmall: { color: COLORS.primary, fontWeight: 'bold' },
   moduleFabricado: { backgroundColor: '#d4edda' },
   modulePendiente: { backgroundColor: '#ffd7d7' },
-  closeButton: { marginTop: 12, backgroundColor: '#2e78b7', padding: 10, borderRadius: 8 },
+  closeButton: { marginTop: 12, backgroundColor: COLORS.primary, padding: 10, borderRadius: 8 },
   closeText: { color: '#fff', textAlign: 'center', fontWeight: 'bold' },
   detailCard: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee', alignItems: 'center' },
   detailText: { fontSize: 16 },

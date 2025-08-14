@@ -1,11 +1,10 @@
-import { Stack } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Dimensions, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { API_URL } from '../../config/constants';
 import AppHeader from '../../components/AppHeader';
-import { useOfflineMode } from '../../hooks/useOfflineMode';
+import { API_URL } from '../../config/constants';
 
 type Row = Record<string, any>;
 type ApiResp = {
@@ -17,21 +16,21 @@ type ApiResp = {
 };
 
 const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
-const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const prettyDateTime = (v?: any) => { const d = new Date(String(v)); return isNaN(d.getTime()) ? String(v ?? '—') : d.toLocaleString(); };
 
 export default function ControlDashboardBarcoderDet() {
-  const [from, setFrom] = useState(() => { const t = new Date(); const d30 = new Date(t); d30.setDate(d30.getDate()-30); return fmt(d30); });
+  const [from, setFrom] = useState(() => { const t = new Date(); const d30 = new Date(t); d30.setDate(d30.getDate() - 30); return fmt(d30); });
   const [to, setTo] = useState(() => fmt(new Date()));
   const [search, setSearch] = useState('');
   const [rows, setRows] = useState<Row[]>([]);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(50);
   const [total, setTotal] = useState(0);
-  const [agg, setAgg] = useState<{piezas:number; area:number}>({ piezas: 0, area: 0 });
+  const [agg, setAgg] = useState<{ piezas: number; area: number }>({ piezas: 0, area: 0 });
   const [usedFrom, setUsedFrom] = useState<string | undefined>();
   const [usedTo, setUsedTo] = useState<string | undefined>();
-
+  const isSmallDevice = Dimensions.get('window').width < 500;
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [reachedEnd, setReachedEnd] = useState(false);
@@ -57,7 +56,7 @@ export default function ControlDashboardBarcoderDet() {
       setReachedEnd(newItems.length < pageSize);
     } catch (e) {
       console.error('[barcoder-det] error:', e);
-      if (replace) { setRows([]); setTotal(0); setAgg({piezas:0, area:0}); setUsedFrom(undefined); setUsedTo(undefined); }
+      if (replace) { setRows([]); setTotal(0); setAgg({ piezas: 0, area: 0 }); setUsedFrom(undefined); setUsedTo(undefined); }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -73,7 +72,7 @@ export default function ControlDashboardBarcoderDet() {
   const AlertRange = () => {
     if (!usedFrom || !usedTo) return null;
     const userAsked = `${from} → ${to}`;
-    const used = `${String(usedFrom).slice(0,10)} → ${String(usedTo).slice(0,10)}`;
+    const used = `${String(usedFrom).slice(0, 10)} → ${String(usedTo).slice(0, 10)}`;
     if (userAsked === used) return null;
     return (
       <View style={styles.notice}>
@@ -129,12 +128,48 @@ export default function ControlDashboardBarcoderDet() {
       />
 
       {/* Filtros */}
-      <View style={styles.filters}>
-        <View style={styles.inputGroup}><Text style={styles.label}>Desde</Text><TextInput value={from} onChangeText={setFrom} placeholder="YYYY-MM-DD" style={styles.input} /></View>
-        <View style={styles.inputGroup}><Text style={styles.label}>Hasta</Text><TextInput value={to} onChangeText={setTo} placeholder="YYYY-MM-DD" style={styles.input} /></View>
-        <View style={[styles.inputGroup, { flex: 1.4 }]}><Text style={styles.label}>Buscar</Text><TextInput value={search} onChangeText={setSearch} placeholder="pedido, usuario, centro, trabajo..." style={styles.input} /></View>
-        <Pressable style={styles.btn} onPress={applyFilters}><Ionicons name="search-outline" size={20} color="#fff" /><Text style={styles.btnText}>Aplicar</Text></Pressable>
-      </View>
+      {isSmallDevice ? (
+        <View style={[styles.filters, { flexDirection: 'column', gap: 4 }]}>
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+            <View style={[styles.inputGroup, { flex: 1 }]}>
+              <Text style={styles.label}>Desde</Text>
+              <TextInput value={from} onChangeText={setFrom} placeholder="YYYY-MM-DD" style={styles.input} />
+            </View>
+            <View style={[styles.inputGroup, { flex: 1 }]}>
+              <Text style={styles.label}>Hasta</Text>
+              <TextInput value={to} onChangeText={setTo} placeholder="YYYY-MM-DD" style={styles.input} />
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+            <View style={[styles.inputGroup, { flex: 1 }]}>
+              <Text style={styles.label}>Buscar</Text>
+              <TextInput value={search} onChangeText={setSearch} placeholder="pedido, usuario, centro..." style={styles.input} />
+            </View>
+            <Pressable style={[styles.btn, { alignSelf: 'flex-end' }]} onPress={applyFilters}>
+              <Ionicons name="search-outline" size={20} color="#fff" />
+            </Pressable>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.filters}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Desde</Text>
+            <TextInput value={from} onChangeText={setFrom} placeholder="YYYY-MM-DD" style={styles.input} />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Hasta</Text>
+            <TextInput value={to} onChangeText={setTo} placeholder="YYYY-MM-DD" style={styles.input} />
+          </View>
+          <View style={[styles.inputGroup, { flex: 1.4 }]}>
+            <Text style={styles.label}>Buscar</Text>
+            <TextInput value={search} onChangeText={setSearch} placeholder="pedido, usuario, centro..." style={styles.input} />
+          </View>
+          <Pressable style={styles.btn} onPress={applyFilters}>
+            <Ionicons name="search-outline" size={20} color="#fff" />
+            <Text style={styles.btnText}>Aplicar</Text>
+          </Pressable>
+        </View>
+      )}
 
       <AlertRange />
       {headerMetrics}

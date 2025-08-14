@@ -18,7 +18,10 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: '#2e78b7',
-        tabBarStyle: { paddingBottom: 5 },
+    tabBarStyle: { 
+      backgroundColor: '#000000ff',     // <-- tu color deseado aquí
+      paddingBottom: 5 
+    },
         headerShown: false, // Oculta el header en todas las pestañas
       }}>
       <Tabs.Screen
