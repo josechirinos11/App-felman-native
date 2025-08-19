@@ -19,16 +19,16 @@ export default function OptimaTabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: '#2e78b7',
-        tabBarStyle: { paddingBottom: 5 },
+        tabBarStyle: { backgroundColor: '#000000ff', paddingBottom: 5 },
         headerShown: false,
       }}
     >
-      {/* Inicio de Óptima */}
+      {/* Inicio / Panel */}
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Inicio',
-          tabBarIcon: ({ color }) => <TabBarIcon name="home-outline" color={color} />,
+          title: 'Panel Almassera',
+          tabBarIcon: ({ color }) => <TabBarIcon name="grid-outline" color={color} />,
           headerShown: false,
           headerTitle: '',
           headerTransparent: true,
@@ -44,53 +44,81 @@ export default function OptimaTabLayout() {
         }}
       />
 
-      {/* Las dos vistas iniciales */}
+      {/* ====== NUEVAS VISTAS ====== */}
       <Tabs.Screen
-        name="control-terminales"
+        name="terminales"
         options={{
           title: 'Terminales',
-          tabBarIcon: ({ color }) => <TabBarIcon name="clipboard-outline" color={color} />,
+          tabBarIcon: ({ color }) => <TabBarIcon name="tv-outline" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="control-operarios"
+        name="operarios"
         options={{
           title: 'Operarios',
-          tabBarIcon: ({ color }) => <TabBarIcon name="cube-outline" color={color} />,
+          tabBarIcon: ({ color }) => <TabBarIcon name="people-outline" color={color} />,
         }}
       />
-
-      {/* Las tres vistas nuevas de Dashboard */}
       <Tabs.Screen
-        name="control-dashboard-barcoder"
+        name="piezas-maquina"
         options={{
-          title: 'Barcoder',
+          title: 'Piezas/Máquina',
           tabBarIcon: ({ color }) => <TabBarIcon name="analytics-outline" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="control-dashboard-barcoder-det"
+        name="trabajos-maquina"
         options={{
-          title: 'Barcoder Det',
+          title: 'Trabajos/Máquina',
           tabBarIcon: ({ color }) => <TabBarIcon name="list-outline" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="control-dashboard-barcoder-order"
+        name="estado-pedidos"
         options={{
           title: 'Pedidos',
           tabBarIcon: ({ color }) => <TabBarIcon name="receipt-outline" color={color} />,
         }}
       />
 
-      {/* (Opcional) Ajustes propios de Óptima si los quieres luego */}
-      {/* <Tabs.Screen
+      {/* ====== VISTAS VIEJAS (OCULTAS) ====== */}
+      <Tabs.Screen
+        name="control-terminales"
+        options={{ href: null, title: 'Terminales (old)' }}
+      />
+      <Tabs.Screen
+        name="control-operarios"
+        options={{ href: null, title: 'Operarios (old)' }}
+      />
+      <Tabs.Screen
+        name="control-dashboard-barcoder"
+        options={{ href: null, title: 'Barcoder (old)' }}
+      />
+      <Tabs.Screen
+        name="control-dashboard-barcoder-det"
+        options={{ href: null, title: 'Barcoder Det (old)' }}
+      />
+      <Tabs.Screen
+        name="control-dashboard-barcoder-order"
+        options={{ href: null, title: 'Pedidos (old)' }}
+      />
+
+      {/* Si tenías algo como "inicio-tabs" para pruebas, también oculto */}
+      <Tabs.Screen
+        name="inicio-tabs"
+        options={{ href: null, title: 'inicio' }}
+      />
+
+      {/* Ajustes (si lo activas en el futuro) */}
+      {/*
+      <Tabs.Screen
         name="configuracion"
         options={{
           title: 'Ajustes',
           tabBarIcon: ({ color }) => <TabBarIcon name="settings-outline" color={color} />,
         }}
-      /> */}
+      />
+      */}
     </Tabs>
   );
 }

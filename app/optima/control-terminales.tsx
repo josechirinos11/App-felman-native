@@ -1,15 +1,17 @@
 // app/optima/control-terminales.tsx
-import { Stack } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Stack } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-    ActivityIndicator, FlatList, Modal, Pressable, StyleSheet,
-    Text, TextInput, TouchableOpacity, View, ScrollView
+    ActivityIndicator, FlatList, Modal, Pressable,
+    ScrollView,
+    StyleSheet,
+    Text, TextInput, TouchableOpacity, View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AppHeader from '../../components/AppHeader';
 import { API_URL } from '../../config/constants';
 import { useOfflineMode } from '../../hooks/useOfflineMode';
-import AppHeader from '../../components/AppHeader';
 
 
 type Row = Record<string, any>;

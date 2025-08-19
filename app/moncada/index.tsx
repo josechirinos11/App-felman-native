@@ -1,15 +1,17 @@
 // app/index.tsx
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import AppHeader from '../../components/AppHeader';
+import ModalHeader from '../../components/ModalHeader';
 import { useAuth } from '../../hooks/useAuth';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
-type RouteNames = '/control-pedidos' | '/control-comerciales' | '/control-incidencias' | '/control-entregas-diarias' | '/pagina-construccion' | string;
+type RouteNames = '/control-pedidos' | '/control-terminales' | '/control-incidencias' | '/control-entregas-diarias' | '/pagina-construccion' | string;
 
 interface MenuItem {
   id: number;
@@ -17,15 +19,14 @@ interface MenuItem {
   icon: IconName;
   route: RouteNames;
 }
-
 const menuItems: MenuItem[] = [
-  { id: 1, title: 'Moncada', icon: 'location-outline', route: '/moncada' },
-    { id: 5, title: 'Almassera', icon: 'location-outline', route: '/optima' },
-    { id: 6, title: 'Almacén', icon: 'cube-outline', route: '/almacen' },
-  { id: 2, title: 'Control Pedidos y Comerciales', icon: 'cube-outline', route: '/control-comerciales' },
-  { id: 3, title: 'Control de Incidencias', icon: 'alert-circle-outline', route: '/control-incidencias' },
-  { id: 4, title: 'Entregas Diarias', icon: 'calendar-outline', route: '/control-entregas-diarias' },
-  { id: 7, title: 'Terminales', icon: 'location-outline', route: '/control-pedidos' },
+  { id: 1, title: 'Atras', icon: 'arrow-back-outline', route: '/' },
+  { id: 2, title: 'Terminales', icon: 'location-outline', route: '/moncada/control-terminales' },
+
+  { id: 3, title: 'Control Pedidos', icon: 'cube-outline', route: '/moncada/control-pedidos' },
+  { id: 4, title: 'Control de Incidencias', icon: 'alert-circle-outline', route: '/moncada/control-incidencias' },
+  { id: 5, title: 'Entregas Diarias', icon: 'calendar-outline', route: '/moncada/control-entregas-diarias' },
+
 
 ];
 
@@ -45,6 +46,12 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const { authenticated, loading: authLoading } = useAuth();
   const router = useRouter();
+
+  const [modalVisible, setModalVisible] = React.useState(false);
+  const [modalUser, setModalUser] = React.useState({ userName: '', role: '' });
+
+  const [userName, setUserName] = useState('—');
+  const [role, setRole] = useState('—');
 
   // Verificar autenticación al cargar
   useEffect(() => {
@@ -108,8 +115,27 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.content}>
+        {/* Header de la aplicación */}
+        <AppHeader
+        titleOverride="Panel Moncada"
+          // ...otras props si aplican...
+          userNameProp={userData?.nombre || userData?.name || '—'}
+          roleProp={userData?.rol || userData?.role || '—'}
+          serverReachableOverride={!!authenticated}   // o tu booleano real de salud del servidor
+          onUserPress={({ userName, role }) => {
+            setModalUser({ userName, role });
+            setModalVisible(true);
+          }}
+        />
 
-        {/* Panel superior con información del usuario */}
+        <ModalHeader
+          visible={modalVisible}
+          onClose={() => setModalVisible(false)}
+          userName={userData?.nombre || userData?.name || '—'}
+          role={userData?.rol || userData?.role || '—'}
+        />
+
+        {/* Panel superior con información del usuario 
         <View style={styles.sidePanel}>
           {userData ? (
             <View style={styles.userInfo}>
@@ -121,23 +147,23 @@ export default function HomeScreen() {
             <Text style={styles.notAuthText}>No hay datos de usuario.</Text>
           )}
         </View>
-
+*/}
         {/* Panel principal con menú */}
         <View style={styles.mainPanel}>
           <ScrollView style={styles.scrollView}>
             <View style={styles.menuGrid}>
-              {Array.from({ length: Math.ceil(menuItems.length / 2) }).map((_, rowIndex) => (                <View key={rowIndex} style={styles.menuRow}>
-                  {menuItems.slice(rowIndex * 2, rowIndex * 2 + 2).map(item => (
-                    <TouchableOpacity
-                      key={item.id}
-                      style={styles.menuItem}
-                      onPress={() => router.push(item.route as any)}
-                    >
-                      <Ionicons name={item.icon} size={32} color="#2e78b7" />
-                      <Text style={styles.menuText}>{item.title}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+              {Array.from({ length: Math.ceil(menuItems.length / 2) }).map((_, rowIndex) => (<View key={rowIndex} style={styles.menuRow}>
+                {menuItems.slice(rowIndex * 2, rowIndex * 2 + 2).map(item => (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.menuItem}
+                    onPress={() => router.push(item.route as any)}
+                  >
+                    <Ionicons name={item.icon} size={32} color="#2e78b7" />
+                    <Text style={styles.menuText}>{item.title}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
               ))}
             </View>
           </ScrollView>
@@ -150,7 +176,7 @@ export default function HomeScreen() {
 
 
 const styles = StyleSheet.create({
-    loader: {
+  loader: {
     flex: 1, justifyContent: 'center', alignItems: 'center'
   },
   container: {
@@ -171,7 +197,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f3f4f6',
     paddingTop: 16,
-  },  userInfo: {
+  }, userInfo: {
     backgroundColor: '#fff',
     padding: 16,
     borderRadius: 12,
@@ -210,7 +236,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 10,
-  },  menuItem: {
+  }, menuItem: {
     width: '48%',
     backgroundColor: '#fff',
     padding: 16,

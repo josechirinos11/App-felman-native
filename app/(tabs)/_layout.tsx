@@ -18,15 +18,16 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: '#2e78b7',
-    tabBarStyle: { 
-      backgroundColor: '#000000ff',     // <-- tu color deseado aquí
-      paddingBottom: 5 
-    },
+        tabBarStyle: {
+          backgroundColor: '#000000ff',     // <-- tu color deseado aquí
+          paddingBottom: 5
+        },
         headerShown: false, // Oculta el header en todas las pestañas
       }}>
       <Tabs.Screen
         name="index"
         options={{
+          href: null,
           title: 'Inicio',
           tabBarIcon: ({ color }) => <TabBarIcon name="home-outline" color={color} />,
           headerShown: false, // Solo muestra el header en la pantalla principal
@@ -43,12 +44,36 @@ export default function TabLayout() {
           ),
         }}
       />
+
+
       <Tabs.Screen
-        name="control-pedidos"        options={{
-          title: 'Pedidos',
-          tabBarIcon: ({ color }) => <TabBarIcon name="clipboard-outline" color={color} />,
-        }}
-      />      <Tabs.Screen
+  name="moncada-tab"
+  options={{
+    title: 'Moncada',
+    tabBarIcon: ({ color }) => <TabBarIcon name="location-outline" color={color} />,
+    href: '/moncada', // abre fuera del grupo (tabs)
+  }}
+/>
+
+<Tabs.Screen
+  name="almassera-tab"
+  options={{
+    title: 'Almassera',
+    tabBarIcon: ({ color }) => <TabBarIcon name="location-outline" color={color} />,
+    href: '/optima', // abre fuera del grupo (tabs)
+  }}
+/>
+
+<Tabs.Screen
+  name="almacen-tab"
+  options={{
+    title: 'Almacén',
+    tabBarIcon: ({ color }) => <TabBarIcon name="location-outline" color={color} />,
+    href: '/almacen', // abre fuera del grupo (tabs)
+  }}
+/>
+
+     <Tabs.Screen
         name="control-comerciales"
         options={{
           title: 'Comerciales',
@@ -72,10 +97,24 @@ export default function TabLayout() {
       <Tabs.Screen
         name="configuracion"
         options={{
+          href: null,
           title: 'Ajustes',
           tabBarIcon: ({ color }) => <TabBarIcon name="settings-outline" color={color} />,
         }}
       />
+
+            <Tabs.Screen
+        name="control-pedidos"
+        options={{
+          href: null,
+          title: 'pedidos',
+          tabBarIcon: ({ color }) => <TabBarIcon name="settings-outline" color={color} />,
+        }}
+      />
+
+
+
+
     </Tabs>
   );
 }

@@ -9,12 +9,12 @@ import Ajustes from './Ajustes';
 import Articulos from './Articulos';
 import Categorias from './Categorias';
 import Configuracion from './Configuracion';
-import Dashboard from './Dashboard';
 import Entradas from './Entradas';
 import Reportes from './Reportes';
 import Salidas from './Salidas';
 import Transferencias from './Transferencias';
 import Ubicaciones from './Ubicaciones';
+import index from './index';
 
 const Tab = createBottomTabNavigator();
 
@@ -40,11 +40,13 @@ export default function AlmacenLayout() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
+        tabBarActiveTintColor: '#2e78b7',
+        tabBarStyle: { backgroundColor: '#000000ff', paddingBottom: 5 },
         headerShown: false,
         tabBarIcon: ({ color, size }) => {
           let iconName = 'help-circle-outline';
           switch (route.name) {
-            case 'Dashboard':      iconName = 'home-outline'; break;
+            case 'index':      iconName = 'grid-outline'; break;
             case 'Articulos':      iconName = 'pricetags-outline'; break;
             case 'Categorias':     iconName = 'layers-outline'; break;
             case 'Ubicaciones':    iconName = 'map-outline'; break;
@@ -57,11 +59,11 @@ export default function AlmacenLayout() {
           }
           return <Ionicons name={iconName as any} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#007AFF',
+
         tabBarInactiveTintColor: 'gray',
       })}
     >
-      <Tab.Screen name="Dashboard"      component={Dashboard} />
+      <Tab.Screen name="Panel"      component={index} />
       <Tab.Screen name="Articulos"      component={Articulos} />
       <Tab.Screen name="Categorias"     component={Categorias} />
       <Tab.Screen name="Ubicaciones"    component={Ubicaciones} />

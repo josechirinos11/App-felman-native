@@ -1,14 +1,17 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Dimensions, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AppHeader from '../../components/AppHeader';
+import ModalHeader from '../../components/ModalHeader';
 import { API_URL } from '../../config/constants';
+import { useOfflineMode } from '../../hooks/useOfflineMode';
 
 type Row = Record<string, any>;
 type ApiResp = {
-  items: Row[];
-  page: number; pageSize: number; total: number;
+  items: Row[]; page: number; pageSize: number; total: number;
   from: string; to: string; usedFrom?: string; usedTo?: string;
   mode?: 'Pedido' | 'Entrega';
   orderBy: string; orderDir: 'ASC' | 'DESC';
@@ -35,6 +38,24 @@ export default function ControlDashboardBarcoderOrder() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [reachedEnd, setReachedEnd] = useState(false);
+  const { serverReachable } = useOfflineMode();
+
+  // usuario/rol header + modal
+  const [userName, setUserName] = useState('—');
+  const [userRole, setUserRole] = useState('—');
+  const [userModalVisible, setUserModalVisible] = useState(false);
+  const [modalUser, setModalUser] = useState({ userName: '', role: '' });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const s = await AsyncStorage.getItem('userData');
+        const u = s ? JSON.parse(s) : null;
+        setUserName(u?.nombre || u?.name || '—');
+        setUserRole(u?.rol || u?.role || '—');
+      } catch {}
+    })();
+  }, []);
 
   const ENDPOINT = `${API_URL}/control-optima/barcoder-order`;
 
@@ -112,64 +133,59 @@ export default function ControlDashboardBarcoderOrder() {
 
   const refresh = React.useCallback(() => {
     setRefreshing(true);
-    setPage(1);
-    setReachedEnd(false);
+    setPage(1); setReachedEnd(false);
     fetchPage(1, true);
   }, [fetchPage]);
 
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{ title: 'Dashboard Pedidos (Order)' }} />
+      <Stack.Screen options={{ title: 'Panel Barcoder Order (estado de los pedidos)' }} />
 
-
+      {/* AppHeader + ModalHeader */}
+      <AppHeader
+        titleOverride="Panel Barcoder Order (estado de los pedidos)"
+        count={rows.length}
+        userNameProp={userName}
+        roleProp={userRole}
+        serverReachableOverride={!!serverReachable}
+        onRefresh={refresh}
+        onUserPress={({ userName, role }) => {
+          setModalUser({ userName, role });
+          setUserModalVisible(true);
+        }}
+      />
+      <ModalHeader
+        visible={userModalVisible}
+        onClose={() => setUserModalVisible(false)}
+        userName={modalUser.userName || userName}
+        role={modalUser.role || userRole}
+      />
 
       {/* Filtros */}
       {isSmallDevice ? (
         <View style={[styles.filters, { flexDirection: 'column', gap: 4 }]}>
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Desde</Text>
-              <TextInput value={from} onChangeText={setFrom} placeholder="YYYY-MM-DD" style={styles.input} />
-            </View>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Hasta</Text>
-              <TextInput value={to} onChangeText={setTo} placeholder="YYYY-MM-DD" style={styles.input} />
-            </View>
+            <View style={[styles.inputGroup, { flex: 1 }]}><Text style={styles.label}>Desde</Text><TextInput value={from} onChangeText={setFrom} placeholder="YYYY-MM-DD" style={styles.input} /></View>
+            <View style={[styles.inputGroup, { flex: 1 }]}><Text style={styles.label}>Hasta</Text><TextInput value={to} onChangeText={setTo} placeholder="YYYY-MM-DD" style={styles.input} /></View>
           </View>
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-            <View style={[styles.inputGroup, { flex: 1 }]}>
-              <Text style={styles.label}>Buscar</Text>
-              <TextInput value={search} onChangeText={setSearch} placeholder="pedido, usuario, centro..." style={styles.input} />
-            </View>
-            <Pressable style={[styles.btn, { alignSelf: 'flex-end' }]} onPress={applyFilters}>
-              <Ionicons name="search-outline" size={20} color="#fff" />
-            </Pressable>
+            <View style={[styles.inputGroup, { flex: 1 }]}><Text style={styles.label}>Buscar</Text><TextInput value={search} onChangeText={setSearch} placeholder="pedido, usuario, centro..." style={styles.input} /></View>
+            <Pressable style={[styles.btn, { alignSelf: 'flex-end' }]} onPress={applyFilters}><Ionicons name="search-outline" size={20} color="#fff" /></Pressable>
           </View>
         </View>
       ) : (
         <View style={styles.filters}>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Desde</Text>
-            <TextInput value={from} onChangeText={setFrom} placeholder="YYYY-MM-DD" style={styles.input} />
-          </View>
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Hasta</Text>
-            <TextInput value={to} onChangeText={setTo} placeholder="YYYY-MM-DD" style={styles.input} />
-          </View>
-          <View style={[styles.inputGroup, { flex: 1.4 }]}>
-            <Text style={styles.label}>Buscar</Text>
-            <TextInput value={search} onChangeText={setSearch} placeholder="pedido, usuario, centro..." style={styles.input} />
-          </View>
-          <Pressable style={styles.btn} onPress={applyFilters}>
-            <Ionicons name="search-outline" size={20} color="#fff" />
-            <Text style={styles.btnText}>Aplicar</Text>
-          </Pressable>
+          <View style={styles.inputGroup}><Text style={styles.label}>Desde</Text><TextInput value={from} onChangeText={setFrom} placeholder="YYYY-MM-DD" style={styles.input} /></View>
+          <View style={styles.inputGroup}><Text style={styles.label}>Hasta</Text><TextInput value={to} onChangeText={setTo} placeholder="YYYY-MM-DD" style={styles.input} /></View>
+          <View style={[styles.inputGroup, { flex: 1.4 }]}><Text style={styles.label}>Buscar</Text><TextInput value={search} onChangeText={setSearch} placeholder="pedido, usuario, centro..." style={styles.input} /></View>
+          <Pressable style={styles.btn} onPress={applyFilters}><Ionicons name="search-outline" size={20} color="#fff" /><Text style={styles.btnText}>Aplicar</Text></Pressable>
         </View>
       )}
 
       <AlertRange />
       {headerMetrics}
 
+      {/* Lista */}
       <FlatList
         data={rows}
         keyExtractor={(_, i) => String(i)}
@@ -194,19 +210,19 @@ const styles = StyleSheet.create({
   btn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#2e78b7', paddingHorizontal: 12, height: 38, borderRadius: 8 },
   btnText: { color: '#fff', fontWeight: '700' },
 
-  notice: { flexDirection: 'row', alignItems: 'center', gap: 6, margin: 10, padding: 10, backgroundColor: '#eff6ff', borderRadius: 10, borderColor: '#bfdbfe', borderWidth: 1 },
-  noticeText: { color: '#1e3a8a' },
+  notice: { flexDirection: 'row', alignItems: 'center', gap: 6, margin: 10, padding: 8, backgroundColor: '#EFF6FF', borderRadius: 8, borderWidth: 1, borderColor: '#93C5FD' },
+  noticeText: { color: '#1E3A8A' },
 
-  headerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: '#f8fafc' },
-  kpi: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, borderColor: '#e5e7eb', borderWidth: 1 },
-  kpiText: { fontWeight: '600', color: '#374151' },
+  headerRow: { flexDirection: 'row', paddingHorizontal: 10, paddingTop: 6, gap: 12, alignItems: 'center' },
+  kpi: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+  kpiText: { fontWeight: '700', color: '#1f2937' },
 
-  card: { marginHorizontal: 10, marginVertical: 6, backgroundColor: '#fff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#e5e7eb' },
-  cardHead: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  title: { fontSize: 16, fontWeight: '700', color: '#2e78b7' },
-  badge: { backgroundColor: '#eff6ff', color: '#1d4ed8', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, overflow: 'hidden' },
+  card: { backgroundColor: '#fff', margin: 8, padding: 12, borderRadius: 10, elevation: 2 },
+  cardHead: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  badge: { backgroundColor: '#eef2ff', color: '#1d4ed8', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, fontWeight: '600' },
+  title: { fontWeight: '700', color: '#2e78b7' },
   sub: { color: '#6b7280', marginBottom: 4 },
 
   empty: { textAlign: 'center', color: '#6b7280', marginTop: 20 },
-  endText: { textAlign: 'center', color: '#9ca3af', paddingVertical: 12 },
+  endText: { textAlign: 'center', color: '#6b7280', paddingVertical: 12 },
 });

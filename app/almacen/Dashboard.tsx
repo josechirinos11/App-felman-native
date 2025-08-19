@@ -4,12 +4,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -23,7 +23,7 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { id: 1, title: 'Inicio / Atras',               icon: 'home-outline',          route: '/'                        },
+  { id: 1, title: 'Atras',               icon: 'arrow-back-outline',          route: '/(tabs)/'                        },
   { id: 2, title: 'Gestión de Artículos', icon: 'cube-outline',          route: '/almacen/Articulos'      },
   { id: 3, title: 'Categorías y Grupos',  icon: 'grid-outline',          route: '/almacen/Categorias'     },
   { id: 4, title: 'Ubicaciones',          icon: 'location-outline',      route: '/almacen/Ubicaciones'    },

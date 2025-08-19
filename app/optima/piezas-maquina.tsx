@@ -1,45 +1,73 @@
 // app/optima/piezas-maquina.tsx
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Button,
-    FlatList,
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
-    useWindowDimensions,
+  ActivityIndicator,
+  Button,
+  FlatList,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
 } from 'react-native';
 import AppHeader from '../../components/AppHeader';
 import ModalHeader from '../../components/ModalHeader';
 import { API_URL } from '../../config/constants';
 
-// ===================== Tipos base =====================
+/** ===================== Tipos base ===================== */
 type Row = {
+  // claves lógicas previas
   PEDIDO?: string;
-  NOMBRE?: string; // cliente
+  NOMBRE?: string;               // cliente
   ESTADO?: string;
   DATAHORA_COMPL?: string;
   DATA_COMPLETE?: string;
-  USERNAME?: string;        // operario
-  CENTRO_TRABAJO?: string;  // máquina
+  USERNAME?: string;             // operario
+  CENTRO_TRABAJO?: string;       // máquina
+
+  // tiempos y fechas de backend
+  eventdt?: string;
+  fecha_inicio_op?: string;
+  fecha_fin_op?: string;
+  fecha_rotura?: string;
+  fecha_pedido?: string;
+  fecha_entrega_prog?: string;
+
+  t_trabajo_seg?: number | string | null;
+  t_espera_prev_maquina_seg?: number | string | null;
+  t_entre_operaciones_seg?: number | string | null;
+  t_desde_pedido_seg?: number | string | null;
+  t_hasta_entrega_prog_seg?: number | string | null;
+  t_ciclo_pieza_total_seg?: number | string | null;
+
   [key: string]: any;
 };
 
-// Pedido
+type TimeAgg = {
+  trabajo: number;
+  esperaPrev: number;
+  entreOps: number;
+  desdePedido: number;
+  hastaEntrega: number;
+  cicloPieza: number;
+};
+
+// Pedido (grupo base)
 type Group = {
   kind: 'pedido';
   pedido: string;
-  nombre: string;           // cliente
+  nombre: string;
   count: number;
   estado: string;           // '', 'COMPLETE', 'Mixto', etc.
   fechaUlt: string | null;  // ISO
   rows: Row[];
+  totals: TimeAgg;
+  avg: TimeAgg;
 };
 
 // Cliente
@@ -49,17 +77,21 @@ type ClienteGroup = {
   count: number;
   fechaUlt: string | null;
   pedidos: Group[];
+  totals: TimeAgg;
+  avg: TimeAgg;
 };
 
-// Operario dentro de un centro (para modal de centro)
+// Operario dentro de un centro
 type CentroOperario = {
   username: string;
   count: number;
   fechaUlt: string | null;
   pedidos: Group[];
+  totals: TimeAgg;
+  avg: TimeAgg;
 };
 
-// Centro de trabajo
+// Centro de trabajo (máquina)
 type CentroGroup = {
   kind: 'centro';
   centro: string;
@@ -67,6 +99,8 @@ type CentroGroup = {
   fechaUlt: string | null;
   pedidos: Group[];
   operarios: CentroOperario[];
+  totals: TimeAgg;
+  avg: TimeAgg;
 };
 
 // Operario (global)
@@ -76,12 +110,14 @@ type OperarioGroup = {
   count: number;
   fechaUlt: string | null;
   pedidos: Group[];
+  totals: TimeAgg;
+  avg: TimeAgg;
 };
 
 // Unión para la lista principal
 type VisibleItem = Group | ClienteGroup | CentroGroup | OperarioGroup;
 
-// ===================== Helpers =====================
+/** ===================== Helpers ===================== */
 const norm = (v: any) => String(v ?? '').trim();
 const upper = (v: any) => norm(v).toUpperCase();
 const firstOf = (obj: any, ...keys: string[]) => {
@@ -90,6 +126,11 @@ const firstOf = (obj: any, ...keys: string[]) => {
     if (val !== undefined && val !== null && String(val).trim() !== '') return val;
   }
   return undefined;
+};
+const numOf = (obj: any, ...keys: string[]) => {
+  const raw = firstOf(obj, ...keys);
+  const n = typeof raw === 'number' ? raw : raw == null ? NaN : Number(String(raw).replace(',', '.'));
+  return Number.isFinite(n) ? n : 0;
 };
 const parseMillis = (s?: string | null) => {
   if (!s) return NaN;
@@ -113,14 +154,55 @@ const fmtYmdHm = (iso?: string | null) => {
   const min = String(d.getMinutes()).padStart(2, '0');
   return `${y}-${m}-${day} ${h}:${min}`;
 };
+const nowMs = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
+const validYmd = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(new Date(s + 'T00:00:00').getTime());
 
-// Guards
+const fmtDur = (sec: number) => {
+  const s = Math.max(0, Math.round(sec || 0));
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const r = s % 60;
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${r}s`;
+  return `${r}s`;
+};
+const fmtDurAvg = (totalSec: number, count: number) => fmtDur(count > 0 ? totalSec / count : 0);
+
+const zeroAgg = (): TimeAgg => ({
+  trabajo: 0, esperaPrev: 0, entreOps: 0, desdePedido: 0, hastaEntrega: 0, cicloPieza: 0,
+});
+
+const sumTimes = (rows: Row[]): TimeAgg => {
+  const out = zeroAgg();
+  for (const r of rows) {
+    out.trabajo       += numOf(r, 't_trabajo_seg', 't trabajo seg');
+    out.esperaPrev    += numOf(r, 't_espera_prev_maquina_seg', 't espera prev maquina seg');
+    out.entreOps      += numOf(r, 't_entre_operaciones_seg', 't entre operaciones seg');
+    out.desdePedido   += numOf(r, 't_desde_pedido_seg', 't desde pedido seg');
+    out.hastaEntrega  += numOf(r, 't_hasta_entrega_prog_seg', 't hasta entrega prog seg');
+    out.cicloPieza    += numOf(r, 't_ciclo_pieza_total_seg', 't ciclo pieza total seg');
+  }
+  return out;
+};
+
+const aggAvg = (tot: TimeAgg, count: number): TimeAgg => ({
+  trabajo: count ? tot.trabajo / count : 0,
+  esperaPrev: count ? tot.esperaPrev / count : 0,
+  entreOps: count ? tot.entreOps / count : 0,
+  desdePedido: count ? tot.desdePedido / count : 0,
+  hastaEntrega: count ? tot.hastaEntrega / count : 0,
+  cicloPieza: count ? tot.cicloPieza / count : 0,
+});
+
+/** Guards */
 const isGroup = (x: VisibleItem): x is Group => (x as Group).kind === 'pedido';
 const isClienteGroup = (x: VisibleItem): x is ClienteGroup => (x as ClienteGroup).kind === 'cliente';
 const isCentroGroup = (x: VisibleItem): x is CentroGroup => (x as CentroGroup).kind === 'centro';
 const isOperarioGroup = (x: VisibleItem): x is OperarioGroup => (x as OperarioGroup).kind === 'operario';
 
-// Agrupar por pedido
+/** Agrupar por pedido */
 const groupByPedido = (rows: Row[]): Group[] => {
   const map = new Map<string, Row[]>();
   for (const r of rows) {
@@ -139,18 +221,25 @@ const groupByPedido = (rows: Row[]): Group[] => {
       ...arr.map((r) => {
         const a = parseMillis(norm(firstOf(r, 'DATAHORA_COMPL', 'DATAHORA COMPL')));
         const b = parseMillis(norm(firstOf(r, 'DATA_COMPLETE', 'DATA COMPLETE')));
-        return Number.isFinite(a) || Number.isFinite(b) ? Math.max(a || -Infinity, b || -Infinity) : -Infinity;
+        const c = parseMillis(norm(firstOf(r, 'fecha_fin_op')));
+        const d = parseMillis(norm(firstOf(r, 'eventdt')));
+        const best = [a, b, c, d].filter(Number.isFinite);
+        return best.length ? Math.max(...best) : -Infinity;
       })
     );
     const fechaUlt = Number.isFinite(maxMs) ? new Date(maxMs).toISOString() : null;
-    out.push({ kind: 'pedido', pedido, nombre, count: arr.length, estado, fechaUlt, rows: arr });
+
+    const totals = sumTimes(arr);
+    const avg = aggAvg(totals, arr.length);
+
+    out.push({ kind: 'pedido', pedido, nombre, count: arr.length, estado, fechaUlt, rows: arr, totals, avg });
   }
 
   out.sort((a, b) => (parseMillis(b.fechaUlt) || 0) - (parseMillis(a.fechaUlt) || 0));
   return out;
 };
 
-// Agrupar por cliente
+/** Agrupar por cliente */
 const groupByCliente = (rows: Row[]): ClienteGroup[] => {
   const map = new Map<string, Row[]>();
   for (const r of rows) {
@@ -165,13 +254,15 @@ const groupByCliente = (rows: Row[]): ClienteGroup[] => {
     const pedidos = groupByPedido(arr);
     const count = arr.length;
     const fechaUlt = pedidos.length ? pedidos[0].fechaUlt : null;
-    out.push({ kind: 'cliente', cliente, count, fechaUlt, pedidos });
+    const totals = sumTimes(arr);
+    const avg = aggAvg(totals, count);
+    out.push({ kind: 'cliente', cliente, count, fechaUlt, pedidos, totals, avg });
   }
   out.sort((a, b) => (parseMillis(b.fechaUlt) || 0) - (parseMillis(a.fechaUlt) || 0));
   return out;
 };
 
-// Agrupar por operario (global)
+/** Agrupar por operario (global) */
 const groupByOperario = (rows: Row[]): OperarioGroup[] => {
   const map = new Map<string, Row[]>();
   for (const r of rows) {
@@ -185,13 +276,15 @@ const groupByOperario = (rows: Row[]): OperarioGroup[] => {
     const pedidos = groupByPedido(arr);
     const count = arr.length;
     const fechaUlt = pedidos.length ? pedidos[0].fechaUlt : null;
-    out.push({ kind: 'operario', username, count, fechaUlt, pedidos });
+    const totals = sumTimes(arr);
+    const avg = aggAvg(totals, count);
+    out.push({ kind: 'operario', username, count, fechaUlt, pedidos, totals, avg });
   }
   out.sort((a, b) => (parseMillis(b.fechaUlt) || 0) - (parseMillis(a.fechaUlt) || 0));
   return out;
 };
 
-// Agrupar por centro
+/** Agrupar por centro (máquina) */
 const groupByCentro = (rows: Row[]): CentroGroup[] => {
   const map = new Map<string, Row[]>();
   for (const r of rows) {
@@ -216,20 +309,27 @@ const groupByCentro = (rows: Row[]): CentroGroup[] => {
     for (const [username, subarr] of byUser) {
       const peds = groupByPedido(subarr);
       const fechaUlt = peds.length ? peds[0].fechaUlt : null;
-      operarios.push({ username, count: subarr.length, fechaUlt, pedidos: peds });
+      const totals = sumTimes(subarr);
+      const avg = aggAvg(totals, subarr.length);
+      operarios.push({ username, count: subarr.length, fechaUlt, pedidos: peds, totals, avg });
     }
     operarios.sort((a, b) => (parseMillis(b.fechaUlt) || 0) - (parseMillis(a.fechaUlt) || 0));
 
     const count = arr.length;
     const fechaUlt = pedidos.length ? pedidos[0].fechaUlt : null;
-    out.push({ kind: 'centro', centro, count, fechaUlt, pedidos, operarios });
+    const totals = sumTimes(arr);
+    const avg = aggAvg(totals, count);
+
+    out.push({ kind: 'centro', centro, count, fechaUlt, pedidos, operarios, totals, avg });
   }
   out.sort((a, b) => (parseMillis(b.fechaUlt) || 0) - (parseMillis(a.fechaUlt) || 0));
   return out;
 };
 
-// ===================== Componente =====================
+/** ===================== Componente ===================== */
 const ENDPOINT = `${API_URL}/control-optima/piezas-maquina`;
+const DEFAULT_FROM = '2025-01-01';
+const DEFAULT_TO = toYmd(new Date());
 
 export default function PiezasMaquina() {
   // ---- encabezado global
@@ -240,155 +340,264 @@ export default function PiezasMaquina() {
   const [modalUser, setModalUser] = useState<{ userName?: string; role?: string }>({});
 
   const { width } = useWindowDimensions();
-  // Responsive: móvil 1, tablet 2, web 3
   const numColumns = width >= 1024 ? 3 : width >= 700 ? 2 : 1;
 
-  // Fechas por defecto: TODO (SQL Server válido) → hoy
-  const [from, setFrom] = useState<string>('1753-01-01');
-  const [to, setTo] = useState<string>(toYmd(new Date()));
+  // Fechas por defecto
+  const [from, setFrom] = useState<string>(DEFAULT_FROM);
+  const [to, setTo] = useState<string>(DEFAULT_TO);
+  const [dateError, setDateError] = useState<string>('');
 
+  // Estado de consulta/paginación
   const [page, setPage] = useState<number>(1);
-  const [pageSize] = useState<number>(500); // límite endpoint
+  const [pageSize] = useState<number>(500);
   const [rows, setRows] = useState<Row[]>([]);
-  const [totalRecords, setTotalRecords] = useState<number>(0); // total del backend
+  const [totalRecords, setTotalRecords] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [reachedEnd, setReachedEnd] = useState(false);
+  const [query, setQuery] = useState('');
+
+  // Anti-bucle / anti-duplicados
+  const inFlightAbort = useRef<AbortController | null>(null);
+  const lastReqKeyRef = useRef<string>('');
+  const lastSuccessKeyRef = useRef<string>('');
+  const endReachedTsRef = useRef<number>(0); // throttle onEndReached
+
+  // Tiempos por proceso (de frontend: fetch+group). Se mantienen del build anterior.
+  const [timings, setTimings] = useState<{
+    fetchMs: number;
+    jsonMs: number;
+    groupPedidoMs: number;
+    groupClienteMs: number;
+    groupCentroMs: number;
+    groupOperarioMs: number;
+    totalMs: number;
+  }>({
+    fetchMs: 0,
+    jsonMs: 0,
+    groupPedidoMs: 0,
+    groupClienteMs: 0,
+    groupCentroMs: 0,
+    groupOperarioMs: 0,
+    totalMs: 0,
+  });
 
   // Agrupaciones
-  const [groupMode, setGroupMode] = useState<'pedido' | 'cliente' | 'centro' | 'operario'>('pedido');
+  //const [groupMode, setGroupMode] = useState<'pedido' | 'cliente' | 'centro' | 'operario'>('pedido');
   const [groupsPedido, setGroupsPedido] = useState<Group[]>([]);
   const [groupsCliente, setGroupsCliente] = useState<ClienteGroup[]>([]);
   const [groupsCentro, setGroupsCentro] = useState<CentroGroup[]>([]);
   const [groupsOperario, setGroupsOperario] = useState<OperarioGroup[]>([]);
-  const [query, setQuery] = useState(''); // <-- búsqueda principal (server-side)
 
-  // Modal Pedido (detalle)
+  // Modales (pedido)
   const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   const [pedidoModalVisible, setPedidoModalVisible] = useState(false);
   const [pedidoModalQuery, setPedidoModalQuery] = useState('');
 
-  // Modal Cliente (sus pedidos)
+  // Modales (cliente)
   const [selectedCliente, setSelectedCliente] = useState<ClienteGroup | null>(null);
   const [clientModalVisible, setClientModalVisible] = useState(false);
   const [clientModalQuery, setClientModalQuery] = useState('');
 
-  // Modal Operario (global → sus pedidos)
+  // Modales (operario global)
   const [selectedOperario, setSelectedOperario] = useState<OperarioGroup | null>(null);
   const [operarioModalVisible, setOperarioModalVisible] = useState(false);
   const [operarioModalQuery, setOperarioModalQuery] = useState('');
 
-  // Modal Centro (selector de vista Operario|Pedido)
+  // Modales (centro)
   const [selectedCentro, setSelectedCentro] = useState<CentroGroup | null>(null);
   const [centroModalVisible, setCentroModalVisible] = useState(false);
   const [centroListMode, setCentroListMode] = useState<'operario' | 'pedido'>('operario');
   const [centroModalQuery, setCentroModalQuery] = useState('');
 
-  // Modal Centro → Operario (pedidos del operario en ese centro)
+  // Centro → Operario
   const [centroOperarioSel, setCentroOperarioSel] = useState<(CentroOperario & { centro: string }) | null>(null);
   const [centroOperarioModalVisible, setCentroOperarioModalVisible] = useState(false);
   const [centroOperarioModalQuery, setCentroOperarioModalQuery] = useState('');
 
+  /** ===== validación fechas ===== */
+  const validateDates = useCallback((): boolean => {
+    if (!validYmd(from) || !validYmd(to)) {
+      setDateError('Formato inválido. Usa YYYY-MM-DD.');
+      return false;
+    }
+    const dFrom = new Date(from + 'T00:00:00').getTime();
+    const dTo = new Date(to + 'T23:59:59').getTime();
+    if (Number.isNaN(dFrom) || Number.isNaN(dTo)) {
+      setDateError('Fecha inválida.');
+      return false;
+    }
+    if (dFrom > dTo) {
+      setDateError('“Desde” no puede ser mayor a “Hasta”.');
+      return false;
+    }
+    setDateError('');
+    return true;
+  }, [from, to]);
+
+  /** ===== construir clave de request para deduplicar ===== */
+  const buildReqKey = (p: number) =>
+    JSON.stringify({ from, to, page: p, pageSize, query: query.trim().toUpperCase() });
+
+  /** ===== reset con filtros ===== */
   const applyFilters = useCallback(() => {
+    if (!validateDates()) return;
     setPage(1);
     setReachedEnd(false);
     setRefreshing(true);
     fetchPage(1, true);
-  }, [from, to, pageSize, query]);
+  }, [validateDates]);
 
-  const applyAll = useCallback(() => {
-    applyFilters();
-  }, [applyFilters]);
+  /** ===== carga inicial ===== */
+  useEffect(() => {
+    fetchPage(1, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  /** ===== debounce de búsqueda server-side ===== */
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (!validateDates()) return;
+      setPage(1);
+      setReachedEnd(false);
+      setRefreshing(true);
+      fetchPage(1, true);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [query, validateDates]);
+
+  /** ===== fetch con anti-bucle y timings ===== */
   const fetchPage = useCallback(
     async (pageToLoad: number, replace = false) => {
+      if (!validateDates()) return;
       if (loading) return;
+
+      const reqKey = buildReqKey(pageToLoad);
+      if (reqKey === lastReqKeyRef.current) return;
+      if (!replace && reqKey === lastSuccessKeyRef.current) return;
+
+      try { inFlightAbort.current?.abort(); } catch (_) {}
+      const controller = new AbortController();
+      inFlightAbort.current = controller;
+
       setLoading(true);
+
+      const t0 = nowMs();
       try {
         const params = new URLSearchParams({
           page: String(pageToLoad),
           pageSize: String(pageSize),
           from,
           to,
+          search: query.trim(),
         });
-        // búsqueda server-side (tu backend usa "search")
-        params.set('search', query);
 
-        if (from && to) params.set('scope', 'custom');
+        // Evita rutas de UNION conflictivas si es el rango por defecto
+        if (!(from === DEFAULT_FROM && to === DEFAULT_TO)) {
+          params.set('scope', 'custom');
+        }
 
         const url = `${ENDPOINT}?${params.toString()}`;
-        const res = await fetch(url);
+        lastReqKeyRef.current = reqKey;
+
+        const tFetch0 = nowMs();
+        const res = await fetch(url, { signal: controller.signal });
+        const tFetch1 = nowMs();
+
         setServerReachable(res.ok);
 
+        const tJson0 = nowMs();
         const data = await res.json();
-        if (!res.ok) throw new Error((data as any)?.message || `HTTP ${res.status}`);
+        const tJson1 = nowMs();
+
+        if (!res.ok) {
+          const msg = (data as any)?.message || `HTTP ${res.status}`;
+          throw new Error(msg);
+        }
 
         const newItems = Array.isArray(data.items) ? (data.items as Row[]) : [];
-
         const totalFromApi = Number(data.total) || 0;
 
-        setRows((prev) => {
-          const merged = replace ? newItems : [...prev, ...newItems];
+        const merged = replace ? newItems : [...rows, ...newItems];
 
-          // recalcular agrupaciones
-          setGroupsPedido(groupByPedido(merged));
-          setGroupsCliente(groupByCliente(merged));
-          setGroupsCentro(groupByCentro(merged));
-          setGroupsOperario(groupByOperario(merged));
+        // Agrupaciones + tiempos
+        const tg0 = nowMs();
+        const gPedidos = groupByPedido(merged);
+        const tg1 = nowMs();
+        const gClientes = groupByCliente(merged);
+        const tg2 = nowMs();
+        const gCentros = groupByCentro(merged);
+        const tg3 = nowMs();
+        const gOperarios = groupByOperario(merged);
+        const tg4 = nowMs();
 
-          setTotalRecords(totalFromApi > 0 ? totalFromApi : merged.length);
+        setRows(merged);
+        setGroupsPedido(gPedidos);
+        setGroupsCliente(gClientes);
+        setGroupsCentro(gCentros);
+        setGroupsOperario(gOperarios);
 
-          return merged;
-        });
+        setTotalRecords(totalFromApi > 0 ? totalFromApi : merged.length);
 
-        setReachedEnd(newItems.length < pageSize);
+        let end = false;
+        if (totalFromApi > 0) {
+          end = pageToLoad * pageSize >= totalFromApi;
+        } else {
+          end = newItems.length < pageSize;
+        }
+        setReachedEnd(end);
         setPage(pageToLoad);
-      } catch (e) {
-        console.error('fetchPage error:', e);
-        setServerReachable(false);
-        if (replace) {
-          setRows([]);
-          setGroupsPedido([]);
-          setGroupsCliente([]);
-          setGroupsCentro([]);
-          setGroupsOperario([]);
-          setTotalRecords(0);
+        lastSuccessKeyRef.current = reqKey;
+
+        setTimings({
+          fetchMs: Math.max(0, tFetch1 - tFetch0),
+          jsonMs: Math.max(0, tJson1 - tJson0),
+          groupPedidoMs: Math.max(0, tg1 - tg0),
+          groupClienteMs: Math.max(0, tg2 - tg1),
+          groupCentroMs: Math.max(0, tg3 - tg2),
+          groupOperarioMs: Math.max(0, tg4 - tg3),
+          totalMs: Math.max(0, nowMs() - t0),
+        });
+      } catch (e: any) {
+        if (e?.name !== 'AbortError') {
+          console.error('[piezas-maquina] fetchPage error:', e);
+          setServerReachable(false);
+          if (replace) {
+            setRows([]);
+            setGroupsPedido([]);
+            setGroupsCliente([]);
+            setGroupsCentro([]);
+            setGroupsOperario([]);
+            setTotalRecords(0);
+          }
         }
       } finally {
         setLoading(false);
         setRefreshing(false);
       }
     },
-    [from, to, pageSize, loading, query]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [from, to, pageSize, query, rows, validateDates, loading]
   );
 
+  /** ===== pull-to-refresh ===== */
   const onRefresh = useCallback(() => {
     applyFilters();
   }, [applyFilters]);
 
+  /** ===== infinite scroll con throttle ===== */
   const onEndReached = useCallback(() => {
-    if (loading || reachedEnd) return;
+    if (loading || refreshing || reachedEnd) return;
+    const now = Date.now();
+    if (now - endReachedTsRef.current < 600) return;
+    endReachedTsRef.current = now;
     fetchPage(page + 1);
-  }, [loading, reachedEnd, page, fetchPage]);
+  }, [loading, refreshing, reachedEnd, page, fetchPage]);
 
-  useEffect(() => {
-    // carga inicial: TODO → hoy, sin búsqueda
-    fetchPage(1, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  /** ===== lista visible ===== */
+  const [groupMode, setGroupModeState] = useState<'pedido' | 'cliente' | 'centro' | 'operario'>('pedido');
+  const setGroupMode = (m: 'pedido' | 'cliente' | 'centro' | 'operario') => setGroupModeState(m);
 
-  // 🔎 Debounce de búsqueda server-side (auto)
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setPage(1);
-      setReachedEnd(false);
-      setRefreshing(true);
-      fetchPage(1, true);
-    }, 450);
-    return () => clearTimeout(t);
-  }, [query, fetchPage]);
-
-  // Lista principal: SIN filtro local por query (la búsqueda es en servidor)
   const visibleData: VisibleItem[] = useMemo(() => {
     return groupMode === 'pedido'
       ? groupsPedido
@@ -399,10 +608,13 @@ export default function PiezasMaquina() {
       : groupsOperario;
   }, [groupMode, groupsPedido, groupsCliente, groupsCentro, groupsOperario]);
 
-  // Para header (total real del backend)
   const headerCount = totalRecords;
 
-  // Key extractor seguro
+  // Totales globales sobre lo cargado
+  const globalTotals = useMemo(() => sumTimes(rows), [rows]);
+  const loadedPct = totalRecords > 0 ? Math.min(100, (rows.length / totalRecords) * 100) : 0;
+
+  // Key extractor
   const getKey = (item: VisibleItem) => {
     if (isGroup(item)) return `ped-${item.pedido}`;
     if (isClienteGroup(item)) return `cli-${item.cliente}`;
@@ -411,20 +623,29 @@ export default function PiezasMaquina() {
     return Math.random().toString(36).slice(2);
   };
 
-  // Progreso cargado (registros, no tarjetas)
-  const loadedPct = totalRecords > 0 ? Math.min(100, (rows.length / totalRecords) * 100) : 0;
+  /** ====== Chips de tiempo (total + promedio) ====== */
+  const TimeChips = ({ totals, avg }: { totals: TimeAgg; avg: TimeAgg }) => (
+    <View style={styles.timeChipsWrap}>
+      <View style={styles.timeChip}><Text style={styles.timeKey}>Trabajo</Text><Text style={styles.timeVal}>{fmtDur(totals.trabajo)} · prom {fmtDur(avg.trabajo)}</Text></View>
+      <View style={styles.timeChip}><Text style={styles.timeKey}>Espera prev.</Text><Text style={styles.timeVal}>{fmtDur(totals.esperaPrev)} · prom {fmtDur(avg.esperaPrev)}</Text></View>
+      <View style={styles.timeChip}><Text style={styles.timeKey}>Entre ops</Text><Text style={styles.timeVal}>{fmtDur(totals.entreOps)} · prom {fmtDur(avg.entreOps)}</Text></View>
+      <View style={styles.timeChip}><Text style={styles.timeKey}>Desde pedido</Text><Text style={styles.timeVal}>{fmtDur(totals.desdePedido)} · prom {fmtDur(avg.desdePedido)}</Text></View>
+      <View style={styles.timeChip}><Text style={styles.timeKey}>Hasta entrega</Text><Text style={styles.timeVal}>{fmtDur(totals.hastaEntrega)} · prom {fmtDur(avg.hastaEntrega)}</Text></View>
+      <View style={styles.timeChip}><Text style={styles.timeKey}>Ciclo pieza</Text><Text style={styles.timeVal}>{fmtDur(totals.cicloPieza)} · prom {fmtDur(avg.cicloPieza)}</Text></View>
+    </View>
+  );
 
-  // ===================== Render =====================
+  /** ===================== Render ===================== */
   return (
     <View style={styles.container}>
       {/* ======= App Header ======= */}
       <AppHeader
-        titleOverride="Terminales · Piezas por Maquinas"
+        titleOverride="Terminales · Piezas por Máquinas"
         count={headerCount}
         userNameProp={userName}
         roleProp={userRole}
         serverReachableOverride={!!serverReachable}
-        onRefresh={applyAll}
+        onRefresh={applyFilters}
         onUserPress={({ userName, role }) => {
           setModalUser({ userName, role });
           setUserModalVisible(true);
@@ -445,7 +666,7 @@ export default function PiezasMaquina() {
             value={from}
             onChangeText={setFrom}
             placeholder="YYYY-MM-DD"
-            style={styles.input}
+            style={[styles.input, !validYmd(from) && styles.inputError]}
             autoCapitalize="none"
           />
         </View>
@@ -455,7 +676,7 @@ export default function PiezasMaquina() {
             value={to}
             onChangeText={setTo}
             placeholder="YYYY-MM-DD"
-            style={styles.input}
+            style={[styles.input, !validYmd(to) && styles.inputError]}
             autoCapitalize="none"
           />
         </View>
@@ -494,16 +715,27 @@ export default function PiezasMaquina() {
           </View>
         </View>
 
-        <Pressable style={styles.btn} onPress={applyFilters}>
+        <Pressable
+          style={[styles.btn, (!validYmd(from) || !validYmd(to)) && styles.btnDisabled]}
+          onPress={applyFilters}
+          disabled={!validYmd(from) || !validYmd(to)}
+        >
           <Ionicons name="checkmark-done-outline" size={20} color="#fff" />
           <Text style={styles.btnText}>Aplicar cambios</Text>
         </Pressable>
+      </View>
+      {!!dateError && <Text style={styles.errorText}>{dateError}</Text>}
+
+      {/* ======= PANEL GLOBAL DE TIEMPOS (sobre lo cargado) ======= */}
+      <View style={styles.globalPanel}>
+        <Text style={styles.globalTitle}>Tiempos globales (cargado)</Text>
+        <TimeChips totals={globalTotals} avg={aggAvg(globalTotals, rows.length || 0)} />
       </View>
 
       {/* ======= LISTA PRINCIPAL ======= */}
       <FlatList<VisibleItem>
         numColumns={numColumns}
-        key={numColumns} // fuerza re-render al cambiar columnas
+        key={numColumns}
         data={visibleData}
         keyExtractor={getKey}
         columnWrapperStyle={numColumns > 1 ? styles.columnWrap : undefined}
@@ -514,6 +746,15 @@ export default function PiezasMaquina() {
             </Text>
             <View style={styles.progressBar}>
               <View style={[styles.progressFill, { width: `${loadedPct}%` }]} />
+            </View>
+            <View style={styles.timingsRow}>
+              <Text style={styles.timingChip}>⏱ fetch {Math.round(timings.fetchMs)} ms</Text>
+              <Text style={styles.timingChip}>json {Math.round(timings.jsonMs)} ms</Text>
+              <Text style={styles.timingChip}>pedido {Math.round(timings.groupPedidoMs)} ms</Text>
+              <Text style={styles.timingChip}>cliente {Math.round(timings.groupClienteMs)} ms</Text>
+              <Text style={styles.timingChip}>centro {Math.round(timings.groupCentroMs)} ms</Text>
+              <Text style={styles.timingChip}>operario {Math.round(timings.groupOperarioMs)} ms</Text>
+              <Text style={[styles.timingChip, styles.timingChipStrong]}>total {Math.round(timings.totalMs)} ms</Text>
             </View>
           </View>
         }
@@ -530,6 +771,7 @@ export default function PiezasMaquina() {
                   <Text style={styles.badge}>{g.estado || '—'}</Text>
                 </View>
                 <Text style={styles.sub}>{g.count} registros · {fmtYmdHm(g.fechaUlt)}</Text>
+                <TimeChips totals={g.totals} avg={g.avg} />
               </TouchableOpacity>
             );
           } else if (isClienteGroup(item)) {
@@ -543,6 +785,7 @@ export default function PiezasMaquina() {
                   <Text style={styles.title}>{c.cliente}</Text>
                 </View>
                 <Text style={styles.sub}>{c.pedidos.length} pedidos · {c.count} registros · {fmtYmdHm(c.fechaUlt)}</Text>
+                <TimeChips totals={c.totals} avg={c.avg} />
               </TouchableOpacity>
             );
           } else if (isCentroGroup(item)) {
@@ -555,7 +798,10 @@ export default function PiezasMaquina() {
                 <View style={styles.cardHead}>
                   <Text style={styles.title}>{c.centro}</Text>
                 </View>
-                <Text style={styles.sub}>{c.pedidos.length} pedidos · {c.operarios.length} operarios · {c.count} registros · {fmtYmdHm(c.fechaUlt)}</Text>
+                <Text style={styles.sub}>
+                  {c.pedidos.length} pedidos · {c.operarios.length} operarios · {c.count} registros · {fmtYmdHm(c.fechaUlt)}
+                </Text>
+                <TimeChips totals={c.totals} avg={c.avg} />
               </TouchableOpacity>
             );
           } else {
@@ -569,6 +815,7 @@ export default function PiezasMaquina() {
                   <Text style={styles.title}>{o.username}</Text>
                 </View>
                 <Text style={styles.sub}>{o.pedidos.length} pedidos · {o.count} registros · {fmtYmdHm(o.fechaUlt)}</Text>
+                <TimeChips totals={o.totals} avg={o.avg} />
               </TouchableOpacity>
             );
           }
@@ -595,6 +842,14 @@ export default function PiezasMaquina() {
             <Text style={styles.modalTitle}>Cliente: {selectedCliente?.cliente || '—'}</Text>
             <Button title="Cerrar" onPress={() => setClientModalVisible(false)} />
           </View>
+
+          {/* Totales del cliente */}
+          {selectedCliente && (
+            <View style={styles.modalTotals}>
+              <Text style={styles.modalTotalsTitle}>Totales del cliente</Text>
+              <TimeChips totals={selectedCliente.totals} avg={selectedCliente.avg} />
+            </View>
+          )}
 
           <View style={styles.modalFilterRow}>
             <Text style={styles.modalCount}>Pedidos: {((selectedCliente?.pedidos ?? []).filter(p => {
@@ -625,6 +880,7 @@ export default function PiezasMaquina() {
                 <Text style={styles.rowLine}>PEDIDO: {p.pedido}</Text>
                 <Text style={styles.rowLine}>Registros: {p.count} · Estado: {p.estado || '—'}</Text>
                 <Text style={styles.rowLine}>Última fecha: {fmtYmdHm(p.fechaUlt) || '—'}</Text>
+                <TimeChips totals={p.totals} avg={p.avg} />
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -638,6 +894,13 @@ export default function PiezasMaquina() {
             <Text style={styles.modalTitle}>Operario: {selectedOperario?.username || '—'}</Text>
             <Button title="Cerrar" onPress={() => setOperarioModalVisible(false)} />
           </View>
+
+          {selectedOperario && (
+            <View style={styles.modalTotals}>
+              <Text style={styles.modalTotalsTitle}>Totales del operario</Text>
+              <TimeChips totals={selectedOperario.totals} avg={selectedOperario.avg} />
+            </View>
+          )}
 
           <View style={styles.modalFilterRow}>
             <Text style={styles.modalCount}>Pedidos: {((selectedOperario?.pedidos ?? []).filter(p => {
@@ -668,13 +931,14 @@ export default function PiezasMaquina() {
                 <Text style={styles.rowLine}>PEDIDO: {p.pedido}</Text>
                 <Text style={styles.rowLine}>Registros: {p.count} · Estado: {p.estado || '—'}</Text>
                 <Text style={styles.rowLine}>Última fecha: {fmtYmdHm(p.fechaUlt) || '—'}</Text>
+                <TimeChips totals={p.totals} avg={p.avg} />
               </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
       </Modal>
 
-      {/* Centro (selector Operario|Pedido) */}
+      {/* Centro (máquina) */}
       <Modal visible={centroModalVisible} animationType="slide" onRequestClose={() => setCentroModalVisible(false)}>
         <View style={styles.modalWrap}>
           <View style={styles.modalHeader}>
@@ -682,7 +946,15 @@ export default function PiezasMaquina() {
             <Button title="Cerrar" onPress={() => setCentroModalVisible(false)} />
           </View>
 
-          {/* Selector interno */}
+          {/* Totales del centro */}
+          {selectedCentro && (
+            <View style={styles.modalTotals}>
+              <Text style={styles.modalTotalsTitle}>Totales del centro</Text>
+              <TimeChips totals={selectedCentro.totals} avg={selectedCentro.avg} />
+            </View>
+          )}
+
+          {/* Selector Operario | Pedido */}
           <View style={styles.modalInnerBar}>
             <Text style={styles.label}>Listar por</Text>
             <View style={styles.segment}>
@@ -741,6 +1013,7 @@ export default function PiezasMaquina() {
                     <Text style={styles.rowLine}>OPERARIO: {o.username ?? '—'}</Text>
                     <Text style={styles.rowLine}>Pedidos: {o.pedidos?.length ?? 0} · Registros: {o.count ?? 0}</Text>
                     <Text style={styles.rowLine}>Última fecha: {fmtYmdHm(o.fechaUlt) || '—'}</Text>
+                    <TimeChips totals={o.totals} avg={o.avg} />
                   </TouchableOpacity>
                 ))
               : (selectedCentro?.pedidos ?? []).filter(p => {
@@ -755,13 +1028,14 @@ export default function PiezasMaquina() {
                     <Text style={styles.rowLine}>PEDIDO: {p.pedido}</Text>
                     <Text style={styles.rowLine}>Registros: {p.count} · Estado: {p.estado || '—'}</Text>
                     <Text style={styles.rowLine}>Última fecha: {fmtYmdHm(p.fechaUlt) || '—'}</Text>
+                    <TimeChips totals={p.totals} avg={p.avg} />
                   </TouchableOpacity>
                 ))}
           </ScrollView>
         </View>
       </Modal>
 
-      {/* Centro → Operario (pedidos de ese operario en ese centro) */}
+      {/* Centro → Operario */}
       <Modal
         visible={centroOperarioModalVisible}
         animationType="slide"
@@ -774,6 +1048,13 @@ export default function PiezasMaquina() {
             </Text>
             <Button title="Cerrar" onPress={() => setCentroOperarioModalVisible(false)} />
           </View>
+
+          {centroOperarioSel && (
+            <View style={styles.modalTotals}>
+              <Text style={styles.modalTotalsTitle}>Totales (centro → operario)</Text>
+              <TimeChips totals={centroOperarioSel.totals} avg={centroOperarioSel.avg} />
+            </View>
+          )}
 
           <View style={styles.modalFilterRow}>
             <Text style={styles.modalCount}>Pedidos: {(centroOperarioSel?.pedidos ?? []).filter(p => {
@@ -804,6 +1085,7 @@ export default function PiezasMaquina() {
                 <Text style={styles.rowLine}>PEDIDO: {p.pedido}</Text>
                 <Text style={styles.rowLine}>Registros: {p.count} · Estado: {p.estado || '—'}</Text>
                 <Text style={styles.rowLine}>Última fecha: {fmtYmdHm(p.fechaUlt) || '—'}</Text>
+                <TimeChips totals={p.totals} avg={p.avg} />
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -819,6 +1101,14 @@ export default function PiezasMaquina() {
             </Text>
             <Button title="Cerrar" onPress={() => setPedidoModalVisible(false)} />
           </View>
+
+          {/* Totales del pedido */}
+          {selectedGroup && (
+            <View style={styles.modalTotals}>
+              <Text style={styles.modalTotalsTitle}>Totales del pedido</Text>
+              <TimeChips totals={selectedGroup.totals} avg={selectedGroup.avg} />
+            </View>
+          )}
 
           <View style={styles.modalFilterRow}>
             <Text style={styles.modalCount}>Registros: {(selectedGroup?.rows ?? []).filter(r => {
@@ -862,7 +1152,21 @@ export default function PiezasMaquina() {
               const MEDIDA_Y = firstOf(r, 'MEDIDA_Y', 'MEDIDA Y', 'DIMYPZR');
               const PROGR = firstOf(r, 'PROGR');
               const PRODUCTO = firstOf(r, 'PRODUCTO');
-              const DATAHORA = firstOf(r, 'DATAHORA_COMPL', 'DATAHORA COMPL', 'DATA_COMPLETE', 'DATA COMPLETE');
+
+              // fechas y tiempos unitarios
+              const EVENTDT = firstOf(r, 'eventdt');
+              const FINI = firstOf(r, 'fecha_inicio_op');
+              const FFIN = firstOf(r, 'fecha_fin_op');
+              const FROT = firstOf(r, 'fecha_rotura');
+              const FPED = firstOf(r, 'fecha_pedido');
+              const FENT = firstOf(r, 'fecha_entrega_prog');
+
+              const TT = numOf(r, 't_trabajo_seg');
+              const TE = numOf(r, 't_espera_prev_maquina_seg');
+              const TO = numOf(r, 't_entre_operaciones_seg');
+              const TDP = numOf(r, 't_desde_pedido_seg');
+              const THE = numOf(r, 't_hasta_entrega_prog_seg');
+              const TCP = numOf(r, 't_ciclo_pieza_total_seg');
 
               const R1 = norm(firstOf(r, 'RAZON_QUEBRA1', 'RAZON QUEBRA1'));
               const R2 = norm(firstOf(r, 'RAZON_QUEBRA2', 'RAZON QUEBRA2'));
@@ -879,7 +1183,27 @@ export default function PiezasMaquina() {
                   <Text style={styles.rowLine}>MEDIDA X: {MEDIDA_X ?? '—'} · MEDIDA Y: {MEDIDA_Y ?? '—'}</Text>
                   <Text style={styles.rowLine}>PROGR: {PROGR ?? '—'}</Text>
                   <Text style={styles.rowLine}>PRODUCTO: {PRODUCTO ?? '—'}</Text>
-                  <Text style={styles.rowLine}>DATAHORA COMPL: {DATAHORA ? fmtYmdHm(String(DATAHORA)) : '—'}</Text>
+
+                  {/* fechas unitarias */}
+                  <View style={styles.unitTimes}>
+                    <Text style={styles.unitTitle}>Fechas</Text>
+                    <Text style={styles.unitLine}>eventdt: {EVENTDT ? fmtYmdHm(String(EVENTDT)) : '—'}</Text>
+                    <Text style={styles.unitLine}>inicio op: {FINI ? fmtYmdHm(String(FINI)) : '—'}</Text>
+                    <Text style={styles.unitLine}>fin op: {FFIN ? fmtYmdHm(String(FFIN)) : '—'}</Text>
+                    <Text style={styles.unitLine}>rotura: {FROT ? fmtYmdHm(String(FROT)) : '—'}</Text>
+                    <Text style={styles.unitLine}>pedido: {FPED ? fmtYmdHm(String(FPED)) : '—'}</Text>
+                    <Text style={styles.unitLine}>entrega prog: {FENT ? fmtYmdHm(String(FENT)) : '—'}</Text>
+                  </View>
+
+                  {/* tiempos unitarios */}
+                  <View style={styles.timeChipsWrap}>
+                    <View style={styles.timeChip}><Text style={styles.timeKey}>Trabajo</Text><Text style={styles.timeVal}>{fmtDur(TT)}</Text></View>
+                    <View style={styles.timeChip}><Text style={styles.timeKey}>Espera prev.</Text><Text style={styles.timeVal}>{fmtDur(TE)}</Text></View>
+                    <View style={styles.timeChip}><Text style={styles.timeKey}>Entre ops</Text><Text style={styles.timeVal}>{fmtDur(TO)}</Text></View>
+                    <View style={styles.timeChip}><Text style={styles.timeKey}>Desde pedido</Text><Text style={styles.timeVal}>{fmtDur(TDP)}</Text></View>
+                    <View style={styles.timeChip}><Text style={styles.timeKey}>Hasta entrega</Text><Text style={styles.timeVal}>{fmtDur(THE)}</Text></View>
+                    <View style={styles.timeChip}><Text style={styles.timeKey}>Ciclo pieza</Text><Text style={styles.timeVal}>{fmtDur(TCP)}</Text></View>
+                  </View>
 
                   {showReasons && <View style={{ height: 6 }} />}
                   {!!R1 && <Text style={styles.rowLine}>RAZON QUEBRA1: {R1}</Text>}
@@ -896,11 +1220,11 @@ export default function PiezasMaquina() {
   );
 }
 
-// ===================== Estilos (alineados y con sombras) =====================
+/** ===================== Estilos ===================== */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f3f4f6' },
 
-  // filtros (barra superior)
+  // filtros
   filters: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -921,6 +1245,10 @@ const styles = StyleSheet.create({
     height: 38,
     color: '#111827',
   },
+  inputError: {
+    borderColor: '#ef4444',
+    backgroundColor: '#fef2f2',
+  },
   btn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -930,9 +1258,21 @@ const styles = StyleSheet.create({
     height: 38,
     borderRadius: 8,
   },
+  btnDisabled: { opacity: 0.6 },
   btnText: { color: '#fff', fontWeight: '700' },
+  errorText: { color: '#b91c1c', paddingHorizontal: 12, paddingTop: 6 },
 
-  // header de lista (progreso)
+  // panel global tiempos
+  globalPanel: {
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  globalTitle: { fontSize: 14, fontWeight: '800', color: '#111827', marginBottom: 6 },
+
+  // header de lista
   listHeader: {
     paddingHorizontal: 10,
     paddingTop: 10,
@@ -948,16 +1288,26 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginTop: 6,
   },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#2e78b7',
+  progressFill: { height: '100%', backgroundColor: '#2e78b7' },
+  timingsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
   },
+  timingChip: {
+    backgroundColor: '#eef2ff',
+    color: '#374151',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    overflow: 'hidden',
+    fontSize: 12,
+  },
+  timingChipStrong: { backgroundColor: '#dbeafe', fontWeight: '700' },
 
-  // columnas iguales
-  columnWrap: {
-    gap: 12,
-    paddingVertical: 4,
-  },
+  // columnas
+  columnWrap: { gap: 12, paddingVertical: 4 },
 
   // tarjetas
   card: {
@@ -987,6 +1337,24 @@ const styles = StyleSheet.create({
   },
   sub: { color: '#6b7280', marginBottom: 4 },
 
+  // chips de tiempo
+  timeChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  timeChip: {
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  timeKey: { fontSize: 12, color: '#374151', fontWeight: '700' },
+  timeVal: { fontSize: 12, color: '#1f2937' },
+
   // vacíos / footer
   empty: { textAlign: 'center', color: '#6b7280', marginTop: 20 },
   endText: { textAlign: 'center', color: '#9ca3af', paddingVertical: 12 },
@@ -1012,6 +1380,17 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
   },
   rowLine: { color: '#111827', marginBottom: 2 },
+
+  // totales en modal
+  modalTotals: {
+    backgroundColor: '#fff',
+    borderBottomColor: '#e5e7eb',
+    borderBottomWidth: 1,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+  modalTotalsTitle: { fontWeight: '800', color: '#111827', marginBottom: 6 },
 
   // filtros dentro de modales
   modalInnerBar: {
@@ -1044,4 +1423,14 @@ const styles = StyleSheet.create({
   segmentBtnActive: { backgroundColor: '#2e78b7' },
   segmentText: { color: '#1f2937', fontWeight: '600' },
   segmentTextActive: { color: '#fff', fontWeight: '700' },
+
+  // unit times block
+  unitTimes: {
+    marginTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+    paddingTop: 6,
+  },
+  unitTitle: { fontWeight: '800', color: '#374151', marginBottom: 2 },
+  unitLine: { color: '#4b5563', fontSize: 12, marginBottom: 1 },
 });

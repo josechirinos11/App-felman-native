@@ -1,12 +1,18 @@
 // app/index.tsx
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../hooks/useAuth';
+
+
+import AppHeader from '../../components/AppHeader';
+import ModalHeader from '../../components/ModalHeader';
+
+
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 type RouteNames = '/control-pedidos' | '/control-comerciales' | '/control-incidencias' | '/control-entregas-diarias' | '/pagina-construccion' | string;
@@ -19,11 +25,12 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { id: 1, title: 'Control Terminales', icon: 'clipboard-outline', route: 'optima/control-terminales' },
-  { id: 2, title: 'Control Operarios', icon: 'cube-outline', route: 'optima/control-operarios' },
-  { id: 3, title: 'Dashboard Barcoder',      icon: 'barcode-outline', route: '/optima/control-dashboard-barcoder' },
-  { id: 4, title: 'Barcoder Detallado',      icon: 'document-text-outline', route: '/optima/control-dashboard-barcoder-det' },
-  { id: 5, title: 'Estado de Pedidos',       icon: 'list-outline',  route: '/optima/control-dashboard-barcoder-order' },
+    { id: 6, title: 'Atras', icon: 'arrow-back-outline', route: '/' },
+  { id: 1, title: 'Control Terminales', icon: 'clipboard-outline', route: 'optima/terminales' },
+  { id: 2, title: 'Control Operarios', icon: 'cube-outline', route: 'optima/operarios' },
+  { id: 3, title: 'Dashboard Barcoder',      icon: 'barcode-outline', route: '/optima/piezas-maquina' },
+  { id: 4, title: 'Barcoder Detallado',      icon: 'document-text-outline', route: '/optima/trabajos-maquina' },
+  { id: 5, title: 'Estado de Pedidos',       icon: 'list-outline',  route: '/optima/estado-pedidos' },
   
 ];
 
@@ -43,6 +50,11 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const { authenticated, loading: authLoading } = useAuth();
   const router = useRouter();
+
+
+  
+    const [modalVisible, setModalVisible] = React.useState(false);
+    const [modalUser, setModalUser] = React.useState({ userName: '', role: '' });
 
   // Verificar autenticación al cargar
   useEffect(() => {
@@ -107,18 +119,24 @@ export default function HomeScreen() {
     <View style={styles.container}>
       <SafeAreaView style={styles.content}>
 
-        {/* Panel superior con información del usuario */}
-        <View style={styles.sidePanel}>
-          {userData ? (
-            <View style={styles.userInfo}>
-              <Text style={styles.welcomeText}>Bienvenido a felman,</Text>
-              <Text style={styles.userName}>{userData.nombre || userData.name || 'Sin nombre'}</Text>
-              <Text style={styles.userRole}>{userData.rol || userData.role || 'Sin rol'}</Text>
-            </View>
-          ) : (
-            <Text style={styles.notAuthText}>No hay datos de usuario.</Text>
-          )}
-        </View>
+        <AppHeader
+        titleOverride="Panel Almassera Optima "
+          // ...otras props si aplican...
+          userNameProp={userData?.nombre || userData?.name || '—'}
+          roleProp={userData?.rol || userData?.role || '—'}
+          serverReachableOverride={!!authenticated}   // o tu booleano real de salud del servidor
+          onUserPress={({ userName, role }) => {
+            setModalUser({ userName, role });
+            setModalVisible(true);
+          }}
+        />
+
+        <ModalHeader
+          visible={modalVisible}
+          onClose={() => setModalVisible(false)}
+          userName={userData?.nombre || userData?.name || '—'}
+          role={userData?.rol || userData?.role || '—'}
+        />
 
         {/* Panel principal con menú */}
         <View style={styles.mainPanel}>
