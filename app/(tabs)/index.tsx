@@ -20,11 +20,11 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { id: 1, title: 'Moncada', icon: 'location-outline', route: '/moncada' },
-    { id: 5, title: 'Almassera', icon: 'location-outline', route: '/optima' },
-    { id: 6, title: 'Almacén', icon: 'cube-outline', route: '/almacen' },
-  { id: 2, title: 'Control Pedidos y Comerciales', icon: 'cube-outline', route: '/control-comerciales' },
-  { id: 3, title: 'Control de Incidencias', icon: 'alert-circle-outline', route: '/control-incidencias' },
-  { id: 4, title: 'Entregas Diarias', icon: 'calendar-outline', route: '/control-entregas-diarias' },
+    { id: 2, title: 'Almassera', icon: 'location-outline', route: '/optima' },
+    { id: 3, title: 'Almacén', icon: 'cube-outline', route: '/almacen' },
+  { id: 4, title: 'Control Pedidos y Comerciales', icon: 'cube-outline', route: '/control-comerciales' },
+  { id: 5, title: 'Control de Incidencias', icon: 'alert-circle-outline', route: '/control-incidencias' },
+  { id: 6, title: 'Entregas Diarias', icon: 'calendar-outline', route: '/control-entregas-diarias' },
   { id: 7, title: 'Terminales', icon: 'location-outline', route: '/control-pedidos' },
 
 ];

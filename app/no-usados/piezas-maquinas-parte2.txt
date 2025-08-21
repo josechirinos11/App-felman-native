@@ -1,0 +1,1120 @@
+
+// app/optima/piezas-maquina.tsx
+import Ionicons from '@expo/vector-icons/Ionicons';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Button,
+  FlatList,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from 'react-native';
+import AppHeader from '../../components/AppHeader';
+import ModalHeader from '../../components/ModalHeader';
+import { API_URL } from '../../config/constants';
+
+/** ===================== Tipos base ===================== */
+type Row = {
+  // claves lógicas previas
+  PEDIDO?: string;
+  NOMBRE?: string;               // cliente
+  ESTADO?: string;
+  DATAHORA_COMPL?: string;
+  DATA_COMPLETE?: string;
+  USERNAME?: string;             // operario
+  CENTRO_TRABAJO?: string;       // máquina
+
+  // tiempos y fechas de backend
+  eventdt?: string;
+  fecha_inicio_op?: string;
+  fecha_fin_op?: string;
+  fecha_rotura?: string;
+  fecha_pedido?: string;
+  fecha_entrega_prog?: string;
+
+  t_trabajo_seg?: number | string | null;
+  t_espera_prev_maquina_seg?: number | string | null;
+  t_entre_operaciones_seg?: number | string | null;
+  t_desde_pedido_seg?: number | string | null;
+  t_hasta_entrega_prog_seg?: number | string | null;
+  t_ciclo_pieza_total_seg?: number | string | null;
+
+  [key: string]: any;
+};
+
+type TimeAgg = {
+  trabajo: number;
+  esperaPrev: number;
+  entreOps: number;
+  desdePedido: number;
+  hastaEntrega: number;
+  cicloPieza: number;
+};
+
+// Pedido (grupo base)
+type Group = {
+  kind: 'pedido';
+  pedido: string;
+  nombre: string;
+  count: number;
+  estado: string;           // '', 'COMPLETE', 'Mixto', etc.
+  fechaUlt: string | null;  // ISO
+  rows: Row[];
+  totals: TimeAgg;
+  avg: TimeAgg;
+};
+
+// Cliente
+type ClienteGroup = {
+  kind: 'cliente';
+  cliente: string;
+  count: number;
+  fechaUlt: string | null;
+  pedidos: Group[];
+  totals: TimeAgg;
+  avg: TimeAgg;
+};
+
+// Operario dentro de un centro
+type CentroOperario = {
+  username: string;
+  count: number;
+  fechaUlt: string | null;
+  pedidos: Group[];
+  totals: TimeAgg;
+  avg: TimeAgg;
+};
+
+// Centro de trabajo (máquina)
+type CentroGroup = {
+  kind: 'centro';
+  centro: string;
+  count: number;
+  fechaUlt: string | null;
+  pedidos: Group[];
+  operarios: CentroOperario[];
+  totals: TimeAgg;
+  avg: TimeAgg;
+};
+
+// Operario (global)
+type OperarioGroup = {
+  kind: 'operario';
+  username: string;
+  count: number;
+  fechaUlt: string | null;
+  pedidos: Group[];
+  totals: TimeAgg;
+  avg: TimeAgg;
+};
+
+// Unión para la lista principal
+type VisibleItem = Group | ClienteGroup | CentroGroup | OperarioGroup;
+
+/** ===================== Helpers ===================== */
+const norm = (v: any) => String(v ?? '').trim();
+const upper = (v: any) => norm(v).toUpperCase();
+const firstOf = (obj: any, ...keys: string[]) => {
+  for (const k of keys) {
+    const val = obj?.[k];
+    if (val !== undefined && val !== null && String(val).trim() !== '') return val;
+  }
+  return undefined;
+};
+const numOf = (obj: any, ...keys: string[]) => {
+  const raw = firstOf(obj, ...keys);
+  const n = typeof raw === 'number' ? raw : raw == null ? NaN : Number(String(raw).replace(',', '.'));
+  return Number.isFinite(n) ? n : 0;
+};
+const parseMillis = (s?: string | null) => {
+  if (!s) return NaN;
+  const t = Date.parse(s);
+  return Number.isFinite(t) ? t : NaN;
+};
+const toYmd = (d: Date) => {
+  const yy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+};
+const fmtYmdHm = (iso?: string | null) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  return `${y}-${m}-${day} ${h}:${min}`;
+};
+
+const validYmd = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(new Date(s + 'T00:00:00').getTime());
+
+const fmtDur = (sec: number) => {
+  const s = Math.max(0, Math.round(sec || 0));
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const r = s % 60;
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${r}s`;
+  return `${r}s`;
+};
+const fmtDurAvg = (totalSec: number, count: number) => fmtDur(count > 0 ? totalSec / count : 0);
+
+const zeroAgg = (): TimeAgg => ({
+  trabajo: 0, esperaPrev: 0, entreOps: 0, desdePedido: 0, hastaEntrega: 0, cicloPieza: 0,
+});
+
+const sumTimes = (rows: Row[]): TimeAgg => {
+  const out = zeroAgg();
+  for (const r of rows) {
+    out.trabajo       += numOf(r, 't_trabajo_seg', 't trabajo seg');
+    out.esperaPrev    += numOf(r, 't_espera_prev_maquina_seg', 't espera prev maquina seg');
+    out.entreOps      += numOf(r, 't_entre_operaciones_seg', 't entre operaciones seg');
+    out.desdePedido   += numOf(r, 't_desde_pedido_seg', 't desde pedido seg');
+    out.hastaEntrega  += numOf(r, 't_hasta_entrega_prog_seg', 't hasta entrega prog seg');
+    out.cicloPieza    += numOf(r, 't_ciclo_pieza_total_seg', 't ciclo pieza total seg');
+  }
+  return out;
+};
+
+const aggAvg = (tot: TimeAgg, count: number): TimeAgg => ({
+  trabajo: count ? tot.trabajo / count : 0,
+  esperaPrev: count ? tot.esperaPrev / count : 0,
+  entreOps: count ? tot.entreOps / count : 0,
+  desdePedido: count ? tot.desdePedido / count : 0,
+  hastaEntrega: count ? tot.hastaEntrega / count : 0,
+  cicloPieza: count ? tot.cicloPieza / count : 0,
+});
+
+/** Guards */
+const isGroup = (x: VisibleItem): x is Group => (x as Group).kind === 'pedido';
+const isClienteGroup = (x: VisibleItem): x is ClienteGroup => (x as ClienteGroup).kind === 'cliente';
+const isCentroGroup = (x: VisibleItem): x is CentroGroup => (x as CentroGroup).kind === 'centro';
+const isOperarioGroup = (x: VisibleItem): x is OperarioGroup => (x as OperarioGroup).kind === 'operario';
+
+/** Agrupar por pedido */
+const groupByPedido = (rows: Row[]): Group[] => {
+  const map = new Map<string, Row[]>();
+  for (const r of rows) {
+    const pedido = norm(firstOf(r, 'PEDIDO'));
+    if (!pedido) continue;
+    if (!map.has(pedido)) map.set(pedido, []);
+    map.get(pedido)!.push(r);
+  }
+
+  const out: Group[] = [];
+  for (const [pedido, arr] of map) {
+    const nombre = norm(firstOf(arr[0], 'NOMBRE', 'DESCR1_SPED')) || pedido;
+    const count = arr.length;
+    const estado = arr.every(r => norm(r.ESTADO) === 'COMPLETE') ? 'COMPLETE' : arr.some(r => norm(r.ESTADO) === 'COMPLETE') ? 'Mixto' : '';
+    const times = sumTimes(arr);
+    const fechaUlt = arr.reduce((max, r) => {
+      const t = parseMillis(firstOf(r, 'eventdt', 'DATAHORA_COMPL', 'DATA_COMPLETE'));
+      return Number.isFinite(t) && (!Number.isFinite(max) || t > max) ? t : max;
+    }, NaN);
+    out.push({
+      kind: 'pedido',
+      pedido,
+      nombre,
+      count,
+      estado,
+      fechaUlt: Number.isFinite(fechaUlt) ? new Date(fechaUlt).toISOString() : null,
+      rows: arr,
+      totals: times,
+      avg: aggAvg(times, count),
+    });
+  }
+  return out.sort((a, b) => (b.fechaUlt || '').localeCompare(a.fechaUlt || ''));
+};
+
+/** Agrupar por cliente */
+const groupByCliente = (rows: Row[]): ClienteGroup[] => {
+  const map = new Map<string, Row[]>();
+  for (const r of rows) {
+    const cliente = norm(firstOf(r, 'NOMBRE', 'DESCR1_SPED'));
+    if (!cliente) continue;
+    if (!map.has(cliente)) map.set(cliente, []);
+    map.get(cliente)!.push(r);
+  }
+
+  const out: ClienteGroup[] = [];
+  for (const [cliente, arr] of map) {
+    const pedidos = groupByPedido(arr);
+    const count = arr.length;
+    const times = sumTimes(arr);
+    const fechaUlt = pedidos.reduce((max, p) => {
+      const t = parseMillis(p.fechaUlt);
+      return Number.isFinite(t) && (!Number.isFinite(max) || t > max) ? t : max;
+    }, NaN);
+    out.push({
+      kind: 'cliente',
+      cliente,
+      count,
+      fechaUlt: Number.isFinite(fechaUlt) ? new Date(fechaUlt).toISOString() : null,
+      pedidos,
+      totals: times,
+      avg: aggAvg(times, count),
+    });
+  }
+  return out.sort((a, b) => (b.fechaUlt || '').localeCompare(a.fechaUlt || ''));
+};
+
+/** Agrupar por centro de trabajo */
+const groupByCentro = (rows: Row[]): CentroGroup[] => {
+  const map = new Map<string, Row[]>();
+  for (const r of rows) {
+    const centro = norm(r.CENTRO_TRABAJO);
+    if (!centro) continue;
+    if (!map.has(centro)) map.set(centro, []);
+    map.get(centro)!.push(r);
+  }
+
+  const out: CentroGroup[] = [];
+  for (const [centro, arr] of map) {
+    const pedidos = groupByPedido(arr);
+    const count = arr.length;
+    const times = sumTimes(arr);
+    const fechaUlt = pedidos.reduce((max, p) => {
+      const t = parseMillis(p.fechaUlt);
+      return Number.isFinite(t) && (!Number.isFinite(max) || t > max) ? t : max;
+    }, NaN);
+    const operarioMap = new Map<string, Row[]>();
+    for (const r of arr) {
+      const username = norm(r.USERNAME);
+      if (!username) continue;
+      if (!operarioMap.has(username)) operarioMap.set(username, []);
+      operarioMap.get(username)!.push(r);
+    }
+    const operarios: CentroOperario[] = [];
+    for (const [username, opRows] of operarioMap) {
+      const opPedidos = groupByPedido(opRows);
+      const opCount = opRows.length;
+      const opTimes = sumTimes(opRows);
+      const opFechaUlt = opPedidos.reduce((max, p) => {
+        const t = parseMillis(p.fechaUlt);
+        return Number.isFinite(t) && (!Number.isFinite(max) || t > max) ? t : max;
+      }, NaN);
+      operarios.push({
+        username,
+        count: opCount,
+        fechaUlt: Number.isFinite(opFechaUlt) ? new Date(opFechaUlt).toISOString() : null,
+        pedidos: opPedidos,
+        totals: opTimes,
+        avg: aggAvg(opTimes, opCount),
+      });
+    }
+    out.push({
+      kind: 'centro',
+      centro,
+      count,
+      fechaUlt: Number.isFinite(fechaUlt) ? new Date(fechaUlt).toISOString() : null,
+      pedidos,
+      operarios: operarios.sort((a, b) => (b.fechaUlt || '').localeCompare(a.fechaUlt || '')),
+      totals: times,
+      avg: aggAvg(times, count),
+    });
+  }
+  return out.sort((a, b) => (b.fechaUlt || '').localeCompare(a.fechaUlt || ''));
+};
+
+/** Agrupar por operario */
+const groupByOperario = (rows: Row[]): OperarioGroup[] => {
+  const map = new Map<string, Row[]>();
+  for (const r of rows) {
+    const username = norm(r.USERNAME);
+    if (!username) continue;
+    if (!map.has(username)) map.set(username, []);
+    map.get(username)!.push(r);
+  }
+
+  const out: OperarioGroup[] = [];
+  for (const [username, arr] of map) {
+    const pedidos = groupByPedido(arr);
+    const count = arr.length;
+    const times = sumTimes(arr);
+    const fechaUlt = pedidos.reduce((max, p) => {
+      const t = parseMillis(p.fechaUlt);
+      return Number.isFinite(t) && (!Number.isFinite(max) || t > max) ? t : max;
+    }, NaN);
+    out.push({
+      kind: 'operario',
+      username,
+      count,
+      fechaUlt: Number.isFinite(fechaUlt) ? new Date(fechaUlt).toISOString() : null,
+      pedidos,
+      totals: times,
+      avg: aggAvg(times, count),
+    });
+  }
+  return out.sort((a, b) => (b.fechaUlt || '').localeCompare(a.fechaUlt || ''));
+};
+
+/** ===================== Componente ===================== */
+export default function PiezasMaquina() {
+  const today = new Date();
+  const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  const [state, setState] = useState({
+    items: [] as VisibleItem[],
+    from: toYmd(thirtyDaysAgo),
+    to: toYmd(today),
+    search: '', // General search term
+    pedido: '', // Specific pedido search
+    page: 1,
+    pageSize: 50,
+    total: 0,
+    loading: false,
+    error: '',
+    mode: 'pedido' as 'pedido' | 'cliente' | 'centro' | 'operario',
+  });
+
+  const [modal, setModal] = useState<{
+    group: VisibleItem | null;
+    filter: string;
+    showReasons: boolean;
+  }>({ group: null, filter: '', showReasons: false });
+
+  const fetchData = useCallback(async () => {
+    setState(s => ({ ...s, loading: true, error: '' }));
+    try {
+      const url = new URL(`${API_URL}/control-optima/piezas-maquina`);
+      if (state.from) url.searchParams.set('from', state.from);
+      if (state.to) url.searchParams.set('to', state.to);
+      url.searchParams.set('page', String(state.page));
+      url.searchParams.set('pageSize', String(state.pageSize));
+      if (state.pedido) {
+        url.searchParams.set('search', state.pedido); // Prioritize pedido-specific search
+      } else if (state.search) {
+        url.searchParams.set('search', state.search); // Fallback to general search
+      }
+
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.message || 'Error en la respuesta');
+      
+      const rows: Row[] = data.items || [];
+      const items = state.mode === 'pedido' ? groupByPedido(rows)
+        : state.mode === 'cliente' ? groupByCliente(rows)
+        : state.mode === 'centro' ? groupByCentro(rows)
+        : groupByOperario(rows);
+
+      setState(s => ({
+        ...s,
+        items,
+        total: data.total || 0,
+        loading: false,
+        error: '',
+      }));
+    } catch (err) {
+      setState(s => ({
+        ...s,
+        loading: false,
+        error: String(err),
+      }));
+    }
+  }, [state.from, state.to, state.page, state.pageSize, state.search, state.pedido, state.mode]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const handleSearch = (text: string) => {
+    setState(s => ({ ...s, search: text, page: 1 }));
+  };
+
+  const handlePedidoSearch = (text: string) => {
+    setState(s => ({ ...s, pedido: text, page: 1 }));
+  };
+
+  const handleMode = (mode: 'pedido' | 'cliente' | 'centro' | 'operario') => {
+    setState(s => ({ ...s, mode, page: 1 }));
+  };
+
+  const handlePage = (dir: 1 | -1) => {
+    setState(s => ({ ...s, page: Math.max(1, s.page + dir) }));
+  };
+
+  const { width } = useWindowDimensions();
+  const isWide = width >= 768;
+
+  const renderItem = ({ item }: { item: VisibleItem }) => {
+    if (isGroup(item)) {
+      return (
+        <TouchableOpacity
+          style={[styles.card, isWide && styles.cardShadow]}
+          onPress={() => setModal({ group: item, filter: '', showReasons: false })}
+        >
+          <View style={styles.cardHead}>
+            <Text style={styles.title}>{item.pedido} · {item.nombre}</Text>
+            <Text style={styles.badge}>{item.count}</Text>
+          </View>
+          <Text style={styles.sub}>{fmtYmdHm(item.fechaUlt)}</Text>
+          <Text style={styles.sub}>{item.estado}</Text>
+          <View style={styles.timeChipsWrap}>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Trabajo</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.trabajo)} · prom {fmtDurAvg(item.totals.trabajo, item.count)}</Text>
+            </View>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Espera prev.</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.esperaPrev)} · prom {fmtDurAvg(item.totals.esperaPrev, item.count)}</Text>
+            </View>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Entre ops</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.entreOps)} · prom {fmtDurAvg(item.totals.entreOps, item.count)}</Text>
+            </View>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Desde pedido</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.desdePedido)} · prom {fmtDurAvg(item.totals.desdePedido, item.count)}</Text>
+            </View>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Hasta entrega</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.hastaEntrega)} · prom {fmtDurAvg(item.totals.hastaEntrega, item.count)}</Text>
+            </View>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Ciclo pieza</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.cicloPieza)} · prom {fmtDurAvg(item.totals.cicloPieza, item.count)}</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      );
+    } else if (isClienteGroup(item)) {
+      return (
+        <TouchableOpacity
+          style={[styles.card, isWide && styles.cardShadow]}
+          onPress={() => setModal({ group: item, filter: '', showReasons: false })}
+        >
+          <View style={styles.cardHead}>
+            <Text style={styles.title}>{item.cliente}</Text>
+            <Text style={styles.badge}>{item.count}</Text>
+          </View>
+          <Text style={styles.sub}>{fmtYmdHm(item.fechaUlt)}</Text>
+          <View style={styles.timeChipsWrap}>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Trabajo</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.trabajo)} · prom {fmtDurAvg(item.totals.trabajo, item.count)}</Text>
+            </View>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Espera prev.</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.esperaPrev)} · prom {fmtDurAvg(item.totals.esperaPrev, item.count)}</Text>
+            </View>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Entre ops</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.entreOps)} · prom {fmtDurAvg(item.totals.entreOps, item.count)}</Text>
+            </View>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Desde pedido</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.desdePedido)} · prom {fmtDurAvg(item.totals.desdePedido, item.count)}</Text>
+            </View>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Hasta entrega</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.hastaEntrega)} · prom {fmtDurAvg(item.totals.hastaEntrega, item.count)}</Text>
+            </View>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Ciclo pieza</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.cicloPieza)} · prom {fmtDurAvg(item.totals.cicloPieza, item.count)}</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      );
+    } else if (isCentroGroup(item)) {
+      return (
+        <TouchableOpacity
+          style={[styles.card, isWide && styles.cardShadow]}
+          onPress={() => setModal({ group: item, filter: '', showReasons: false })}
+        >
+          <View style={styles.cardHead}>
+            <Text style={styles.title}>{item.centro}</Text>
+            <Text style={styles.badge}>{item.count}</Text>
+          </View>
+          <Text style={styles.sub}>{fmtYmdHm(item.fechaUlt)}</Text>
+          <View style={styles.timeChipsWrap}>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Trabajo</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.trabajo)} · prom {fmtDurAvg(item.totals.trabajo, item.count)}</Text>
+            </View>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Espera prev.</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.esperaPrev)} · prom {fmtDurAvg(item.totals.esperaPrev, item.count)}</Text>
+            </View>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Entre ops</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.entreOps)} · prom {fmtDurAvg(item.totals.entreOps, item.count)}</Text>
+            </View>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Desde pedido</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.desdePedido)} · prom {fmtDurAvg(item.totals.desdePedido, item.count)}</Text>
+            </View>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Hasta entrega</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.hastaEntrega)} · prom {fmtDurAvg(item.totals.hastaEntrega, item.count)}</Text>
+            </View>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Ciclo pieza</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.cicloPieza)} · prom {fmtDurAvg(item.totals.cicloPieza, item.count)}</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      );
+    } else if (isOperarioGroup(item)) {
+      return (
+        <TouchableOpacity
+          style={[styles.card, isWide && styles.cardShadow]}
+          onPress={() => setModal({ group: item, filter: '', showReasons: false })}
+        >
+          <View style={styles.cardHead}>
+            <Text style={styles.title}>{item.username}</Text>
+            <Text style={styles.badge}>{item.count}</Text>
+          </View>
+          <Text style={styles.sub}>{fmtYmdHm(item.fechaUlt)}</Text>
+          <View style={styles.timeChipsWrap}>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Trabajo</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.trabajo)} · prom {fmtDurAvg(item.totals.trabajo, item.count)}</Text>
+            </View>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Espera prev.</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.esperaPrev)} · prom {fmtDurAvg(item.totals.esperaPrev, item.count)}</Text>
+            </View>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Entre ops</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.entreOps)} · prom {fmtDurAvg(item.totals.entreOps, item.count)}</Text>
+            </View>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Desde pedido</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.desdePedido)} · prom {fmtDurAvg(item.totals.desdePedido, item.count)}</Text>
+            </View>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Hasta entrega</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.hastaEntrega)} · prom {fmtDurAvg(item.totals.hastaEntrega, item.count)}</Text>
+            </View>
+            <View style={styles.timeChip}>
+              <Text style={styles.timeKey}>Ciclo pieza</Text>
+              <Text style={styles.timeVal}>{fmtDur(item.totals.cicloPieza)} · prom {fmtDurAvg(item.totals.cicloPieza, item.count)}</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      );
+    }
+    return null;
+  };
+
+  const renderModal = () => {
+    if (!modal.group) return null;
+    const isGroupModal = isGroup(modal.group);
+    const isCentroModal = isCentroGroup(modal.group);
+    const items = isGroupModal
+     2 ? modal.group.rows.filter(r => {
+          const f = modal.filter.toLowerCase();
+          return !f || Object.values(r).some(v => String(v).toLowerCase().includes(f));
+        })
+      : isCentroModal
+        ? modal.group.operarios
+        : modal.group.pedidos;
+
+    return (
+      <Modal
+        visible={!!modal.group}
+        animationType="slide"
+        onRequestClose={() => setModal({ group: null, filter: '', showReasons: false })}
+      >
+        <View style={styles.modalWrap}>
+          <ModalHeader
+            title={isGroupModal ? `${modal.group.pedido} · ${modal.group.nombre}`
+              : isCentroModal ? modal.group.centro
+              : isClienteGroup(modal.group) ? modal.group.cliente
+              : modal.group.username}
+            onClose={() => setModal({ group: null, filter: '', showReasons: false })}
+          />
+          <View style={styles.modalTotals}>
+            <Text style={styles.modalTotalsTitle}>
+              {isGroupModal ? 'Totales del pedido' : isCentroModal ? 'Totales del centro' : isClienteGroup(modal.group) ? 'Totales del cliente' : 'Totales del operario'}
+            </Text>
+            <View style={styles.timeChipsWrap}>
+              <View style={styles.timeChip}>
+                <Text style={styles.timeKey}>Trabajo</Text>
+                <Text style={styles.timeVal}>{fmtDur(modal.group.totals.trabajo)} · prom {fmtDurAvg(modal.group.totals.trabajo, modal.group.count)}</Text>
+              </View>
+              <View style={styles.timeChip}>
+                <Text style={styles.timeKey}>Espera prev.</Text>
+                <Text style={styles.timeVal}>{fmtDur(modal.group.totals.esperaPrev)} · prom {fmtDurAvg(modal.group.totals.esperaPrev, modal.group.count)}</Text>
+              </View>
+              <View style={styles.timeChip}>
+                <Text style={styles.timeKey}>Entre ops</Text>
+                <Text style={styles.timeVal}>{fmtDur(modal.group.totals.entreOps)} · prom {fmtDurAvg(modal.group.totals.entreOps, modal.group.count)}</Text>
+              </View>
+              <View style={styles.timeChip}>
+                <Text style={styles.timeKey}>Desde pedido</Text>
+                <Text style={styles.timeVal}>{fmtDur(modal.group.totals.desdePedido)} · prom {fmtDurAvg(modal.group.totals.desdePedido, modal.group.count)}</Text>
+              </View>
+              <View style={styles.timeChip}>
+                <Text style={styles.timeKey}>Hasta entrega</Text>
+                <Text style={styles.timeVal}>{fmtDur(modal.group.totals.hastaEntrega)} · prom {fmtDurAvg(modal.group.totals.hastaEntrega, modal.group.count)}</Text>
+              </View>
+              <View style={styles.timeChip}>
+                <Text style={styles.timeKey}>Ciclo pieza</Text>
+                <Text style={styles.timeVal}>{fmtDur(modal.group.totals.cicloPieza)} · prom {fmtDurAvg(modal.group.totals.cicloPieza, modal.group.count)}</Text>
+              </View>
+            </View>
+          </View>
+          <View style={styles.modalFilterRow}>
+            <Text style={styles.modalCount}>Registros: {items.length}</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="operario / centro / vidrio / producto / pedido / línea..."
+              value={modal.filter}
+              onChangeText={text => setModal(m => ({ ...m, filter: text }))}
+            />
+            <TouchableOpacity
+              style={[styles.btn, !modal.showReasons && styles.btnDisabled]}
+              onPress={() => setModal(m => ({ ...m, showReasons: !m.showReasons }))}
+            >
+              <Ionicons name="alert-circle-outline" size={18} color="#fff" />
+              <Text style={styles.btnText}>Motivos</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={{ flex: 1, padding: 12 }}>
+            {items.map((item, idx) => {
+              if (isCentroModal && !isGroup(item)) {
+                return (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[styles.rowCard, isWide && styles.cardShadow]}
+                    onPress={() => setModal({ group: item, filter: '', showReasons: false })}
+                  >
+                    <Text style={styles.rowLine}>Operario: {item.username}</Text>
+                    <Text style={styles.rowLine}>Registros: {item.count}</Text>
+                    <Text style={styles.rowLine}>Última: {fmtYmdHm(item.fechaUlt)}</Text>
+                    <View style={styles.timeChipsWrap}>
+                      <View style={styles.timeChip}>
+                        <Text style={styles.timeKey}>Trabajo</Text>
+                        <Text style={styles.timeVal}>{fmtDur(item.totals.trabajo)} · prom {fmtDurAvg(item.totals.trabajo, item.count)}</Text>
+                      </View>
+                      <View style={styles.timeChip}>
+                        <Text style={styles.timeKey}>Espera prev.</Text>
+                        <Text style={styles.timeVal}>{fmtDur(item.totals.esperaPrev)} · prom {fmtDurAvg(item.totals.esperaPrev, item.count)}</Text>
+                      </View>
+                      <View style={styles.timeChip}>
+                        <Text style={styles.timeKey}>Entre ops</Text>
+                        <Text style={styles.timeVal}>{fmtDur(item.totals.entreOps)} · prom {fmtDurAvg(item.totals.entreOps, item.count)}</Text>
+                      </View>
+                      <View style={styles.timeChip}>
+                        <Text style={styles.timeKey}>Desde pedido</Text>
+                        <Text style={styles.timeVal}>{fmtDur(item.totals.desdePedido)} · prom {fmtDurAvg(item.totals.desdePedido, item.count)}</Text>
+                      </View>
+                      <View style={styles.timeChip}>
+                        <Text style={styles.timeKey}>Hasta entrega</Text>
+                        <Text style={styles.timeVal}>{fmtDur(item.totals.hastaEntrega)} · prom {fmtDurAvg(item.totals.hastaEntrega, item.count)}</Text>
+                      </View>
+                      <View style={styles.timeChip}>
+                        <Text style={styles.timeKey}>Ciclo pieza</Text>
+                        <Text style={styles.timeVal}>{fmtDur(item.totals.cicloPieza)} · prom {fmtDurAvg(item.totals.cicloPieza, item.count)}</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              } else if (!isGroup(item)) {
+                return (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[styles.rowCard, isWide && styles.cardShadow]}
+                    onPress={() => setModal({ group: item, filter: '', showReasons: false })}
+                  >
+                    <Text style={styles.rowLine}>Pedido: {item.pedido} · {item.nombre}</Text>
+                    <Text style={styles.rowLine}>Registros: {item.count}</Text>
+                    <Text style={styles.rowLine}>Última: {fmtYmdHm(item.fechaUlt)}</Text>
+                    <View style={styles.timeChipsWrap}>
+                      <View style={styles.timeChip}>
+                        <Text style={styles.timeKey}>Trabajo</Text>
+                        <Text style={styles.timeVal}>{fmtDur(item.totals.trabajo)} · prom {fmtDurAvg(item.totals.trabajo, item.count)}</Text>
+                      </View>
+                      <View style={styles.timeChip}>
+                        <Text style={styles.timeKey}>Espera prev.</Text>
+                        <Text style={styles.timeVal}>{fmtDur(item.totals.esperaPrev)} · prom {fmtDurAvg(item.totals.esperaPrev, item.count)}</Text>
+                      </View>
+                      <View style={styles.timeChip}>
+                        <Text style={styles.timeKey}>Entre ops</Text>
+                        <Text style={styles.timeVal}>{fmtDur(item.totals.entreOps)} · prom {fmtDurAvg(item.totals.entreOps, item.count)}</Text>
+                      </View>
+                      <View style={styles.timeChip}>
+                        <Text style={styles.timeKey}>Desde pedido</Text>
+                        <Text style={styles.timeVal}>{fmtDur(item.totals.desdePedido)} · prom {fmtDurAvg(item.totals.desdePedido, item.count)}</Text>
+                      </View>
+                      <View style={styles.timeChip}>
+                        <Text style={styles.timeKey}>Hasta entrega</Text>
+                        <Text style={styles.timeVal}>{fmtDur(item.totals.hastaEntrega)} · prom {fmtDurAvg(item.totals.hastaEntrega, item.count)}</Text>
+                      </View>
+                      <View style={styles.timeChip}>
+                        <Text style={styles.timeKey}>Ciclo pieza</Text>
+                        <Text style={styles.timeVal}>{fmtDur(item.totals.cicloPieza)} · prom {fmtDurAvg(item.totals.cicloPieza, item.count)}</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              }
+
+              const { USERNAME, CENTRO_TRABAJO, VIDRIO, N_VIDRIO, LINEA, MEDIDA_X, MEDIDA_Y, PROGR, PRODUCTO, eventdt, fecha_inicio_op, fecha_fin_op, fecha_rotura, fecha_pedido, fecha_entrega_prog, t_trabajo_seg: TT, t_espera_prev_maquina_seg: TE, t_entre_operaciones_seg: TEO, t_desde_pedido_seg: TDP, t_hasta_entrega_prog_seg: THE, t_ciclo_pieza_total_seg: TCP, RAZON_QUEBRA1: R1, RAZON_QUEBRA2: R2, RAZON_QUEBRA3: R3, TEXT1: T1 } = item;
+              return (
+                <View key={idx} style={[styles.rowCard, isWide && styles.cardShadow]}>
+                  <Text style={styles.rowLine}>USERNAME: {USERNAME}</Text>
+                  <Text style={styles.rowLine}>CENTRO TRABAJO: {CENTRO_TRABAJO}</Text>
+                  <Text style={styles.rowLine}>N VIDRIO: {N_VIDRIO} · VIDRIO: {VIDRIO}</Text>
+                  <Text style={styles.rowLine}>LINEA: {LINEA}</Text>
+                  <Text style={styles.rowLine}>MEDIDA X: {MEDIDA_X} · MEDIDA Y: {MEDIDA_Y}</Text>
+                  <Text style={styles.rowLine}>PROGR: {PROGR}</Text>
+                  <Text style={styles.rowLine}>PRODUCTO: {PRODUCTO}</Text>
+                  <View style={styles.unitTimes}>
+                    <Text style={styles.unitTitle}>Fechas</Text>
+                    <Text style={styles.unitLine}>eventdt: {fmtYmdHm(eventdt)}</Text>
+                    <Text style={styles.unitLine}>inicio op: {fmtYmdHm(fecha_inicio_op)}</Text>
+                    <Text style={styles.unitLine}>fin op: {fmtYmdHm(fecha_fin_op)}</Text>
+                    <Text style={styles.unitLine}>rotura: {fmtYmdHm(fecha_rotura) || '—'}</Text>
+                    <Text style={styles.unitLine}>pedido: {fmtYmdHm(fecha_pedido)}</Text>
+                    <Text style={styles.unitLine}>entrega prog: {fmtYmdHm(fecha_entrega_prog)}</Text>
+                  </View>
+                  <View style={styles.timeChipsWrap}>
+                    <View style={styles.timeChip}><Text style={styles.timeKey}>Trabajo</Text><Text style={styles.timeVal}>{fmtDur(TT)}</Text></View>
+                    <View style={styles.timeChip}><Text style={styles.timeKey}>Espera prev.</Text><Text style={styles.timeVal}>{fmtDur(TE)}</Text></View>
+                    <View style={styles.timeChip}><Text style={styles.timeKey}>Entre ops</Text><Text style={styles.timeVal}>{fmtDur(TEO)}</Text></View>
+                    <View style={styles.timeChip}><Text style={styles.timeKey}>Desde pedido</Text><Text style={styles.timeVal}>{fmtDur(TDP)}</Text></View>
+                    <View style={styles.timeChip}><Text style={styles.timeKey}>Hasta entrega</Text><Text style={styles.timeVal}>{fmtDur(THE)}</Text></View>
+                    <View style={styles.timeChip}><Text style={styles.timeKey}>Ciclo pieza</Text><Text style={styles.timeVal}>{fmtDur(TCP)}</Text></View>
+                  </View>
+                  {modal.showReasons && <View style={{ height: 6 }} />}
+                  {!!R1 && <Text style={styles.rowLine}>RAZON QUEBRA1: {R1}</Text>}
+                  {!!R2 && <Text style={styles.rowLine}>RAZON QUEBRA2: {R2}</Text>}
+                  {!!R3 && <Text style={styles.rowLine}>RAZON QUEBRA3: {R3}</Text>}
+                  {!!T1 && <Text style={styles.rowLine}>TEXT1: {T1}</Text>}
+                </View>
+              );
+            })}
+          </ScrollView>
+        </View>
+      </Modal>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      <AppHeader title="Piezas por Máquina" />
+      <View style={styles.filters}>
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Desde</Text>
+          <TextInput
+            style={[styles.input, !validYmd(state.from) && state.from && styles.inputError]}
+            value={state.from}
+            onChangeText={text => setState(s => ({ ...s, from: text, page: 1 }))}
+            placeholder="YYYY-MM-DD"
+          />
+        </View>
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Hasta</Text>
+          <TextInput
+            style={[styles.input, !validYmd(state.to) && state.to && styles.inputError]}
+            value={state.to}
+            onChangeText={text => setState(s => ({ ...s, to: text, page: 1 }))}
+            placeholder="YYYY-MM-DD"
+          />
+        </View>
+        <View style={[styles.inputGroup, { flex: 1 }]}>
+          <Text style={styles.label}>Buscar</Text>
+          <TextInput
+            style={styles.input}
+            value={state.search}
+            onChangeText={handleSearch}
+            placeholder="operario / centro / vidrio / producto / pedido / línea..."
+          />
+        </View>
+        <View style={[styles.inputGroup, { flex: 1 }]}>
+          <Text style={styles.label}>Pedido Específico</Text>
+          <TextInput
+            style={styles.input}
+            value={state.pedido}
+            onChangeText={handlePedidoSearch}
+            placeholder="Ej. 01/011254-10"
+          />
+        </View>
+        <TouchableOpacity style={[styles.btn, state.loading && styles.btnDisabled]} onPress={fetchData} disabled={state.loading}>
+          <Ionicons name="search" size={18} color="#fff" />
+          <Text style={styles.btnText}>Buscar</Text>
+        </TouchableOpacity>
+      </View>
+      {!!state.error && <Text style={styles.errorText}>{state.error}</Text>}
+      <View style={styles.globalPanel}>
+        <Text style={styles.globalTitle}>Totales globales</Text>
+        <View style={styles.timingsRow}>
+          <Text style={styles.timingChip}>Piezas: {state.total}</Text>
+        </View>
+      </View>
+      <View style={styles.listHeader}>
+        <View style={styles.segment}>
+          {(['pedido', 'cliente', 'centro', 'operario'] as const).map(m => (
+            <TouchableOpacity
+              key={m}
+              style={[styles.segmentBtn, state.mode === m && styles.segmentBtnActive]}
+              onPress={() => handleMode(m)}
+            >
+              <Text style={[styles.segmentText, state.mode === m && styles.segmentTextActive]}>
+                {m.charAt(0).toUpperCase() + m.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <Text style={styles.listHeaderText}>
+          Mostrando <Text style={styles.bold}>{state.items.length}</Text> de{' '}
+          <Text style={styles.bold}>{state.total}</Text> registros
+        </Text>
+        <View style={styles.progressBar}>
+          <View style={[styles.progressFill, { width: `${Math.min(100, (state.items.length / Math.max(1, state.total)) * 100)}%` }]} />
+        </View>
+      </View>
+      <FlatList
+        data={state.items}
+        renderItem={renderItem}
+        keyExtractor={(item, idx) => `${item.kind}-${isGroup(item) ? item.pedido : isClienteGroup(item) ? item.cliente : isCentroGroup(item) ? item.centro : item.username}-${idx}`}
+        contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 20 }}
+        ListEmptyComponent={<Text style={styles.empty}>{state.loading ? 'Cargando...' : 'No hay datos'}</Text>}
+        ListFooterComponent={
+          state.total > state.items.length ? (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 10 }}>
+              <Button title="Anterior" onPress={() => handlePage(-1)} disabled={state.page === 1 || state.loading} />
+              <Text style={styles.endText}>Página {state.page}</Text>
+              <Button title="Siguiente" onPress={() => handlePage(1)} disabled={state.page * state.pageSize >= state.total || state.loading} />
+            </View>
+          ) : (
+            <Text style={styles.endText}>Fin de los datos</Text>
+          )
+        }
+      />
+      {renderModal()}
+    </View>
+  );
+}
+
+/** ===================== Estilos ===================== */
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#f3f4f6' },
+
+  // filtros
+  filters: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+    padding: 10,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  inputGroup: { width: 150 },
+  label: { fontSize: 12, color: '#6b7280', marginBottom: 4 },
+  input: {
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    height: 38,
+    color: '#111827',
+  },
+  inputError: {
+    borderColor: '#ef4444',
+    backgroundColor: '#fef2f2',
+  },
+  btn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#2e78b7',
+    paddingHorizontal: 12,
+    height: 38,
+    borderRadius: 8,
+  },
+  btnDisabled: { opacity: 0.6 },
+  btnText: { color: '#fff', fontWeight: '700' },
+  errorText: { color: '#b91c1c', paddingHorizontal: 12, paddingTop: 6 },
+
+  // panel global tiempos
+  globalPanel: {
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  globalTitle: { fontSize: 14, fontWeight: '800', color: '#111827', marginBottom: 6 },
+
+  // header de lista
+  listHeader: {
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 8,
+    backgroundColor: '#f3f4f6',
+  },
+  listHeaderText: { color: '#374151' },
+  bold: { fontWeight: '800' },
+  progressBar: {
+    height: 6,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 999,
+    overflow: 'hidden',
+    marginTop: 6,
+  },
+  progressFill: { height: '100%', backgroundColor: '#2e78b7' },
+  timingsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  timingChip: {
+    backgroundColor: '#eef2ff',
+    color: '#374151',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    overflow: 'hidden',
+    fontSize: 12,
+  },
+  timingChipStrong: { backgroundColor: '#dbeafe', fontWeight: '700' },
+
+  // columnas
+  columnWrap: { gap: 12, paddingVertical: 4 },
+
+  // tarjetas
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    marginVertical: 6,
+  },
+  cardShadow: {
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  cardHead: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
+  title: { fontSize: 16, fontWeight: '700', color: '#2e78b7' },
+  badge: {
+    backgroundColor: '#eff6ff',
+    color: '#1d4ed8',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  sub: { color: '#6b7280', marginBottom: 4 },
+
+  // chips de tiempo
+  timeChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  timeChip: {
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  timeKey: { fontSize: 12, color: '#374151', fontWeight: '700' },
+  timeVal: { fontSize: 12, color: '#1f2937' },
+
+  // vacíos / footer
+  empty: { textAlign: 'center', color: '#6b7280', marginTop: 20 },
+  endText: { textAlign: 'center', color: '#9ca3af', paddingVertical: 12 },
+
+  // modales
+  modalWrap: { flex: 1, backgroundColor: '#f3f4f6' },
+  modalHeader: {
+    padding: 12,
+    paddingTop: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderBottomColor: '#e5e7eb',
+    borderBottomWidth: 1,
+    backgroundColor: '#fff',
+  },
+  modalTitle: { color: '#111827', fontSize: 18, fontWeight: '800' },
+  rowCard: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  rowLine: { color: '#111827', marginBottom: 2 },
+
+  // totales en modal
+  modalTotals: {
+    backgroundColor: '#fff',
+    borderBottomColor: '#e5e7eb',
+    borderBottomWidth: 1,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+  modalTotalsTitle: { fontWeight: '800', color: '#111827', marginBottom: 6 },
+
+  // filtros dentro de modales
+  modalInnerBar: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 4,
+    backgroundColor: '#fff',
+    borderBottomColor: '#e5e7eb',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modalFilterRow: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 8,
+    backgroundColor: '#fff',
+    borderBottomColor: '#e5e7eb',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  modalCount: { fontWeight: '700', color: '#374151', marginRight: 8 },
+
+  // segment (toggles)
+  segment: { flexDirection: 'row', backgroundColor: '#e5e7eb', borderRadius: 10, padding: 4 },
+  segmentBtn: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 8 },
+  segmentBtnActive: { backgroundColor: '#2e78b7' },
+  segmentText: { color: '#1f2937', fontWeight: '600' },
+  segmentTextActive: { color: '#fff', fontWeight: '700' },
+
+  // unit times block
+  unitTimes: {
+    marginTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+    paddingTop: 6,
+  },
+  unitTitle: { fontWeight: '800', color: '#374151', marginBottom: 2 },
+  unitLine: { color: '#4b5563', fontSize: 12, marginBottom: 1 },
+});
+```

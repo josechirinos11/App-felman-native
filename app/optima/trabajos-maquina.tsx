@@ -141,7 +141,7 @@ export default function ControlDashboardBarcoderDet() {
 
       {/* AppHeader + ModalHeader */}
       <AppHeader
-        titleOverride="Panel Barcoder Det (trabajos por máquina)"
+        titleOverride="trabajos por máquina"
         count={rows.length}
         userNameProp={userName}
         roleProp={userRole}

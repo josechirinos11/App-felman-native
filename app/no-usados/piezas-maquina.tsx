@@ -1,5 +1,6 @@
 // app/optima/piezas-maquina.tsx
 import Ionicons from '@expo/vector-icons/Ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -7,6 +8,7 @@ import {
   FlatList,
   Modal,
   Pressable,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,14 +23,61 @@ import { API_URL } from '../../config/constants';
 
 /** ===================== Tipos base ===================== */
 type Row = {
-  PEDIDO?: string;
-  NOMBRE?: string;          // cliente
+  // claves lógicas previas
+  pedido?: string;
+  linea?: string | number;
+  centro_trabajo?: string;
+  username?: string;
+  trabajo?: string;
+  desc_trabajo?: string;
+
+  // tiempos y fechas de backend
+  eventdt?: string;
+  fecha_inicio_op?: string;
+  fecha_fin_op?: string;
+  fecha_rotura?: string;
+  fecha_pedido?: string;
+  fecha_entrega_prog?: string;
+
+  t_trabajo_seg?: number | string | null;
+  t_espera_prev_maquina_seg?: number | string | null;
+  t_entre_operaciones_seg?: number | string | null;
+  t_desde_pedido_seg?: number | string | null;
+  t_hasta_entrega_prog_seg?: number | string | null;
+  t_ciclo_pieza_total_seg?: number | string | null;
+
+  // campos que llegan con mayúsculas
+  NOMBRE?: string;               // cliente
   ESTADO?: string;
   DATAHORA_COMPL?: string;
   DATA_COMPLETE?: string;
-  USERNAME?: string;        // operario
-  CENTRO_TRABAJO?: string;  // máquina
+  USERNAME?: string;
+  CENTRO_TRABAJO?: string;
+
+  // extras (si algún día se añaden desde el backend)
+  VIDRIO?: string;
+  PRODUCTO?: string;
+  N_VIDRIO?: string;
+  MEDIDA_X?: string | number;
+  MEDIDA_Y?: string | number;
+  PROGR?: string | number;
+  ID_ITEMS?: string | number;
+  ID_ORDDETT?: string | number;
+  RAZON_QUEBRA1?: string;
+  RAZON_QUEBRA2?: string;
+  RAZON_QUEBRA3?: string;
+  TEXT1?: string;
+
   [key: string]: any;
+};
+
+type TimeAgg = {
+  trabajo: number;
+  esperaPrev: number;
+  entreOps: number;
+  desdePedido: number;
+  hastaEntrega: number;
+  cicloPieza: number;
 };
 
 // Pedido (grupo base)
@@ -40,6 +89,8 @@ type Group = {
   estado: string;           // '', 'COMPLETE', 'Mixto', etc.
   fechaUlt: string | null;  // ISO
   rows: Row[];
+  totals: TimeAgg;
+  avg: TimeAgg;
 };
 
 // Cliente
@@ -49,14 +100,18 @@ type ClienteGroup = {
   count: number;
   fechaUlt: string | null;
   pedidos: Group[];
+  totals: TimeAgg;
+  avg: TimeAgg;
 };
 
-// Operario dentro de un centro (para modal de centro)
+// Operario dentro de un centro
 type CentroOperario = {
   username: string;
   count: number;
   fechaUlt: string | null;
   pedidos: Group[];
+  totals: TimeAgg;
+  avg: TimeAgg;
 };
 
 // Centro de trabajo (máquina)
@@ -67,6 +122,8 @@ type CentroGroup = {
   fechaUlt: string | null;
   pedidos: Group[];
   operarios: CentroOperario[];
+  totals: TimeAgg;
+  avg: TimeAgg;
 };
 
 // Operario (global)
@@ -76,6 +133,8 @@ type OperarioGroup = {
   count: number;
   fechaUlt: string | null;
   pedidos: Group[];
+  totals: TimeAgg;
+  avg: TimeAgg;
 };
 
 // Unión para la lista principal
@@ -90,6 +149,11 @@ const firstOf = (obj: any, ...keys: string[]) => {
     if (val !== undefined && val !== null && String(val).trim() !== '') return val;
   }
   return undefined;
+};
+const numOf = (obj: any, ...keys: string[]) => {
+  const raw = firstOf(obj, ...keys);
+  const n = typeof raw === 'number' ? raw : raw == null ? NaN : Number(String(raw).replace(',', '.'));
+  return Number.isFinite(n) ? n : 0;
 };
 const parseMillis = (s?: string | null) => {
   if (!s) return NaN;
@@ -113,9 +177,47 @@ const fmtYmdHm = (iso?: string | null) => {
   const min = String(d.getMinutes()).padStart(2, '0');
   return `${y}-${m}-${day} ${h}:${min}`;
 };
-const nowMs = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 
 const validYmd = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(new Date(s + 'T00:00:00').getTime());
+
+const fmtDur = (sec: number) => {
+  const s = Math.max(0, Math.round(sec || 0));
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const r = s % 60;
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${r}s`;
+  return `${r}s`;
+};
+const fmtDurAvg = (totalSec: number, count: number) => fmtDur(count > 0 ? totalSec / count : 0);
+
+const zeroAgg = (): TimeAgg => ({
+  trabajo: 0, esperaPrev: 0, entreOps: 0, desdePedido: 0, hastaEntrega: 0, cicloPieza: 0,
+});
+
+const sumTimes = (rows: Row[]): TimeAgg => {
+  const out = zeroAgg();
+  for (const r of rows) {
+    out.trabajo += numOf(r, 't_trabajo_seg');
+    out.esperaPrev += numOf(r, 't_espera_prev_maquina_seg');
+    out.entreOps += numOf(r, 't_entre_operaciones_seg');
+    out.desdePedido += numOf(r, 't_desde_pedido_seg');
+    out.hastaEntrega += numOf(r, 't_hasta_entrega_prog_seg');
+    out.cicloPieza += numOf(r, 't_ciclo_pieza_total_seg');
+  }
+  return out;
+};
+
+const aggAvg = (tot: TimeAgg, count: number): TimeAgg => ({
+  trabajo: count ? tot.trabajo / count : 0,
+  esperaPrev: count ? tot.esperaPrev / count : 0,
+  entreOps: count ? tot.entreOps / count : 0,
+  desdePedido: count ? tot.desdePedido / count : 0,
+  hastaEntrega: count ? tot.hastaEntrega / count : 0,
+  cicloPieza: count ? tot.cicloPieza / count : 0,
+});
 
 /** Guards */
 const isGroup = (x: VisibleItem): x is Group => (x as Group).kind === 'pedido';
@@ -127,7 +229,7 @@ const isOperarioGroup = (x: VisibleItem): x is OperarioGroup => (x as OperarioGr
 const groupByPedido = (rows: Row[]): Group[] => {
   const map = new Map<string, Row[]>();
   for (const r of rows) {
-    const pedido = norm(firstOf(r, 'PEDIDO'));
+    const pedido = norm(firstOf(r, 'pedido', 'PEDIDO'));
     if (!pedido) continue;
     if (!map.has(pedido)) map.set(pedido, []);
     map.get(pedido)!.push(r);
@@ -135,18 +237,25 @@ const groupByPedido = (rows: Row[]): Group[] => {
 
   const out: Group[] = [];
   for (const [pedido, arr] of map) {
-    const nombre = norm(firstOf(arr[0], 'NOMBRE')) || '—';
+    const nombre = norm(firstOf(arr[0], 'NOMBRE', 'nombre_cliente')) || '—';
     const estados = new Set(arr.map((x) => upper(firstOf(x, 'ESTADO'))).filter(Boolean));
     const estado = estados.size === 0 ? '' : (estados.size === 1 ? [...estados][0] : 'Mixto');
     const maxMs = Math.max(
       ...arr.map((r) => {
-        const a = parseMillis(norm(firstOf(r, 'DATAHORA_COMPL', 'DATAHORA COMPL')));
-        const b = parseMillis(norm(firstOf(r, 'DATA_COMPLETE', 'DATA COMPLETE')));
-        return Number.isFinite(a) || Number.isFinite(b) ? Math.max(a || -Infinity, b || -Infinity) : -Infinity;
+        const a = parseMillis(norm(firstOf(r, 'DATAHORA_COMPL')));
+        const b = parseMillis(norm(firstOf(r, 'DATA_COMPLETE')));
+        const c = parseMillis(norm(firstOf(r, 'fecha_fin_op')));
+        const d = parseMillis(norm(firstOf(r, 'eventdt')));
+        const best = [a, b, c, d].filter(Number.isFinite);
+        return best.length ? Math.max(...best) : -Infinity;
       })
     );
     const fechaUlt = Number.isFinite(maxMs) ? new Date(maxMs).toISOString() : null;
-    out.push({ kind: 'pedido', pedido, nombre, count: arr.length, estado, fechaUlt, rows: arr });
+
+    const totals = sumTimes(arr);
+    const avg = aggAvg(totals, arr.length);
+
+    out.push({ kind: 'pedido', pedido, nombre, count: arr.length, estado, fechaUlt, rows: arr, totals, avg });
   }
 
   out.sort((a, b) => (parseMillis(b.fechaUlt) || 0) - (parseMillis(a.fechaUlt) || 0));
@@ -157,7 +266,7 @@ const groupByPedido = (rows: Row[]): Group[] => {
 const groupByCliente = (rows: Row[]): ClienteGroup[] => {
   const map = new Map<string, Row[]>();
   for (const r of rows) {
-    const cliente = norm(firstOf(r, 'NOMBRE'));
+    const cliente = norm(firstOf(r, 'NOMBRE', 'nombre_cliente'));
     if (!cliente) continue;
     if (!map.has(cliente)) map.set(cliente, []);
     map.get(cliente)!.push(r);
@@ -168,7 +277,9 @@ const groupByCliente = (rows: Row[]): ClienteGroup[] => {
     const pedidos = groupByPedido(arr);
     const count = arr.length;
     const fechaUlt = pedidos.length ? pedidos[0].fechaUlt : null;
-    out.push({ kind: 'cliente', cliente, count, fechaUlt, pedidos });
+    const totals = sumTimes(arr);
+    const avg = aggAvg(totals, count);
+    out.push({ kind: 'cliente', cliente, count, fechaUlt, pedidos, totals, avg });
   }
   out.sort((a, b) => (parseMillis(b.fechaUlt) || 0) - (parseMillis(a.fechaUlt) || 0));
   return out;
@@ -178,7 +289,7 @@ const groupByCliente = (rows: Row[]): ClienteGroup[] => {
 const groupByOperario = (rows: Row[]): OperarioGroup[] => {
   const map = new Map<string, Row[]>();
   for (const r of rows) {
-    const user = norm(firstOf(r, 'USERNAME'));
+    const user = norm(firstOf(r, 'username', 'USERNAME'));
     if (!user) continue;
     if (!map.has(user)) map.set(user, []);
     map.get(user)!.push(r);
@@ -188,7 +299,9 @@ const groupByOperario = (rows: Row[]): OperarioGroup[] => {
     const pedidos = groupByPedido(arr);
     const count = arr.length;
     const fechaUlt = pedidos.length ? pedidos[0].fechaUlt : null;
-    out.push({ kind: 'operario', username, count, fechaUlt, pedidos });
+    const totals = sumTimes(arr);
+    const avg = aggAvg(totals, count);
+    out.push({ kind: 'operario', username, count, fechaUlt, pedidos, totals, avg });
   }
   out.sort((a, b) => (parseMillis(b.fechaUlt) || 0) - (parseMillis(a.fechaUlt) || 0));
   return out;
@@ -198,7 +311,7 @@ const groupByOperario = (rows: Row[]): OperarioGroup[] => {
 const groupByCentro = (rows: Row[]): CentroGroup[] => {
   const map = new Map<string, Row[]>();
   for (const r of rows) {
-    const centro = norm(firstOf(r, 'CENTRO_TRABAJO', 'CENTRO TRABAJO'));
+    const centro = norm(firstOf(r, 'centro_trabajo', 'CENTRO_TRABAJO'));
     if (!centro) continue;
     if (!map.has(centro)) map.set(centro, []);
     map.get(centro)!.push(r);
@@ -210,7 +323,7 @@ const groupByCentro = (rows: Row[]): CentroGroup[] => {
     // operarios dentro del centro
     const byUser = new Map<string, Row[]>();
     for (const r of arr) {
-      const u = norm(firstOf(r, 'USERNAME'));
+      const u = norm(firstOf(r, 'username', 'USERNAME'));
       if (!u) continue;
       if (!byUser.has(u)) byUser.set(u, []);
       byUser.get(u)!.push(r);
@@ -219,13 +332,18 @@ const groupByCentro = (rows: Row[]): CentroGroup[] => {
     for (const [username, subarr] of byUser) {
       const peds = groupByPedido(subarr);
       const fechaUlt = peds.length ? peds[0].fechaUlt : null;
-      operarios.push({ username, count: subarr.length, fechaUlt, pedidos: peds });
+      const totals = sumTimes(subarr);
+      const avg = aggAvg(totals, subarr.length);
+      operarios.push({ username, count: subarr.length, fechaUlt, pedidos: peds, totals, avg });
     }
     operarios.sort((a, b) => (parseMillis(b.fechaUlt) || 0) - (parseMillis(a.fechaUlt) || 0));
 
     const count = arr.length;
     const fechaUlt = pedidos.length ? pedidos[0].fechaUlt : null;
-    out.push({ kind: 'centro', centro, count, fechaUlt, pedidos, operarios });
+    const totals = sumTimes(arr);
+    const avg = aggAvg(totals, count);
+
+    out.push({ kind: 'centro', centro, count, fechaUlt, pedidos, operarios, totals, avg });
   }
   out.sort((a, b) => (parseMillis(b.fechaUlt) || 0) - (parseMillis(a.fechaUlt) || 0));
   return out;
@@ -233,13 +351,14 @@ const groupByCentro = (rows: Row[]): CentroGroup[] => {
 
 /** ===================== Componente ===================== */
 const ENDPOINT = `${API_URL}/control-optima/piezas-maquina`;
-const DEFAULT_FROM = '2025-01-01';
+const DEFAULT_FROM = '2025-08-08';
 const DEFAULT_TO = toYmd(new Date());
 
 export default function PiezasMaquina() {
   // ---- encabezado global
-  const [userName, setUserName] = useState<string>(''); // setear desde auth/context
-  const [userRole, setUserRole] = useState<string>(''); // setear desde auth/context
+  // usuario/rol header + modal
+  const [userName, setUserName] = useState('—');
+  const [userRole, setUserRole] = useState('—');
   const [serverReachable, setServerReachable] = useState<boolean>(true);
   const [userModalVisible, setUserModalVisible] = useState(false);
   const [modalUser, setModalUser] = useState<{ userName?: string; role?: string }>({});
@@ -252,40 +371,16 @@ export default function PiezasMaquina() {
   const [to, setTo] = useState<string>(DEFAULT_TO);
   const [dateError, setDateError] = useState<string>('');
 
-  // Estado de consulta/paginación
-  const [page, setPage] = useState<number>(1);
-  const [pageSize] = useState<number>(1000);
+  // Estado de consulta
   const [rows, setRows] = useState<Row[]>([]);
   const [totalRecords, setTotalRecords] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [reachedEnd, setReachedEnd] = useState(false);
   const [query, setQuery] = useState('');
 
   // Anti-bucle / anti-duplicados
   const inFlightAbort = useRef<AbortController | null>(null);
   const lastReqKeyRef = useRef<string>('');
-  const lastSuccessKeyRef = useRef<string>('');
-  const endReachedTsRef = useRef<number>(0); // throttle onEndReached
-
-  // Tiempos por proceso
-  const [timings, setTimings] = useState<{
-    fetchMs: number;
-    jsonMs: number;
-    groupPedidoMs: number;
-    groupClienteMs: number;
-    groupCentroMs: number;
-    groupOperarioMs: number;
-    totalMs: number;
-  }>({
-    fetchMs: 0,
-    jsonMs: 0,
-    groupPedidoMs: 0,
-    groupClienteMs: 0,
-    groupCentroMs: 0,
-    groupOperarioMs: 0,
-    totalMs: 0,
-  });
 
   // Agrupaciones
   const [groupMode, setGroupMode] = useState<'pedido' | 'cliente' | 'centro' | 'operario'>('pedido');
@@ -320,6 +415,12 @@ export default function PiezasMaquina() {
   const [centroOperarioModalVisible, setCentroOperarioModalVisible] = useState(false);
   const [centroOperarioModalQuery, setCentroOperarioModalQuery] = useState('');
 
+  // Modo de visualización por fecha:
+  // 'inRange' => solo eventos dentro del rango
+  // 'wholeOrder' => incluir el pedido completo si toca el rango
+  const [showMode, setShowMode] = useState<'inRange' | 'wholeOrder'>('wholeOrder');
+
+
   /** ===== validación fechas ===== */
   const validateDates = useCallback((): boolean => {
     if (!validYmd(from) || !validYmd(to)) {
@@ -341,152 +442,118 @@ export default function PiezasMaquina() {
   }, [from, to]);
 
   /** ===== construir clave de request para deduplicar ===== */
-  const buildReqKey = (p: number) =>
-    JSON.stringify({ from, to, page: p, pageSize, query: query.trim().toUpperCase() });
+  const buildReqKey = () => JSON.stringify({ from, to, showMode });
 
   /** ===== reset con filtros ===== */
   const applyFilters = useCallback(() => {
     if (!validateDates()) return;
-    setPage(1);
-    setReachedEnd(false);
     setRefreshing(true);
-    fetchPage(1, true);
+    fetchData();
   }, [validateDates]);
+
+  /** ===== efecto: reagrupar al cambiar el modo de agrupación ===== */
+  // useEffect para detectar cambios en showMode
+  useEffect(() => {
+    console.log('🎛️ useEffect showMode disparado:', showMode);
+    if (rows.length > 0) {
+      console.log('📊 Reagrupando datos existentes');
+      const filteredData = filterClientSide(rows);
+      regroup(filteredData);
+    }
+  }, [showMode]); // Solo escucha cambios en showMode
+
+
+  /** ===== carga de usuarios ===== */
+  useEffect(() => {
+    (async () => {
+      try {
+        const s = await AsyncStorage.getItem('userData');
+        const u = s ? JSON.parse(s) : null;
+        setUserName(u?.nombre || u?.name || '—');
+        setUserRole(u?.rol || u?.role || '—');
+      } catch { }
+    })();
+  }, []);
 
   /** ===== carga inicial ===== */
   useEffect(() => {
-    // primera carga
-    fetchPage(1, true);
+    fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /** ===== debounce de búsqueda server-side ===== */
+  /** ===== debounce de búsqueda (cliente) ===== */
   useEffect(() => {
     const t = setTimeout(() => {
-      if (!validateDates()) return;
-      setPage(1);
-      setReachedEnd(false);
-      setRefreshing(true);
-      fetchPage(1, true);
-    }, 500);
+      console.log('⏰ Debounce disparado - query/groupMode/showMode cambiaron');
+      regroup(filterClientSide(rows));
+    }, 300);
     return () => clearTimeout(t);
-  }, [query, validateDates]);
+  }, [query, groupMode, rows, showMode]); // IMPORTANTE: Incluir showMode aquí
 
-  /** ===== fetch con anti-bucle y timings ===== */
-  const fetchPage = useCallback(
-    async (pageToLoad: number, replace = false) => {
+  /** ===== fetch (POST JSON, sin paginación) ===== */
+  const fetchData = useCallback(
+    async () => {
       if (!validateDates()) return;
       if (loading) return;
 
-      // Anti-duplicado: no repitas misma petición que ya está corriendo o ya fue un éxito reciente
-      const reqKey = buildReqKey(pageToLoad);
-      if (reqKey === lastReqKeyRef.current) return;               // ya en curso
-      if (!replace && reqKey === lastSuccessKeyRef.current) return; // ya exitosa y no es replace
+      const reqKey = buildReqKey();
+      if (reqKey === lastReqKeyRef.current) {
+        setRefreshing(false);
+        return;
+      }
 
-      // Aborta petición anterior (si existe)
-      try { inFlightAbort.current?.abort(); } catch (_) {}
+      try { inFlightAbort.current?.abort(); } catch (_) { }
       const controller = new AbortController();
       inFlightAbort.current = controller;
 
       setLoading(true);
 
-      const t0 = nowMs();
+      // NUEVO: Limpiar datos al iniciar la búsqueda
+      setRows([]);
+      setGroupsPedido([]);
+      setGroupsCliente([]);
+      setGroupsCentro([]);
+      setGroupsOperario([]);
+      setTotalRecords(0);
+
       try {
-        const params = new URLSearchParams({
-          page: String(pageToLoad),
-          pageSize: String(pageSize),
-          from,
-          to,
-          search: query.trim(),
-        });
-
-        // Solo marcar custom si el rango difiere del default → evita el camino de UNION problemático
-        if (!(from === DEFAULT_FROM && to === DEFAULT_TO)) {
-          params.set('scope', 'custom');
-        }
-
-        const url = `${ENDPOINT}?${params.toString()}`;
         lastReqKeyRef.current = reqKey;
 
-        const tFetch0 = nowMs();
-        const res = await fetch(url, { signal: controller.signal });
-        const tFetch1 = nowMs();
+        const res = await fetch(ENDPOINT, {
+          method: 'POST',
+          signal: controller.signal,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ desde: from, hasta: to }),
+        });
 
         setServerReachable(res.ok);
 
-        const tJson0 = nowMs();
         const data = await res.json();
-        const tJson1 = nowMs();
 
         if (!res.ok) {
-          const msg = (data as any)?.message || `HTTP ${res.status}`;
+          const msg = data?.message || `HTTP ${res.status}`;
           throw new Error(msg);
         }
 
-        const newItems = Array.isArray(data.items) ? (data.items as Row[]) : [];
-        const totalFromApi = Number(data.total) || 0;
+        const newRows: Row[] = Array.isArray(data) ? data : [];
+        setRows(newRows);
+        setTotalRecords(newRows.length);
 
-        // merge + agrupaciones con timings
-        const merged = replace ? newItems : [...rows, ...newItems];
+        // Aplicar filtro inmediatamente
+        const filteredData = filterClientSide(newRows);
+        console.log('🔍 Datos después de filtrar:', filteredData.length);
+        regroup(filteredData);
 
-        const tg0 = nowMs();
-        const gPedidos = groupByPedido(merged);
-        const tg1 = nowMs();
-        const gClientes = groupByCliente(merged);
-        const tg2 = nowMs();
-        const gCentros = groupByCentro(merged);
-        const tg3 = nowMs();
-        const gOperarios = groupByOperario(merged);
-        const tg4 = nowMs();
-
-        setRows(merged);
-        setGroupsPedido(gPedidos);
-        setGroupsCliente(gClientes);
-        setGroupsCentro(gCentros);
-        setGroupsOperario(gOperarios);
-
-        // total
-        setTotalRecords(totalFromApi > 0 ? totalFromApi : merged.length);
-
-        // reachedEnd: preferir total si viene del backend
-        let end = false;
-        if (totalFromApi > 0) {
-          end = pageToLoad * pageSize >= totalFromApi;
-        } else {
-          end = newItems.length < pageSize;
-        }
-        setReachedEnd(end);
-
-        // avanzar page actual
-        setPage(pageToLoad);
-
-        // guardar claves anti-bucle
-        lastSuccessKeyRef.current = reqKey;
-
-        // timings
-        setTimings({
-          fetchMs: Math.max(0, tFetch1 - tFetch0),
-          jsonMs: Math.max(0, tJson1 - tJson0),
-          groupPedidoMs: Math.max(0, tg1 - tg0),
-          groupClienteMs: Math.max(0, tg2 - tg1),
-          groupCentroMs: Math.max(0, tg3 - tg2),
-          groupOperarioMs: Math.max(0, tg4 - tg3),
-          totalMs: Math.max(0, nowMs() - t0),
-        });
       } catch (e: any) {
-        if (e?.name === 'AbortError') {
-          // ignorar abortos intencionales
-        } else {
-          console.error('[piezas-maquina] fetchPage error:', e);
+        if (e?.name !== 'AbortError') {
+          console.error('[piezas-maquina] fetchData error:', e);
           setServerReachable(false);
-          if (replace) {
-            setRows([]);
-            setGroupsPedido([]);
-            setGroupsCliente([]);
-            setGroupsCentro([]);
-            setGroupsOperario([]);
-            setTotalRecords(0);
-          }
+          setRows([]);
+          setGroupsPedido([]);
+          setGroupsCliente([]);
+          setGroupsCentro([]);
+          setGroupsOperario([]);
+          setTotalRecords(0);
         }
       } finally {
         setLoading(false);
@@ -494,38 +561,122 @@ export default function PiezasMaquina() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [from, to, pageSize, query, rows, validateDates, loading]
+    [from, to, showMode, validateDates, loading]
   );
+
+  /** ===== filtrado cliente (según groupMode + rango de fechas) ===== */
+
+  /** ===== filtrado cliente (según showMode + groupMode) ===== */
+  const filterClientSide = (input: Row[]): Row[] => {
+    console.log('🔍 filterClientSide iniciado');
+    console.log('📊 Input rows:', input.length);
+    console.log('🎛️ showMode:', showMode);
+    console.log('📅 Rango:', from, 'a', to);
+    // helper: timestamp del “evento” del row
+    const eventMillisOf = (r: any) => {
+      const iso = firstOf(r,
+        'eventdt',          // si backend ya lo manda
+        'DATAHORA_COMPL',   // vistas DASHBOARD_*
+        'DATA_COMPLETE',    // backup fecha “completa”
+        'fecha_fin_op',     // payload /piezas-maquina (si viene)
+        'ServerDateTime',   // TV
+        'DATE_COMPL'        // TV
+      );
+      return parseMillis(norm(iso));
+    };
+
+    // ventana de fechas [from 00:00, to 24:00) — to exclusivo
+    const startMs = Date.parse(`${from}T00:00:00`);
+    const endMs = Date.parse(`${to}T00:00:00`) + 24 * 60 * 60 * 1000;
+
+    let base = input;
+
+    // 1) Filtrado por fecha según 'showMode'
+    if (Number.isFinite(startMs) && Number.isFinite(endMs)) {
+      if (showMode === 'inRange') {
+        // Sólo eventos dentro del rango
+        base = base.filter(r => {
+          const em = eventMillisOf(r);
+          return Number.isFinite(em) && em >= startMs && em < endMs;
+        });
+      } else {
+        // 'wholeOrder': si un pedido toca el rango, mostramos TODO su contenido
+        const pedidosQueTocan = new Set(
+          input.filter(r => {
+            const em = eventMillisOf(r);
+            return Number.isFinite(em) && em >= startMs && em < endMs;
+          }).map(r => norm(firstOf(r, 'pedido', 'PEDIDO')))
+            .filter(Boolean)
+        );
+        base = input.filter(r => pedidosQueTocan.has(norm(firstOf(r, 'pedido', 'PEDIDO'))));
+      }
+    }
+
+    // 2) Filtro de búsqueda (igual que antes, pero sobre la base ya filtrada por fecha)
+    const q = upper(query);
+    if (!q) return base;
+
+    if (groupMode === 'pedido') {
+      return base.filter(r =>
+        upper(firstOf(r, 'pedido', 'PEDIDO')).includes(q) ||
+        upper(firstOf(r, 'NOMBRE', 'nombre_cliente')).includes(q) ||
+        upper(firstOf(r, 'ESTADO')).includes(q)
+      );
+    } else if (groupMode === 'cliente') {
+      return base.filter(r =>
+        upper(firstOf(r, 'NOMBRE', 'nombre_cliente')).includes(q)
+      );
+    } else if (groupMode === 'centro') {
+      return base.filter(r =>
+        upper(firstOf(r, 'centro_trabajo', 'CENTRO_TRABAJO')).includes(q)
+      );
+    } else { // operario
+      return base.filter(r =>
+        upper(firstOf(r, 'username', 'USERNAME')).includes(q)
+      );
+    }
+  };
+
+
+
+
+
+
+  /** ===== base visible actual (para reagrupar) ===== */
+  const currentVisibleBase = () => filterClientSide(rows);
+
+  /** ===== reagrupar util ===== */
+  const regroup = (base: Row[]) => {
+    const gPedidos = groupByPedido(base);
+    const gClientes = groupByCliente(base);
+    const gCentros = groupByCentro(base);
+    const gOperarios = groupByOperario(base);
+    setGroupsPedido(gPedidos);
+    setGroupsCliente(gClientes);
+    setGroupsCentro(gCentros);
+    setGroupsOperario(gOperarios);
+  };
 
   /** ===== pull-to-refresh ===== */
   const onRefresh = useCallback(() => {
     applyFilters();
   }, [applyFilters]);
 
-  /** ===== infinite scroll con throttle ===== */
-  const onEndReached = useCallback(() => {
-    if (loading || refreshing || reachedEnd) return;
-
-    // throttle para onEndReached (evita disparos múltiples seguidos)
-    const now = Date.now();
-    if (now - endReachedTsRef.current < 600) return;
-    endReachedTsRef.current = now;
-
-    fetchPage(page + 1);
-  }, [loading, refreshing, reachedEnd, page, fetchPage]);
-
   /** ===== lista visible ===== */
   const visibleData: VisibleItem[] = useMemo(() => {
     return groupMode === 'pedido'
       ? groupsPedido
       : groupMode === 'cliente'
-      ? groupsCliente
-      : groupMode === 'centro'
-      ? groupsCentro
-      : groupsOperario;
+        ? groupsCliente
+        : groupMode === 'centro'
+          ? groupsCentro
+          : groupsOperario;
   }, [groupMode, groupsPedido, groupsCliente, groupsCentro, groupsOperario]);
 
   const headerCount = totalRecords;
+
+  // Totales globales sobre lo cargado (no filtrado)
+  const globalTotals = useMemo(() => sumTimes(rows), [rows]);
 
   // Key extractor
   const getKey = (item: VisibleItem) => {
@@ -536,14 +687,43 @@ export default function PiezasMaquina() {
     return Math.random().toString(36).slice(2);
   };
 
-  const loadedPct = totalRecords > 0 ? Math.min(100, (rows.length / totalRecords) * 100) : 0;
+  /** ====== Chips de tiempo (total + promedio) ====== */
+  const TimeChips = ({ totals, avg }: { totals: TimeAgg; avg: TimeAgg }) => (
+    <View style={styles.timeChipsWrap}>
+      <View style={styles.timeChip}><Text style={styles.timeKey}>Trabajo</Text><Text style={styles.timeVal}>{fmtDur(totals.trabajo)} · prom {fmtDur(avg.trabajo)}</Text></View>
+      <View style={styles.timeChip}><Text style={styles.timeKey}>Espera prev.</Text><Text style={styles.timeVal}>{fmtDur(totals.esperaPrev)} · prom {fmtDur(avg.esperaPrev)}</Text></View>
+      <View style={styles.timeChip}><Text style={styles.timeKey}>Entre ops</Text><Text style={styles.timeVal}>{fmtDur(totals.entreOps)} · prom {fmtDur(avg.entreOps)}</Text></View>
+      <View style={styles.timeChip}><Text style={styles.timeKey}>Desde pedido</Text><Text style={styles.timeVal}>{fmtDur(totals.desdePedido)} · prom {fmtDur(avg.desdePedido)}</Text></View>
+      <View style={styles.timeChip}><Text style={styles.timeKey}>Hasta entrega</Text><Text style={styles.timeVal}>{fmtDur(totals.hastaEntrega)} · prom {fmtDur(avg.hastaEntrega)}</Text></View>
+      <View style={styles.timeChip}><Text style={styles.timeKey}>Ciclo pieza</Text><Text style={styles.timeVal}>{fmtDur(totals.cicloPieza)} · prom {fmtDur(avg.cicloPieza)}</Text></View>
+    </View>
+  );
+
+  /** ====== Comprobar si una fecha está fuera del rango ====== */
+
+  const isDateOutOfRange = (dateStr: string | null | undefined): boolean => {
+    if (!dateStr) return false;
+
+    const eventMs = parseMillis(dateStr);
+    if (!Number.isFinite(eventMs)) return false;
+
+    const startMs = Date.parse(`${from}T00:00:00`);
+    const endMs = Date.parse(`${to}T00:00:00`) + 24 * 60 * 60 * 1000;
+
+    return eventMs < startMs || eventMs >= endMs;
+  };
+
+
+
+
+
 
   /** ===================== Render ===================== */
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* ======= App Header ======= */}
       <AppHeader
-        titleOverride="Terminales · Piezas por Maquinas"
+        titleOverride="Terminales"
         count={headerCount}
         userNameProp={userName}
         roleProp={userRole}
@@ -588,13 +768,13 @@ export default function PiezasMaquina() {
           <Text style={styles.label}>
             Buscar por {groupMode === 'pedido' ? 'pedido o cliente'
               : groupMode === 'cliente' ? 'cliente'
-              : groupMode === 'centro' ? 'centro'
-              : 'operario'}
+                : groupMode === 'centro' ? 'centro'
+                  : 'operario'}
           </Text>
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Buscar (servidor): pedido, cliente, centro, operario…"
+            placeholder="Buscar (cliente): pedido, cliente, centro, operario…"
             style={styles.input}
             autoCapitalize="characters"
           />
@@ -607,16 +787,40 @@ export default function PiezasMaquina() {
             {(['pedido', 'cliente', 'centro', 'operario'] as const).map((m) => (
               <Pressable
                 key={m}
-                onPress={() => setGroupMode(m)}
+                onPress={() => { setGroupMode(m); }}
                 style={[styles.segmentBtn, groupMode === m && styles.segmentBtnActive]}
               >
                 <Text style={[styles.segmentText, groupMode === m && styles.segmentTextActive]}>
-                  {m === 'pedido' ? 'Pedido' : m === 'cliente' ? 'Cliente' : m === 'centro' ? 'Centro' : 'Operario'}
+                  {m === 'pedido' ? 'Pedido' : m === 'cliente' ? 'Cliente' : m === 'centro' ? 'Centro Maquina' : 'Operario'}
                 </Text>
               </Pressable>
             ))}
           </View>
         </View>
+
+
+        {/* ======= Interruptor de modo de fechas 
+        <View style={[styles.inputGroup, { width: 420, marginLeft: 10 }]}>
+          <Text style={styles.label}>Modo fecha</Text>
+          <View style={styles.segment}>
+            {([
+              { key: 'inRange', label: 'Dentro del rango' },
+              { key: 'wholeOrder', label: 'Pedido completo si toca' }
+            ] as const).map(opt => (
+              <Pressable
+                key={opt.key}
+                onPress={() => setShowMode(opt.key)}
+                style={[styles.segmentBtn, showMode === opt.key && styles.segmentBtnActive]}
+              >
+                <Text style={[styles.segmentText, showMode === opt.key && styles.segmentTextActive]}>
+                  {opt.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+======= */}
+
 
         <Pressable
           style={[styles.btn, (!validYmd(from) || !validYmd(to)) && styles.btnDisabled]}
@@ -626,8 +830,71 @@ export default function PiezasMaquina() {
           <Ionicons name="checkmark-done-outline" size={20} color="#fff" />
           <Text style={styles.btnText}>Aplicar cambios</Text>
         </Pressable>
+        {/* ======= INTERRUPTOR: modo de visualización ======= */}
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 }}>
+          <Ionicons name="options-outline" size={18} color="#555" />
+          <Text style={[styles.label, { marginRight: 8 }]}>Mostrar</Text>
+
+          <Pressable
+            onPress={() => {
+              // Debug logs
+              console.log('🔄 Interruptor clickeado');
+              console.log('📊 showMode actual:', showMode);
+              console.log('📈 Rows disponibles:', rows.length);
+
+              // Cambiar el modo
+              const newMode = showMode === 'inRange' ? 'wholeOrder' : 'inRange';
+              console.log('🎯 Nuevo showMode:', newMode);
+              setShowMode(newMode);
+
+              // Forzar reagrupación inmediata con los datos existentes
+              setTimeout(() => {
+                console.log('🔄 Reagrupando con nuevo modo:', newMode);
+                const filteredData = filterClientSide(rows);
+                console.log('📊 Datos filtrados:', filteredData.length);
+                regroup(filteredData);
+              }, 50);
+            }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: 8,
+              paddingHorizontal: 12,
+              borderRadius: 20,
+              backgroundColor: showMode === 'inRange' ? '#e8f5e8' : '#e3f2fd', // Fondo cambia según modo
+              borderWidth: 1,
+              borderColor: showMode === 'inRange' ? '#2e7d32' : '#1565c0', // Borde cambia según modo
+            }}
+          >
+            <View style={{
+              width: 16,
+              height: 16,
+              borderRadius: 8,
+              marginRight: 8,
+              backgroundColor: showMode === 'inRange' ? '#2e7d32' : '#1565c0'
+            }} />
+            <Text style={{
+              fontWeight: '600',
+              color: showMode === 'inRange' ? '#2e7d32' : '#1565c0' // Texto cambia según modo
+            }}>
+              {showMode === 'inRange'
+                ? 'Solo fechas en rango'
+                : 'Pedidos completos'}
+            </Text>
+          </Pressable>
+        </View>
+
+
+
       </View>
       {!!dateError && <Text style={styles.errorText}>{dateError}</Text>}
+
+      {/* ======= PANEL GLOBAL DE TIEMPOS (sobre lo cargado) ======= */}
+      <View style={styles.globalPanel}>
+        <Text style={styles.globalTitle}>Tiempos globales (cargado)</Text>
+        <TimeChips totals={globalTotals} avg={aggAvg(globalTotals, rows.length || 0)} />
+      </View>
 
       {/* ======= LISTA PRINCIPAL ======= */}
       <FlatList<VisibleItem>
@@ -641,54 +908,60 @@ export default function PiezasMaquina() {
             <Text style={styles.listHeaderText}>
               Cargados <Text style={styles.bold}>{rows.length}</Text> de <Text style={styles.bold}>{totalRecords}</Text>
             </Text>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${loadedPct}%` }]} />
-            </View>
-            <View style={styles.timingsRow}>
-              <Text style={styles.timingChip}>⏱ fetch {Math.round(timings.fetchMs)} ms</Text>
-              <Text style={styles.timingChip}>json {Math.round(timings.jsonMs)} ms</Text>
-              <Text style={styles.timingChip}>pedido {Math.round(timings.groupPedidoMs)} ms</Text>
-              <Text style={styles.timingChip}>cliente {Math.round(timings.groupClienteMs)} ms</Text>
-              <Text style={styles.timingChip}>centro {Math.round(timings.groupCentroMs)} ms</Text>
-              <Text style={styles.timingChip}>operario {Math.round(timings.groupOperarioMs)} ms</Text>
-              <Text style={[styles.timingChip, styles.timingChipStrong]}>total {Math.round(timings.totalMs)} ms</Text>
-            </View>
           </View>
         }
         renderItem={({ item }) => {
           if (isGroup(item)) {
             const g = item;
+            const hasOutOfRangeDates = g.rows.some(r => {
+              const eventDate = firstOf(r, 'eventdt', 'DATAHORA_COMPL', 'DATA_COMPLETE', 'fecha_fin_op');
+              return isDateOutOfRange(eventDate);
+            });
             return (
               <TouchableOpacity
                 onPress={() => { setSelectedGroup(g); setPedidoModalVisible(true); setPedidoModalQuery(''); }}
-                style={[styles.card, styles.cardShadow, { flex: 1 }]}
+                style={[styles.card, styles.cardShadow, { flex: 1 }, hasOutOfRangeDates && styles.cardOutOfRange]}
               >
                 <View style={styles.cardHead}>
                   <Text style={styles.title}>{g.pedido} · {g.nombre}</Text>
                   <Text style={styles.badge}>{g.estado || '—'}</Text>
                 </View>
                 <Text style={styles.sub}>{g.count} registros · {fmtYmdHm(g.fechaUlt)}</Text>
+                <TimeChips totals={g.totals} avg={g.avg} />
               </TouchableOpacity>
             );
           } else if (isClienteGroup(item)) {
             const c = item;
+            const hasOutOfRangeDates = c.pedidos.some(p =>
+              p.rows.some(r => {
+                const eventDate = firstOf(r, 'eventdt', 'DATAHORA_COMPL', 'DATA_COMPLETE', 'fecha_fin_op');
+                return isDateOutOfRange(eventDate);
+              })
+            );
             return (
               <TouchableOpacity
                 onPress={() => { setSelectedCliente(c); setClientModalVisible(true); setClientModalQuery(''); }}
-                style={[styles.card, styles.cardShadow, { flex: 1 }]}
+                style={[styles.card, styles.cardShadow, { flex: 1 }, hasOutOfRangeDates && styles.cardOutOfRange]}
               >
                 <View style={styles.cardHead}>
                   <Text style={styles.title}>{c.cliente}</Text>
                 </View>
                 <Text style={styles.sub}>{c.pedidos.length} pedidos · {c.count} registros · {fmtYmdHm(c.fechaUlt)}</Text>
+                <TimeChips totals={c.totals} avg={c.avg} />
               </TouchableOpacity>
             );
           } else if (isCentroGroup(item)) {
             const c = item;
+            const hasOutOfRangeDates = c.pedidos.some(p =>
+              p.rows.some(r => {
+                const eventDate = firstOf(r, 'eventdt', 'DATAHORA_COMPL', 'DATA_COMPLETE', 'fecha_fin_op');
+                return isDateOutOfRange(eventDate);
+              })
+            );
             return (
               <TouchableOpacity
                 onPress={() => { setSelectedCentro(c); setCentroListMode('operario'); setCentroModalVisible(true); setCentroModalQuery(''); }}
-                style={[styles.card, styles.cardShadow, { flex: 1 }]}
+                style={[styles.card, styles.cardShadow, { flex: 1 }, hasOutOfRangeDates && styles.cardOutOfRange]}
               >
                 <View style={styles.cardHead}>
                   <Text style={styles.title}>{c.centro}</Text>
@@ -696,31 +969,37 @@ export default function PiezasMaquina() {
                 <Text style={styles.sub}>
                   {c.pedidos.length} pedidos · {c.operarios.length} operarios · {c.count} registros · {fmtYmdHm(c.fechaUlt)}
                 </Text>
+                <TimeChips totals={c.totals} avg={c.avg} />
               </TouchableOpacity>
             );
           } else {
             const o = item;
+            const hasOutOfRangeDates = o.pedidos.some(p =>
+              p.rows.some(r => {
+                const eventDate = firstOf(r, 'eventdt', 'DATAHORA_COMPL', 'DATA_COMPLETE', 'fecha_fin_op');
+                return isDateOutOfRange(eventDate);
+              })
+            );
             return (
               <TouchableOpacity
                 onPress={() => { setSelectedOperario(o); setOperarioModalVisible(true); setOperarioModalQuery(''); }}
-                style={[styles.card, styles.cardShadow, { flex: 1 }]}
+                style={[styles.card, styles.cardShadow, { flex: 1 }, hasOutOfRangeDates && styles.cardOutOfRange]}
               >
                 <View style={styles.cardHead}>
                   <Text style={styles.title}>{o.username}</Text>
                 </View>
                 <Text style={styles.sub}>{o.pedidos.length} pedidos · {o.count} registros · {fmtYmdHm(o.fechaUlt)}</Text>
+                <TimeChips totals={o.totals} avg={o.avg} />
               </TouchableOpacity>
             );
           }
         }}
         contentContainerStyle={{ paddingBottom: 24, paddingHorizontal: 10 }}
-        onEndReachedThreshold={0.4}
-        onEndReached={onEndReached}
         refreshing={refreshing}
         onRefresh={onRefresh}
         ListFooterComponent={
           loading ? <ActivityIndicator style={{ paddingVertical: 12 }} /> :
-          reachedEnd ? <Text style={styles.endText}>No hay más resultados</Text> : null
+            <Text style={styles.endText}>Fin de resultados</Text>
         }
         ListEmptyComponent={
           !loading ? <Text style={styles.empty}>Sin resultados en el rango seleccionado.</Text> : null
@@ -735,6 +1014,14 @@ export default function PiezasMaquina() {
             <Text style={styles.modalTitle}>Cliente: {selectedCliente?.cliente || '—'}</Text>
             <Button title="Cerrar" onPress={() => setClientModalVisible(false)} />
           </View>
+
+          {/* Totales del cliente */}
+          {selectedCliente && (
+            <View style={styles.modalTotals}>
+              <Text style={styles.modalTotalsTitle}>Totales del cliente</Text>
+              <TimeChips totals={selectedCliente.totals} avg={selectedCliente.avg} />
+            </View>
+          )}
 
           <View style={styles.modalFilterRow}>
             <Text style={styles.modalCount}>Pedidos: {((selectedCliente?.pedidos ?? []).filter(p => {
@@ -765,6 +1052,7 @@ export default function PiezasMaquina() {
                 <Text style={styles.rowLine}>PEDIDO: {p.pedido}</Text>
                 <Text style={styles.rowLine}>Registros: {p.count} · Estado: {p.estado || '—'}</Text>
                 <Text style={styles.rowLine}>Última fecha: {fmtYmdHm(p.fechaUlt) || '—'}</Text>
+                <TimeChips totals={p.totals} avg={p.avg} />
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -778,6 +1066,13 @@ export default function PiezasMaquina() {
             <Text style={styles.modalTitle}>Operario: {selectedOperario?.username || '—'}</Text>
             <Button title="Cerrar" onPress={() => setOperarioModalVisible(false)} />
           </View>
+
+          {selectedOperario && (
+            <View style={styles.modalTotals}>
+              <Text style={styles.modalTotalsTitle}>Totales del operario</Text>
+              <TimeChips totals={selectedOperario.totals} avg={selectedOperario.avg} />
+            </View>
+          )}
 
           <View style={styles.modalFilterRow}>
             <Text style={styles.modalCount}>Pedidos: {((selectedOperario?.pedidos ?? []).filter(p => {
@@ -808,6 +1103,7 @@ export default function PiezasMaquina() {
                 <Text style={styles.rowLine}>PEDIDO: {p.pedido}</Text>
                 <Text style={styles.rowLine}>Registros: {p.count} · Estado: {p.estado || '—'}</Text>
                 <Text style={styles.rowLine}>Última fecha: {fmtYmdHm(p.fechaUlt) || '—'}</Text>
+                <TimeChips totals={p.totals} avg={p.avg} />
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -818,9 +1114,17 @@ export default function PiezasMaquina() {
       <Modal visible={centroModalVisible} animationType="slide" onRequestClose={() => setCentroModalVisible(false)}>
         <View style={styles.modalWrap}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Centro: {selectedCentro?.centro || '—'}</Text>
+            <Text style={styles.modalTitle}>Centro Maquina: {selectedCentro?.centro || '—'}</Text>
             <Button title="Cerrar" onPress={() => setCentroModalVisible(false)} />
           </View>
+
+          {/* Totales del centro */}
+          {selectedCentro && (
+            <View style={styles.modalTotals}>
+              <Text style={styles.modalTotalsTitle}>Totales del centro Maquina</Text>
+              <TimeChips totals={selectedCentro.totals} avg={selectedCentro.avg} />
+            </View>
+          )}
 
           {/* Selector Operario | Pedido */}
           <View style={styles.modalInnerBar}>
@@ -844,13 +1148,13 @@ export default function PiezasMaquina() {
             <Text style={styles.modalCount}>
               {centroListMode === 'operario'
                 ? `Operarios: ${((selectedCentro?.operarios ?? []).filter(o => {
-                    const q = upper(centroModalQuery);
-                    return !q || upper(o.username).includes(q);
-                  })).length}`
+                  const q = upper(centroModalQuery);
+                  return !q || upper(o.username).includes(q);
+                })).length}`
                 : `Pedidos: ${((selectedCentro?.pedidos ?? []).filter(p => {
-                    const q = upper(centroModalQuery);
-                    return !q || upper(p.pedido).includes(q) || upper(p.nombre).includes(q);
-                  })).length}`}
+                  const q = upper(centroModalQuery);
+                  return !q || upper(p.pedido).includes(q) || upper(p.nombre).includes(q);
+                })).length}`}
             </Text>
             <View style={[styles.inputGroup, { flex: 1 }]}>
               <Text style={styles.label}>Buscar</Text>
@@ -866,37 +1170,39 @@ export default function PiezasMaquina() {
           <ScrollView contentContainerStyle={{ padding: 12, gap: 12 }}>
             {centroListMode === 'operario'
               ? (selectedCentro?.operarios ?? []).filter(o => {
-                  const q = upper(centroModalQuery);
-                  return !q || upper(o.username).includes(q);
-                }).map((o, idx) => (
-                  <TouchableOpacity
-                    key={`${o.username ?? '—'}-${idx}`}
-                    style={[styles.rowCard, styles.cardShadow]}
-                    onPress={() => {
-                      setCentroOperarioSel({ centro: selectedCentro?.centro ?? '—', ...o });
-                      setCentroOperarioModalVisible(true);
-                      setCentroOperarioModalQuery('');
-                    }}
-                  >
-                    <Text style={styles.rowLine}>OPERARIO: {o.username ?? '—'}</Text>
-                    <Text style={styles.rowLine}>Pedidos: {o.pedidos?.length ?? 0} · Registros: {o.count ?? 0}</Text>
-                    <Text style={styles.rowLine}>Última fecha: {fmtYmdHm(o.fechaUlt) || '—'}</Text>
-                  </TouchableOpacity>
-                ))
+                const q = upper(centroModalQuery);
+                return !q || upper(o.username).includes(q);
+              }).map((o, idx) => (
+                <TouchableOpacity
+                  key={`${o.username ?? '—'}-${idx}`}
+                  style={[styles.rowCard, styles.cardShadow]}
+                  onPress={() => {
+                    setCentroOperarioSel({ centro: selectedCentro?.centro ?? '—', ...o });
+                    setCentroOperarioModalVisible(true);
+                    setCentroOperarioModalQuery('');
+                  }}
+                >
+                  <Text style={styles.rowLine}>OPERARIO: {o.username ?? '—'}</Text>
+                  <Text style={styles.rowLine}>Pedidos: {o.pedidos?.length ?? 0} · Registros: {o.count ?? 0}</Text>
+                  <Text style={styles.rowLine}>Última fecha: {fmtYmdHm(o.fechaUlt) || '—'}</Text>
+                  <TimeChips totals={o.totals} avg={o.avg} />
+                </TouchableOpacity>
+              ))
               : (selectedCentro?.pedidos ?? []).filter(p => {
-                  const q = upper(centroModalQuery);
-                  return !q || upper(p.pedido).includes(q) || upper(p.nombre).includes(q);
-                }).map((p, idx) => (
-                  <TouchableOpacity
-                    key={`${p.pedido}-${idx}`}
-                    style={[styles.rowCard, styles.cardShadow]}
-                    onPress={() => { setSelectedGroup(p); setPedidoModalVisible(true); setPedidoModalQuery(''); }}
-                  >
-                    <Text style={styles.rowLine}>PEDIDO: {p.pedido}</Text>
-                    <Text style={styles.rowLine}>Registros: {p.count} · Estado: {p.estado || '—'}</Text>
-                    <Text style={styles.rowLine}>Última fecha: {fmtYmdHm(p.fechaUlt) || '—'}</Text>
-                  </TouchableOpacity>
-                ))}
+                const q = upper(centroModalQuery);
+                return !q || upper(p.pedido).includes(q) || upper(p.nombre).includes(q);
+              }).map((p, idx) => (
+                <TouchableOpacity
+                  key={`${p.pedido}-${idx}`}
+                  style={[styles.rowCard, styles.cardShadow]}
+                  onPress={() => { setSelectedGroup(p); setPedidoModalVisible(true); setPedidoModalQuery(''); }}
+                >
+                  <Text style={styles.rowLine}>PEDIDO: {p.pedido}</Text>
+                  <Text style={styles.rowLine}>Registros: {p.count} · Estado: {p.estado || '—'}</Text>
+                  <Text style={styles.rowLine}>Última fecha: {fmtYmdHm(p.fechaUlt) || '—'}</Text>
+                  <TimeChips totals={p.totals} avg={p.avg} />
+                </TouchableOpacity>
+              ))}
           </ScrollView>
         </View>
       </Modal>
@@ -914,6 +1220,13 @@ export default function PiezasMaquina() {
             </Text>
             <Button title="Cerrar" onPress={() => setCentroOperarioModalVisible(false)} />
           </View>
+
+          {centroOperarioSel && (
+            <View style={styles.modalTotals}>
+              <Text style={styles.modalTotalsTitle}>Totales (centro Maquina → operario)</Text>
+              <TimeChips totals={centroOperarioSel.totals} avg={centroOperarioSel.avg} />
+            </View>
+          )}
 
           <View style={styles.modalFilterRow}>
             <Text style={styles.modalCount}>Pedidos: {(centroOperarioSel?.pedidos ?? []).filter(p => {
@@ -944,6 +1257,7 @@ export default function PiezasMaquina() {
                 <Text style={styles.rowLine}>PEDIDO: {p.pedido}</Text>
                 <Text style={styles.rowLine}>Registros: {p.count} · Estado: {p.estado || '—'}</Text>
                 <Text style={styles.rowLine}>Última fecha: {fmtYmdHm(p.fechaUlt) || '—'}</Text>
+                <TimeChips totals={p.totals} avg={p.avg} />
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -960,16 +1274,24 @@ export default function PiezasMaquina() {
             <Button title="Cerrar" onPress={() => setPedidoModalVisible(false)} />
           </View>
 
+          {/* Totales del pedido */}
+          {selectedGroup && (
+            <View style={styles.modalTotals}>
+              <Text style={styles.modalTotalsTitle}>Totales del pedido</Text>
+              <TimeChips totals={selectedGroup.totals} avg={selectedGroup.avg} />
+            </View>
+          )}
+
           <View style={styles.modalFilterRow}>
             <Text style={styles.modalCount}>Registros: {(selectedGroup?.rows ?? []).filter(r => {
               const q = upper(pedidoModalQuery);
               return !q ||
-                upper(firstOf(r, 'USERNAME')).includes(q) ||
-                upper(firstOf(r, 'CENTRO_TRABAJO', 'CENTRO TRABAJO')).includes(q) ||
+                upper(firstOf(r, 'username', 'USERNAME')).includes(q) ||
+                upper(firstOf(r, 'centro_trabajo', 'CENTRO_TRABAJO')).includes(q) ||
                 upper(firstOf(r, 'VIDRIO')).includes(q) ||
                 upper(firstOf(r, 'PRODUCTO')).includes(q) ||
-                upper(firstOf(r, 'PEDIDO')).includes(q) ||
-                String(firstOf(r, 'LINEA')).includes(q);
+                upper(firstOf(r, 'pedido', 'PEDIDO')).includes(q) ||
+                String(firstOf(r, 'linea')).includes(q);
             }).length}</Text>
             <View style={[styles.inputGroup, { flex: 1 }]}>
               <Text style={styles.label}>Buscar</Text>
@@ -986,32 +1308,48 @@ export default function PiezasMaquina() {
             {(selectedGroup?.rows ?? []).filter(r => {
               const q = upper(pedidoModalQuery);
               return !q ||
-                upper(firstOf(r, 'USERNAME')).includes(q) ||
-                upper(firstOf(r, 'CENTRO_TRABAJO', 'CENTRO TRABAJO')).includes(q) ||
+                upper(firstOf(r, 'username', 'USERNAME')).includes(q) ||
+                upper(firstOf(r, 'centro_trabajo', 'CENTRO_TRABAJO')).includes(q) ||
                 upper(firstOf(r, 'VIDRIO')).includes(q) ||
                 upper(firstOf(r, 'PRODUCTO')).includes(q) ||
-                upper(firstOf(r, 'PEDIDO')).includes(q) ||
-                String(firstOf(r, 'LINEA')).includes(q);
+                upper(firstOf(r, 'pedido', 'PEDIDO')).includes(q) ||
+                String(firstOf(r, 'linea')).includes(q);
             }).map((r, idx) => {
-              const USERNAME = firstOf(r, 'USERNAME');
-              const CENTRO_TRABAJO = firstOf(r, 'CENTRO_TRABAJO', 'CENTRO TRABAJO');
-              const N_VIDRIO = firstOf(r, 'N_VIDRIO', 'N VIDRIO');
+              const USERNAME = firstOf(r, 'username', 'USERNAME');
+              const CENTRO_TRABAJO = firstOf(r, 'centro_trabajo', 'CENTRO_TRABAJO');
+              const N_VIDRIO = firstOf(r, 'N_VIDRIO');
               const VIDRIO = firstOf(r, 'VIDRIO');
-              const LINEA = firstOf(r, 'LINEA');
-              const MEDIDA_X = firstOf(r, 'MEDIDA_X', 'MEDIDA X', 'DIMXPZR');
-              const MEDIDA_Y = firstOf(r, 'MEDIDA_Y', 'MEDIDA Y', 'DIMYPZR');
+              const LINEA = firstOf(r, 'linea');
+              const MEDIDA_X = firstOf(r, 'MEDIDA_X', 'MEDIDA X');
+              const MEDIDA_Y = firstOf(r, 'MEDIDA_Y', 'MEDIDA Y');
               const PROGR = firstOf(r, 'PROGR');
               const PRODUCTO = firstOf(r, 'PRODUCTO');
-              const DATAHORA = firstOf(r, 'DATAHORA_COMPL', 'DATAHORA COMPL', 'DATA_COMPLETE', 'DATA COMPLETE');
 
-              const R1 = norm(firstOf(r, 'RAZON_QUEBRA1', 'RAZON QUEBRA1'));
-              const R2 = norm(firstOf(r, 'RAZON_QUEBRA2', 'RAZON QUEBRA2'));
-              const R3 = norm(firstOf(r, 'RAZON_QUEBRA3', 'RAZON QUEBRA3'));
-              const T1 = norm(firstOf(r, 'TEXT1', 'TEXT 1'));
+              // fechas y tiempos unitarios
+              const EVENTDT = firstOf(r, 'eventdt');
+              const FINI = firstOf(r, 'fecha_inicio_op');
+              const FFIN = firstOf(r, 'fecha_fin_op', 'DATAHORA_COMPL'); // cae a DATAHORA_COMPL si hace falta
+              const FROT = firstOf(r, 'fecha_rotura', 'DATEBROKEN');
+              const FPED = firstOf(r, 'fecha_pedido');
+              const FENT = firstOf(r, 'fecha_entrega_prog');
+
+              const TT = numOf(r, 't_trabajo_seg');
+              const TE = numOf(r, 't_espera_prev_maquina_seg');
+              const TO = numOf(r, 't_entre_operaciones_seg');
+              const TDP = numOf(r, 't_desde_pedido_seg');
+              const THE = numOf(r, 't_hasta_entrega_prog_seg');
+              const TCP = numOf(r, 't_ciclo_pieza_total_seg');
+
+              const R1 = norm(firstOf(r, 'RAZON_QUEBRA1'));
+              const R2 = norm(firstOf(r, 'RAZON_QUEBRA2'));
+              const R3 = norm(firstOf(r, 'RAZON_QUEBRA3'));
+              const T1 = norm(firstOf(r, 'TEXT1'));
               const showReasons = !!(R1 || R2 || R3 || T1);
-
+              // Verificar si esta fila específica está fuera del rango
+              const eventDate = firstOf(r, 'eventdt', 'DATAHORA_COMPL', 'DATA_COMPLETE', 'fecha_fin_op');
+              const isOutOfRange = isDateOutOfRange(eventDate);
               return (
-                <View key={idx} style={[styles.rowCard, styles.cardShadow]}>
+                <View key={idx} style={[styles.rowCard, styles.cardShadow, isOutOfRange && styles.cardOutOfRange]}>
                   <Text style={styles.rowLine}>USERNAME: {USERNAME ?? '—'}</Text>
                   <Text style={styles.rowLine}>CENTRO TRABAJO: {CENTRO_TRABAJO ?? '—'}</Text>
                   <Text style={styles.rowLine}>N VIDRIO: {N_VIDRIO ?? '—'} · VIDRIO: {VIDRIO ?? '—'}</Text>
@@ -1019,7 +1357,27 @@ export default function PiezasMaquina() {
                   <Text style={styles.rowLine}>MEDIDA X: {MEDIDA_X ?? '—'} · MEDIDA Y: {MEDIDA_Y ?? '—'}</Text>
                   <Text style={styles.rowLine}>PROGR: {PROGR ?? '—'}</Text>
                   <Text style={styles.rowLine}>PRODUCTO: {PRODUCTO ?? '—'}</Text>
-                  <Text style={styles.rowLine}>DATAHORA COMPL: {DATAHORA ? fmtYmdHm(String(DATAHORA)) : '—'}</Text>
+
+                  {/* fechas unitarias */}
+                  <View style={styles.unitTimes}>
+                    <Text style={styles.unitTitle}>Fechas</Text>
+                    <Text style={styles.unitLine}>eventdt: {EVENTDT ? fmtYmdHm(String(EVENTDT)) : '—'}</Text>
+                    <Text style={styles.unitLine}>inicio op: {FINI ? fmtYmdHm(String(FINI)) : '—'}</Text>
+                    <Text style={styles.unitLine}>fin op: {FFIN ? fmtYmdHm(String(FFIN)) : '—'}</Text>
+                    <Text style={styles.unitLine}>rotura: {FROT ? fmtYmdHm(String(FROT)) : '—'}</Text>
+                    <Text style={styles.unitLine}>pedido: {FPED ? fmtYmdHm(String(FPED)) : '—'}</Text>
+                    <Text style={styles.unitLine}>entrega prog: {FENT ? fmtYmdHm(String(FENT)) : '—'}</Text>
+                  </View>
+
+                  {/* tiempos unitarios */}
+                  <View style={styles.timeChipsWrap}>
+                    <View style={styles.timeChip}><Text style={styles.timeKey}>Trabajo</Text><Text style={styles.timeVal}>{fmtDur(TT)}</Text></View>
+                    <View style={styles.timeChip}><Text style={styles.timeKey}>Espera prev.</Text><Text style={styles.timeVal}>{fmtDur(TE)}</Text></View>
+                    <View style={styles.timeChip}><Text style={styles.timeKey}>Entre ops</Text><Text style={styles.timeVal}>{fmtDur(TO)}</Text></View>
+                    <View style={styles.timeChip}><Text style={styles.timeKey}>Desde pedido</Text><Text style={styles.timeVal}>{fmtDur(TDP)}</Text></View>
+                    <View style={styles.timeChip}><Text style={styles.timeKey}>Hasta entrega</Text><Text style={styles.timeVal}>{fmtDur(THE)}</Text></View>
+                    <View style={styles.timeChip}><Text style={styles.timeKey}>Ciclo pieza</Text><Text style={styles.timeVal}>{fmtDur(TCP)}</Text></View>
+                  </View>
 
                   {showReasons && <View style={{ height: 6 }} />}
                   {!!R1 && <Text style={styles.rowLine}>RAZON QUEBRA1: {R1}</Text>}
@@ -1032,7 +1390,7 @@ export default function PiezasMaquina() {
           </ScrollView>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -1074,11 +1432,19 @@ const styles = StyleSheet.create({
     height: 38,
     borderRadius: 8,
   },
-  btnDisabled: {
-    opacity: 0.6,
-  },
+  btnDisabled: { opacity: 0.6 },
   btnText: { color: '#fff', fontWeight: '700' },
   errorText: { color: '#b91c1c', paddingHorizontal: 12, paddingTop: 6 },
+
+  // panel global tiempos
+  globalPanel: {
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  globalTitle: { fontSize: 14, fontWeight: '800', color: '#111827', marginBottom: 6 },
 
   // header de lista
   listHeader: {
@@ -1089,36 +1455,6 @@ const styles = StyleSheet.create({
   },
   listHeaderText: { color: '#374151' },
   bold: { fontWeight: '800' },
-  progressBar: {
-    height: 6,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 999,
-    overflow: 'hidden',
-    marginTop: 6,
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#2e78b7',
-  },
-  timingsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 8,
-  },
-  timingChip: {
-    backgroundColor: '#eef2ff',
-    color: '#374151',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 999,
-    overflow: 'hidden',
-    fontSize: 12,
-  },
-  timingChipStrong: {
-    backgroundColor: '#dbeafe',
-    fontWeight: '700',
-  },
 
   // columnas
   columnWrap: { gap: 12, paddingVertical: 4 },
@@ -1151,6 +1487,24 @@ const styles = StyleSheet.create({
   },
   sub: { color: '#6b7280', marginBottom: 4 },
 
+  // chips de tiempo
+  timeChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  timeChip: {
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  timeKey: { fontSize: 12, color: '#374151', fontWeight: '700' },
+  timeVal: { fontSize: 12, color: '#1f2937' },
+
   // vacíos / footer
   empty: { textAlign: 'center', color: '#6b7280', marginTop: 20 },
   endText: { textAlign: 'center', color: '#9ca3af', paddingVertical: 12 },
@@ -1176,6 +1530,17 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
   },
   rowLine: { color: '#111827', marginBottom: 2 },
+
+  // totales en modal
+  modalTotals: {
+    backgroundColor: '#fff',
+    borderBottomColor: '#e5e7eb',
+    borderBottomWidth: 1,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+  modalTotalsTitle: { fontWeight: '800', color: '#111827', marginBottom: 6 },
 
   // filtros dentro de modales
   modalInnerBar: {
@@ -1208,4 +1573,21 @@ const styles = StyleSheet.create({
   segmentBtnActive: { backgroundColor: '#2e78b7' },
   segmentText: { color: '#1f2937', fontWeight: '600' },
   segmentTextActive: { color: '#fff', fontWeight: '700' },
+
+  // unit times block
+  unitTimes: {
+    marginTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+    paddingTop: 6,
+  },
+  unitTitle: { fontWeight: '800', color: '#374151', marginBottom: 2 },
+  unitLine: { color: '#4b5563', fontSize: 12, marginBottom: 1 },
+
+  cardOutOfRange: {
+    backgroundColor: '#fffbeb', // fondo amarillo claro
+    borderColor: '#f59e0b', // borde amarillo
+  },
+
+
 });

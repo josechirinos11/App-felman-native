@@ -245,6 +245,19 @@ export default function ControlEntregasDiariasScreen() {
 
   const getFilterStatusText = () => (fechaDesde || fechaHasta) ? 'personalizado' : usingDefaultFilter ? '1d' : 'todas';
 
+
+  // Función para mostrar el modal de observaciones generales
+  const mostrarInfoObservaciones = () => {
+    // Buscar una entrega que tenga observaciones generales
+    const entregaConObservaciones = data.find(entrega => entrega.ObservaGral);
+    if (entregaConObservaciones) {
+      setSelectedEntregaInfo(entregaConObservaciones);
+      setInfoModalVisible(true);
+    }
+  };
+
+
+
   const setFiltroRapido = (dias: number) => {
     const hoy = new Date();
     const ini = new Date(); ini.setDate(hoy.getDate() - dias);
@@ -284,7 +297,15 @@ export default function ControlEntregasDiariasScreen() {
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
+        <TouchableOpacity
+          style={styles.infoButton}
+          onPress={mostrarInfoObservaciones}
+        >
+          <Ionicons name="information-circle-outline" size={20} color="#2e78b7" />
+          <Text style={styles.infoButtonText}>Info</Text>
+        </TouchableOpacity>
       </View>
+
 
       {/* Filtros */}
       <View style={styles.collapsibleFilters}>
@@ -466,21 +487,32 @@ export default function ControlEntregasDiariasScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f5f5' },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+compactSearchContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',   // Asegura que queden centrados en el eje Y
+  backgroundColor: '#fff',
+  margin: 12,
+  paddingHorizontal: 12,
+  borderRadius: 12,
+  elevation: 2,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 1 },
+  shadowOpacity: 0.08,
+  shadowRadius: 2,
+},
 
-  compactSearchContainer: {
-    backgroundColor: '#fff',
-    margin: 12,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-  },
-  compactSearchInput: {
-    height: 44, color: '#2e78b7',
-  },
+compactSearchInput: {
+  flex: 1,          // Se expande, pero deja sitio al botón
+  height: 44,
+  color: '#2e78b7',
+  marginRight: 8,   // separa el input del botón
+},
+
 
   collapsibleFilters: { paddingHorizontal: 12, marginBottom: 4 },
   compactFiltersContainer: { marginTop: 4 },
@@ -544,9 +576,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', elevation: 2,
   },
   customDateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+infoButton: {
   flexDirection: 'row',
   alignItems: 'center',
   paddingHorizontal: 8,
+  paddingVertical: 4,
+  backgroundColor: '#e8f5e8',
+  borderRadius: 12,
+  borderWidth: 1,
+  borderColor: '#4CAF50',
 },
+
+  infoButtonText: {
+    fontSize: 12,
+    color: '#4CAF50',
+    marginLeft: 4,
+    fontWeight: '500',
+  },
 
 });

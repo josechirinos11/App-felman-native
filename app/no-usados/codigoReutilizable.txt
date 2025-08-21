@@ -526,11 +526,11 @@ export default function PiezasMaquina() {
 
 
   /** ===== reset con filtros ===== */
-const applyFilters = useCallback((force: boolean = false) => {
-  if (!validateDates()) return;
-  setRefreshing(true);
-  fetchData(force);
-}, [validateDates]);
+  const applyFilters = useCallback(() => {
+    if (!validateDates()) return;
+    setRefreshing(true);
+    fetchData();
+  }, [validateDates]);
 
   /** ===== efecto: reagrupar al cambiar el modo de agrupación ===== */
   // useEffect para detectar cambios en showMode
@@ -572,18 +572,16 @@ const applyFilters = useCallback((force: boolean = false) => {
   }, [query, groupMode, rows, showMode]); // IMPORTANTE: Incluir showMode aquí
 
   /** ===== fetch (POST JSON, sin paginación) ===== */
-const fetchData = useCallback(
-  async (force: boolean = false) => {
-
+  const fetchData = useCallback(
+    async () => {
       if (!validateDates()) return;
       if (loading) return;
 
       const reqKey = buildReqKey();
-if (!force && reqKey === lastReqKeyRef.current) {
-  setRefreshing(false);
-  return;
-}
-
+      if (reqKey === lastReqKeyRef.current) {
+        setRefreshing(false);
+        return;
+      }
 
       try { inFlightAbort.current?.abort(); } catch (_) { }
       const controller = new AbortController();
@@ -788,8 +786,7 @@ if (!force && reqKey === lastReqKeyRef.current) {
 
   /** ===== pull-to-refresh ===== */
   const onRefresh = useCallback(() => {
-   applyFilters(true);
-
+    applyFilters();
   }, [applyFilters]);
 
   /** ===== lista visible ===== */
@@ -890,7 +887,7 @@ if (!force && reqKey === lastReqKeyRef.current) {
           userNameProp={userName}
           roleProp={userRole}
           serverReachableOverride={!!serverReachable}
-          onRefresh={() => applyFilters(true)}
+          onRefresh={applyFilters}
           onUserPress={({ userName, role }) => {
             setModalUser({ userName, role });
             setUserModalVisible(true);
@@ -1007,8 +1004,7 @@ if (!force && reqKey === lastReqKeyRef.current) {
             <View style={styles.filterRow}>
               <Pressable
                 style={[styles.btn, (!validYmd(from) || !validYmd(to)) && styles.btnDisabled, styles.flex1]}
-                onPress={() => applyFilters(true)}
-
+                onPress={applyFilters}
                 disabled={!validYmd(from) || !validYmd(to)}
               >
                 <Ionicons name="checkmark-done-outline" size={20} color="#fff" />
@@ -1132,7 +1128,7 @@ if (!force && reqKey === lastReqKeyRef.current) {
 
             <Pressable
               style={[styles.btn, (!validYmd(from) || !validYmd(to)) && styles.btnDisabled]}
-              onPress={() => applyFilters(true)}
+              onPress={applyFilters}
               disabled={!validYmd(from) || !validYmd(to)}
             >
               <Ionicons name="checkmark-done-outline" size={20} color="#fff" />
