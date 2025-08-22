@@ -48,6 +48,7 @@ export default function OptimaTabLayout() {
       <Tabs.Screen
         name="terminales"
         options={{
+           href: null,
           title: 'Terminales',
           tabBarIcon: ({ color }) => <TabBarIcon name="tv-outline" color={color} />,
         }}
@@ -55,6 +56,7 @@ export default function OptimaTabLayout() {
       <Tabs.Screen
         name="operarios"
         options={{
+           href: null,
           title: 'Operarios',
           tabBarIcon: ({ color }) => <TabBarIcon name="people-outline" color={color} />,
         }}
@@ -62,13 +64,14 @@ export default function OptimaTabLayout() {
       <Tabs.Screen
         name="piezas-maquina"
         options={{
-          title: 'Piezas/Máquina',
+          title: 'Terminales',
           tabBarIcon: ({ color }) => <TabBarIcon name="analytics-outline" color={color} />,
         }}
       />
       <Tabs.Screen
         name="trabajos-maquina"
         options={{
+           href: null,
           title: 'Trabajos/Máquina',
           tabBarIcon: ({ color }) => <TabBarIcon name="list-outline" color={color} />,
         }}
@@ -76,6 +79,7 @@ export default function OptimaTabLayout() {
       <Tabs.Screen
         name="estado-pedidos"
         options={{
+           href: null,
           title: 'Pedidos',
           tabBarIcon: ({ color }) => <TabBarIcon name="receipt-outline" color={color} />,
         }}

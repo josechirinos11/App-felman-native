@@ -47,35 +47,45 @@ export default function TabLayout() {
 
 
       <Tabs.Screen
-  name="moncada-tab"
-  options={{
-    title: 'Moncada',
-    tabBarIcon: ({ color }) => <TabBarIcon name="location-outline" color={color} />,
-    href: '/moncada', // abre fuera del grupo (tabs)
-  }}
-/>
+        name="moncada-tab"
+        options={{
+          title: 'Moncada',
+          tabBarIcon: ({ color }) => <TabBarIcon name="location-outline" color={color} />,
+          href: '/moncada', // abre fuera del grupo (tabs)
+        }}
+      />
 
-<Tabs.Screen
-  name="almassera-tab"
-  options={{
-    title: 'Almassera',
-    tabBarIcon: ({ color }) => <TabBarIcon name="location-outline" color={color} />,
-    href: '/optima', // abre fuera del grupo (tabs)
-  }}
-/>
+      <Tabs.Screen
+        name="almassera-tab"
+        options={{
+          title: 'Almassera',
+          tabBarIcon: ({ color }) => <TabBarIcon name="business-outline" color={color} />,
+          href: '/optima', // abre fuera del grupo (tabs)
+        }}
+      />
 
-<Tabs.Screen
-  name="almacen-tab"
-  options={{
-    title: 'Almacén',
-    tabBarIcon: ({ color }) => <TabBarIcon name="location-outline" color={color} />,
-    href: '/almacen', // abre fuera del grupo (tabs)
-  }}
-/>
+      <Tabs.Screen
+        name="almacen-tab"
+        options={{
+          title: 'Almacén',
+          tabBarIcon: ({ color }) => <TabBarIcon name="location-outline" color={color} />,
+          href: '/almacen', // abre fuera del grupo (tabs)
+        }}
+      />
+      
+      <Tabs.Screen
+        name="logistica-tab"
+        options={{
+          title: 'Logistica',
+          tabBarIcon: ({ color }) => <TabBarIcon name="map-outline" color={color} />,
+          href: '/logistica', // abre fuera del grupo (tabs)
+        }}
+      />
 
-     <Tabs.Screen
+      <Tabs.Screen
         name="control-comerciales"
         options={{
+          href: null,
           title: 'Comerciales',
           tabBarIcon: ({ color }) => <TabBarIcon name="cube-outline" color={color} />,
         }}
@@ -83,6 +93,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="control-entregas-diarias"
         options={{
+          href: null,
           title: 'Entregas',
           tabBarIcon: ({ color }) => <TabBarIcon name="calendar-outline" color={color} />,
         }}
@@ -90,6 +101,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="control-incidencias"
         options={{
+          href: null,
           title: 'Incidencias',
           tabBarIcon: ({ color }) => <TabBarIcon name="alert-circle-outline" color={color} />,
         }}
@@ -97,13 +109,12 @@ export default function TabLayout() {
       <Tabs.Screen
         name="configuracion"
         options={{
-          href: null,
           title: 'Ajustes',
           tabBarIcon: ({ color }) => <TabBarIcon name="settings-outline" color={color} />,
         }}
       />
 
-            <Tabs.Screen
+      <Tabs.Screen
         name="control-pedidos"
         options={{
           href: null,

@@ -25,12 +25,9 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-    { id: 6, title: 'Atras', icon: 'arrow-back-outline', route: '/' },
-  { id: 1, title: 'Control Terminales', icon: 'clipboard-outline', route: 'optima/terminales' },
-  { id: 2, title: 'Control Operarios', icon: 'cube-outline', route: 'optima/operarios' },
-  { id: 3, title: 'Dashboard Barcoder',      icon: 'barcode-outline', route: '/optima/piezas-maquina' },
-  { id: 4, title: 'Barcoder Detallado',      icon: 'document-text-outline', route: '/optima/trabajos-maquina' },
-  { id: 5, title: 'Estado de Pedidos',       icon: 'list-outline',  route: '/optima/estado-pedidos' },
+    { id: 1, title: 'Atras', icon: 'arrow-back-outline', route: '/' },
+  { id: 2, title: 'Control Terminales', icon: 'clipboard-outline', route: 'optima/piezas-maquina' },
+ 
   
 ];
 

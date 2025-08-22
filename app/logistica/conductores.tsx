@@ -1,0 +1,301 @@
+// app/optima/conductores.tsx
+import Ionicons from '@expo/vector-icons/Ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View,
+} from 'react-native';
+import { SafeAreaProvider, SafeAreaView as SafeAreaViewSA } from 'react-native-safe-area-context';
+
+import AppHeader from '../../components/AppHeader';
+import ModalHeader from '../../components/ModalHeader';
+import { API_URL } from '../../config/constants';
+
+type UserData = { nombre?: string; rol?: string; name?: string; role?: string };
+
+type Conductor = {
+  id: number | string;
+  codigo?: string;           // interno (opcional)
+  nombre: string;
+  documento?: string;        // DNI / Licencia
+  licencia_tipo?: string;    // A/B/C...
+  telefono?: string;
+  email?: string;
+  centro?: string;
+  activo?: boolean;
+  notas?: string;
+  [k: string]: any;
+};
+
+type CrudAction = 'crear'|'actualizar'|'eliminar'|'importar'|'exportar';
+
+const ENDPOINTS = {
+  list:     `${API_URL}/control-optima/conductores`,
+  crear:    `${API_URL}/control-optima/conductores/crear`,
+  actualizar:`${API_URL}/control-optima/conductores/actualizar`,
+  eliminar: `${API_URL}/control-optima/conductores/eliminar`,
+  importar: `${API_URL}/control-optima/conductores/importar`,
+  exportar: `${API_URL}/control-optima/conductores/exportar`,
+};
+
+export default function ConductoresScreen() {
+  const [userName, setUserName] = useState('—');
+  const [userRole, setUserRole] = useState('—');
+  const [userModalVisible, setUserModalVisible] = useState(false);
+
+  const [query, setQuery] = useState('');
+  const [centro, setCentro] = useState('');
+  const [soloActivos, setSoloActivos] = useState<boolean | null>(null);
+
+  const [rows, setRows] = useState<Conductor[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [serverReachable, setServerReachable] = useState(true);
+  const [loadPct, setLoadPct] = useState(0);
+  const [crudModal, setCrudModal] = useState<null | CrudAction>(null);
+
+  const inFlightAbort = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const s = await AsyncStorage.getItem('userData');
+        const u: UserData | null = s ? JSON.parse(s) : null;
+        setUserName(u?.nombre || u?.name || '—');
+        setUserRole(u?.rol || u?.role || '—');
+      } catch {}
+    })();
+  }, []);
+
+  const fetchAll = useCallback(async () => {
+    try { inFlightAbort.current?.abort(); } catch {}
+    const controller = new AbortController();
+    inFlightAbort.current = controller;
+    setLoading(true); setRefreshing(false); setLoadPct(10);
+
+    try {
+      const qs = [
+        centro ? `centro=${encodeURIComponent(centro)}` : '',
+        soloActivos === true ? 'activo=1' : '',
+      ].filter(Boolean).join('&');
+      const r = await fetch(ENDPOINTS.list + (qs?`?${qs}`:''), { signal: controller.signal });
+      setLoadPct(60);
+      const ok = r.ok; const j = await r.json();
+      if (!ok) throw new Error(j?.message || `Conductores HTTP ${r.status}`);
+      setRows(Array.isArray(j) ? j : []);
+      setServerReachable(true);
+    } catch (e) {
+      console.error('[conductores] fetchAll error:', e);
+      setRows([]); setServerReachable(false);
+    } finally {
+      setLoadPct(100); setTimeout(()=>setLoadPct(0),600);
+      setLoading(false); setRefreshing(false);
+    }
+  }, [centro, soloActivos]);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+  const onRefresh = useCallback(() => fetchAll(), [fetchAll]);
+
+  const q = query.trim().toUpperCase();
+  const filtered = useMemo(() => {
+    let arr = rows;
+    if (q) {
+      arr = arr.filter(c =>
+        (c.nombre || '').toUpperCase().includes(q) ||
+        (c.codigo || '').toUpperCase().includes(q) ||
+        (c.documento || '').toUpperCase().includes(q) ||
+        (c.licencia_tipo || '').toUpperCase().includes(q) ||
+        (c.centro || '').toUpperCase().includes(q) ||
+        (c.telefono || '').toUpperCase().includes(q)
+      );
+    }
+    return arr;
+  }, [rows, q]);
+
+  const postAction = async (url: string, payload: any) => {
+    try {
+      const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      const data = await r.json().catch(()=>({}));
+      if (!r.ok) { console.error('POST action error:', data); return { ok:false, data }; }
+      return { ok:true, data };
+    } catch (e) { console.error('POST action exception:', e); return { ok:false, data:null }; }
+  };
+  const actionCrear = async () => { setCrudModal('crear'); await postAction(ENDPOINTS.crear, { centro: centro || undefined }); };
+  const actionActualizar = async () => { setCrudModal('actualizar'); await postAction(ENDPOINTS.actualizar, { ids: filtered.map(c=>c.id) }); };
+  const actionEliminar = async () => { setCrudModal('eliminar'); await postAction(ENDPOINTS.eliminar, { ids: filtered.map(c=>c.id) }); };
+  const actionImportar = async () => { setCrudModal('importar'); await postAction(ENDPOINTS.importar, { ejemplo:true }); };
+  const actionExportar = async () => { setCrudModal('exportar'); await postAction(ENDPOINTS.exportar, { ids: filtered.map(c=>c.id) }); };
+
+  const headerCount = filtered.length;
+
+  return (
+    <SafeAreaProvider>
+      <SafeAreaViewSA edges={['top', 'bottom']} style={styles.container}>
+        <AppHeader
+          titleOverride="Conductores"
+          count={headerCount}
+          userNameProp={userName}
+          roleProp={userRole}
+          serverReachableOverride={!!serverReachable}
+          onRefresh={onRefresh}
+          onUserPress={() => setUserModalVisible(true)}
+        />
+        <ModalHeader visible={userModalVisible} onClose={() => setUserModalVisible(false)} userName={userName} role={userRole} />
+
+        {/* Filtros */}
+        <View style={styles.filtersGrid}>
+          <View style={styles.filterRow}>
+            <View style={[styles.inputGroup, styles.flex1]}>
+              <Text style={styles.label}>Centro (opcional)</Text>
+              <TextInput value={centro} onChangeText={setCentro} placeholder="Ej: LAM310" style={styles.input} returnKeyType="search" onSubmitEditing={onRefresh}/>
+            </View>
+          </View>
+          <View style={[styles.filterRow,{alignItems:'center'}]}>
+            <View style={[styles.inputGroup, styles.flex1]}>
+              <Text style={styles.label}>Buscar (nombre / documento / licencia / centro / teléfono)</Text>
+              <TextInput value={query} onChangeText={setQuery} placeholder="Ej: Juan Pérez · B · 12345678" style={styles.input} returnKeyType="search"/>
+            </View>
+          </View>
+          <View style={[styles.filterRow, {marginTop:2}]}>
+            {(['Activos','Todos'] as const).map(opt => (
+              <Pressable
+                key={opt}
+                onPress={() => setSoloActivos(opt==='Activos' ? (soloActivos===true? null : true) : null)}
+                style={[styles.chip, (opt==='Activos' ? soloActivos===true : soloActivos===null) && styles.chipActive]}
+              >
+                <Text style={[styles.chipText, (opt==='Activos' ? soloActivos===true : soloActivos===null) && styles.chipTextActive]}>
+                  {opt}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {/* CRUD */}
+          <View style={styles.crudRow}>
+            <TouchableOpacity style={[styles.crudBtn, styles.create]} onPress={actionCrear}>
+              <Ionicons name="add-circle-outline" size={22} /><Text style={styles.crudText}>Crear</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.crudBtn, styles.update]} onPress={actionActualizar}>
+              <Ionicons name="create-outline" size={22} /><Text style={styles.crudText}>Actualizar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.crudBtn, styles.delete]} onPress={actionEliminar}>
+              <Ionicons name="trash-outline" size={22} /><Text style={styles.crudText}>Eliminar</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.crudRow}>
+            <TouchableOpacity style={[styles.crudBtn, styles.read]} onPress={actionImportar}>
+              <Ionicons name="cloud-download-outline" size={22} /><Text style={styles.crudText}>Importar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.crudBtn, styles.read]} onPress={actionExportar}>
+              <Ionicons name="cloud-upload-outline" size={22} /><Text style={styles.crudText}>Exportar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Modal placeholder */}
+        <Modal visible={crudModal!==null} animationType="slide" onRequestClose={()=>setCrudModal(null)}>
+          <View style={styles.fullModal}>
+            <Ionicons
+              name={
+                crudModal==='crear'?'add-circle-outline':
+                crudModal==='actualizar'?'create-outline':
+                crudModal==='eliminar'?'trash-outline':
+                crudModal==='importar'?'cloud-download-outline':
+                'cloud-upload-outline'
+              } size={72} color="#2e78b7"/>
+            <Text style={styles.fullModalTitle}>
+              {crudModal==='crear'?'Crear conductor':
+               crudModal==='actualizar'?'Actualizar conductores':
+               crudModal==='eliminar'?'Eliminar conductores':
+               crudModal==='importar'?'Importar catálogo':'Exportar catálogo'}
+            </Text>
+            <Text style={styles.fullModalText}>Página en construcción</Text>
+            <Pressable onPress={()=>setCrudModal(null)} style={styles.closeFullBtn}>
+              <Ionicons name="close" size={18} color="#fff"/><Text style={styles.closeFullBtnText}>Cerrar</Text>
+            </Pressable>
+          </View>
+        </Modal>
+
+        {/* Lista */}
+        {loading ? (
+          <View style={styles.loadingPanel}>
+            <ActivityIndicator size="large"/><Text style={styles.loadingText}>Cargando {Math.round(loadPct)}%</Text>
+            <View style={styles.progressBarOuter}><View style={[styles.progressBarInner,{width:`${Math.round(loadPct)}%`}]} /></View>
+          </View>
+        ) : (
+          <FlatList
+            data={filtered}
+            keyExtractor={(it)=>String(it.id)}
+            contentContainerStyle={{paddingHorizontal:10,paddingBottom:24}}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            ListHeaderComponent={<View style={styles.listHeader}><Text style={styles.listHeaderText}>Conductores: <Text style={styles.bold}>{filtered.length}</Text></Text></View>}
+            ListEmptyComponent={<Text style={styles.empty}>Sin conductores para mostrar.</Text>}
+            renderItem={({item})=>(
+              <TouchableOpacity style={[styles.card, styles.cardShadow]}>
+                <View style={styles.cardHead}>
+                  <Text style={styles.title}>{item.nombre}</Text>
+                  <Text style={styles.badge}>{item.activo===false?'INACTIVO':'ACTIVO'}</Text>
+                </View>
+                <Text style={styles.sub}>
+                  {item.codigo ? `Cod: ${item.codigo} · ` : ''}{item.documento ? `Doc: ${item.documento} · ` : ''}{item.licencia_tipo ? `Lic.: ${item.licencia_tipo}` : 'Lic.: —'}
+                </Text>
+                <Text style={styles.sub}>
+                  {item.telefono ? `Tel: ${item.telefono} · ` : ''}{item.email ? `Email: ${item.email} · ` : ''}{item.centro ? `Centro: ${item.centro}` : ''}
+                </Text>
+                {item.notas ? <Text style={styles.notes}>Notas: {item.notas}</Text> : null}
+              </TouchableOpacity>
+            )}
+          />
+        )}
+      </SafeAreaViewSA>
+    </SafeAreaProvider>
+  );
+}
+
+const styles = StyleSheet.create({
+  container:{flex:1, backgroundColor:'#f3f4f6'},
+  filtersGrid:{paddingHorizontal:12, paddingTop:10},
+  filterRow:{flexDirection:'row', gap:10, marginBottom:10},
+  inputGroup:{gap:6},
+  label:{fontSize:12, color:'#4b5563'},
+  input:{borderWidth:1, borderColor:'#e5e7eb', backgroundColor:'#fff', borderRadius:8, paddingHorizontal:12, height:40},
+
+  chip:{backgroundColor:'#eef2ff', paddingHorizontal:10, paddingVertical:8, borderRadius:999, marginRight:8, borderWidth:1, borderColor:'#6366f133'},
+  chipActive:{backgroundColor:'#2e78b7'},
+  chipText:{color:'#374151', fontWeight:'600'},
+  chipTextActive:{color:'#fff'},
+
+  crudRow:{flexDirection:'row', gap:10, paddingHorizontal:12, marginBottom:8},
+  crudBtn:{flex:1, height:44, borderRadius:10, alignItems:'center', justifyContent:'center', flexDirection:'row', gap:8, borderWidth:1},
+  crudText:{fontWeight:'600', color:'#374151'},
+  create:{backgroundColor:'#ecfdf5', borderColor:'#10b98133'},
+  read:{backgroundColor:'#eef2ff', borderColor:'#6366f133'},
+  update:{backgroundColor:'#fff7ed', borderColor:'#f59e0b33'},
+  delete:{backgroundColor:'#fef2f2', borderColor:'#ef444433'},
+
+  fullModal:{flex:1, alignItems:'center', justifyContent:'center', gap:14, padding:24, backgroundColor:'#f8fafc'},
+  fullModalTitle:{fontSize:20, fontWeight:'700', color:'#111827'},
+  fullModalText:{fontSize:16, color:'#334155'},
+  closeFullBtn:{marginTop:10, backgroundColor:'#2e78b7', paddingHorizontal:16, paddingVertical:10, borderRadius:10, flexDirection:'row', gap:8, alignItems:'center'},
+  closeFullBtnText:{color:'#fff', fontWeight:'700'},
+
+  listHeader:{paddingHorizontal:10, paddingVertical:6},
+  listHeaderText:{color:'#334155'},
+  bold:{fontWeight:'700'},
+  empty:{textAlign:'center', color:'#6b7280', paddingVertical:24},
+  card:{backgroundColor:'#fff', borderRadius:12, padding:14, marginBottom:10},
+  cardShadow:{shadowColor:'#000', shadowOffset:{width:0, height:2}, shadowOpacity:0.08, shadowRadius:4, elevation:3},
+  cardHead:{flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom:6},
+  title:{fontWeight:'700', color:'#111827'},
+  sub:{color:'#475569'},
+  badge:{paddingHorizontal:8, paddingVertical:2, borderRadius:999, backgroundColor:'#e5f3fb', color:'#0c4a6e', fontWeight:'700', overflow:'hidden'},
+  notes:{marginTop:6, color:'#64748b'},
+
+  loadingPanel:{padding:16, alignItems:'center', gap:10},
+  loadingText:{color:'#334155'},
+  progressBarOuter:{width:'92%', height:8, borderRadius:8, backgroundColor:'#e5e7eb'},
+  progressBarInner:{height:8, borderRadius:8, backgroundColor:'#2e78b7'},
+
+  flex1:{flex:1},
+});
