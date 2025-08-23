@@ -40,7 +40,7 @@ module.exports = {
       allowOfflineMode: true    }
   },
   plugins: [
-    ...appJson.expo.plugins || [],
+    ...(appJson.expo.plugins || []),
     // Agregar plugin para asegurar la correcta configuración de Gradle
     ["expo-build-properties", {
       "android": {
