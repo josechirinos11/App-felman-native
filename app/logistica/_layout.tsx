@@ -1,6 +1,7 @@
 // app/optima/_layout.tsx
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
+
 import { useColorScheme } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';
 

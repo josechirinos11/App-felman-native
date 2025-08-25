@@ -1,5 +1,6 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { SplashScreen, Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, View } from 'react-native';
 
@@ -122,7 +123,8 @@ export default function RootLayout() {
   };
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={DefaultTheme}> {/* SIEMPRE usar tema claro */}
+      <StatusBar style="dark" backgroundColor="#ffffff" /> {/* StatusBar fija */}
       <ConnectionModal 
         isVisible={showConnectionModal}
         onRetry={handleRetryConnection}

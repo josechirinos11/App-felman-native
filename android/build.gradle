@@ -19,13 +19,6 @@ def reactNativeAndroidDir = new File(
   }.standardOutput.asText.get().trim(),
   "../android"
 )
-ext {
-    compileSdkVersion = 35
-    targetSdkVersion  = 34  // Mantenemos targetSdk en 34 por compatibilidad
-    minSdkVersion     = 24    // mantén la que ya tuvieras
-    kotlinVersion     = "2.0.21"  // si lo necesitas
-    // cualquier otra variable global que uses
-}
 
 allprojects {
   repositories {
@@ -42,3 +35,6 @@ allprojects {
 
 apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"
+
+// FORZAR NDK 25.2.9519653 para resolver problemas de C++ linking
+rootProject.ext.ndkVersion = "25.2.9519653"

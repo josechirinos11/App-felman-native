@@ -1,28 +1,102 @@
-const fs = require('fs');
-const path = require('path');
-
-// Leer el archivo app.json existente
-const appJsonPath = path.join(__dirname, 'app.json');
-const appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf8'));
-
-// Configuración extendida
 module.exports = {
-  ...appJson.expo,
-  // Asegurar que se incluye la version del app
-  version: appJson.expo.version || "1.0.0",
-  // Asegurar que el id de iOS está presente
+  name: "Felman",
+  slug: "appNativeFelman",
+  version: "1.0.0",
+  orientation: "portrait",
+  icon: "./assets/images/felmalogo.png",
+  scheme: "appnativefelman",
+  userInterfaceStyle: "automatic",
+  newArchEnabled: false,
+  
   ios: {
-    ...appJson.expo.ios,
+    supportsTablet: true,
     bundleIdentifier: "com.felman.appfelmannative",
-  },  // Configuración para EAS Build
+    config: {
+      googleMapsApiKey: "AIzaSyAEWw8B6utUMKBNmeou8EAovnWRGLxldGs"
+    },
+    infoPlist: {
+      NSLocationWhenInUseUsageDescription: "Esta aplicación necesita acceder a tu ubicación para mostrarte información relevante en el mapa.",
+      NSLocationAlwaysAndWhenInUseUsageDescription: "Esta aplicación necesita acceder a tu ubicación en segundo plano para proporcionar seguimiento continuo.",
+      UIBackgroundModes: ["location"]
+    }
+  },
+  
+  android: {
+    package: "com.felman.appfelmannative",
+    versionCode: 1,
+    icon: "./assets/images/felmalogo.png",
+    adaptiveIcon: {
+      foregroundImage: "./assets/images/adaptive-icon.png",
+      backgroundColor: "#ffffff"
+    },
+    permissions: [
+      "ACCESS_COARSE_LOCATION",
+      "ACCESS_FINE_LOCATION",
+      "ACCESS_BACKGROUND_LOCATION",
+      "FOREGROUND_SERVICE"
+    ],
+    config: {
+      googleMaps: {
+        apiKey: "AIzaSyAEWw8B6utUMKBNmeou8EAovnWRGLxldGs"
+      }
+    },
+    edgeToEdgeEnabled: true
+  },
+  
+  web: {
+    bundler: "metro",
+    output: "static",
+    favicon: "./assets/images/favicon.png",
+    config: {
+      apiKey: "AIzaSyAEWw8B6utUMKBNmeou8EAovnWRGLxldGs"
+    }
+  },
+  
+  plugins: [
+    "expo-router",
+    [
+      "expo-splash-screen",
+      {
+        image: "./assets/images/splash-icon.png",
+        imageWidth: 200,
+        resizeMode: "contain",
+        backgroundColor: "#ffffff"
+      }
+    ],
+    [
+      "expo-location",
+      {
+        locationAlwaysAndWhenInUsePermission: "Permitir a Felman acceder a tu ubicación.",
+        isAndroidBackgroundLocationEnabled: true
+      }
+    ],
+    // Plugin para configuración de Gradle
+    ["expo-build-properties", {
+      android: {
+        compileSdkVersion: 35,
+        targetSdkVersion: 35,
+        buildToolsVersion: "35.0.0",
+        ndkVersion: "25.2.9519653",
+        enableProguardInReleaseBuilds: false,
+        enableShrinkResourcesInReleaseBuilds: false
+      }
+    }]
+  ],
+  
+  experiments: {
+    typedRoutes: true
+  },
+  
   extra: {
-    ...appJson.expo.extra,
+    router: {},
     eas: {
-      ...((appJson.expo.extra || {}).eas || {}),
       projectId: "d9cc1079-ff52-4783-861c-f5242470ab58"
     },
-    // Asegurar que la URL de la API esté disponible incluso si la variable de entorno no está definida
+    googleMapsApiKey: "AIzaSyAEWw8B6utUMKBNmeou8EAovnWRGLxldGs",
+    
+    // Configuración de API con fallback
     apiUrl: process.env.EXPO_PUBLIC_API_URL || "http://85.59.105.234:3000",
+    
     // Configuración de red
     network: {
       timeouts: {
@@ -34,22 +108,8 @@ module.exports = {
         default: 2,
         authentication: 3
       },
-      // Lista de endpoints críticos que necesitan funcionar
       criticalEndpoints: ['/auth', '/control-access'],
-      // Si true, permite operar algunas funcionalidades en modo offline
-      allowOfflineMode: true    }
-  },
-  plugins: [
-    ...(appJson.expo.plugins || []),
-    // Agregar plugin para asegurar la correcta configuración de Gradle
-    ["expo-build-properties", {
-      "android": {
-        "compileSdkVersion": 34,
-        "targetSdkVersion": 34,
-        "buildToolsVersion": "34.0.0",
-        "enableProguardInReleaseBuilds": false,
-        "enableShrinkResourcesInReleaseBuilds": false
-      }
-    }]
-  ]
+      allowOfflineMode: true
+    }
+  }
 };

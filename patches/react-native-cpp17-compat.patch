@@ -1,0 +1,15 @@
+# Parches de compatibilidad C++17 para React Native 0.79.5
+
+# 1. std::identity replacement
+function(add_cpp17_compat_flags target)
+    target_compile_definitions(${target} PRIVATE
+        -DSTD_IDENTITY_COMPAT=1
+    )
+    target_compile_options(${target} PRIVATE
+        -Wno-error=unknown-pragmas
+        -Wno-error=unused-function
+    )
+endfunction()
+
+# 2. concept keyword replacement (disable for C++17)
+add_definitions(-DCONCEPT_DISABLED=1)

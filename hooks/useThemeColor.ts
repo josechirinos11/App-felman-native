@@ -3,14 +3,14 @@
  * https://docs.expo.dev/guides/color-schemes/
  */
 
-import { Colors } from '@/constants/Colors';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { Colors, COLORS } from '@/constants/Colors';
 
 export function useThemeColor(
   props: { light?: string; dark?: string },
   colorName: keyof typeof Colors.light & keyof typeof Colors.dark
 ) {
-  const theme = useColorScheme() ?? 'light';
+  // FORZAR SIEMPRE MODO CLARO - IGNORAR TEMA DEL SISTEMA
+  const theme = 'light'; // Siempre usar modo claro
   const colorFromProps = props[theme];
 
   if (colorFromProps) {
@@ -18,4 +18,9 @@ export function useThemeColor(
   } else {
     return Colors[theme][colorName];
   }
+}
+
+// Hook alternativo para usar SIEMPRE tus colores personalizados
+export function useAppColors() {
+  return COLORS; // Siempre retorna tus colores fijos
 }
