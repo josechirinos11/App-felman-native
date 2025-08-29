@@ -31,6 +31,8 @@ export default function LoginScreen() {
       return;
     }
     
+    console.log('🔐 Intentando login con nombre:', email);
+    
     setLoading(true);
     setError('');
     
@@ -159,11 +161,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 30,
     elevation: 3,
-    // Shadow for iOS
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    // Shadow for iOS and Web
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
   },
   logo: {
     width: 120,
@@ -189,11 +188,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     paddingVertical: 5,
     elevation: 3,
-    // Shadow for iOS
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    // Shadow for iOS and Web
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
   },
   input: {    height: 50,
     color: '#2e78b7',
@@ -208,11 +204,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
     elevation: 3,
-    // Shadow for iOS
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    // Shadow for iOS and Web
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
   },
   buttonDisabled: {
     opacity: 0.7,

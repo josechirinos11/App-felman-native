@@ -3,15 +3,15 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    Modal,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView as SafeAreaViewSA } from 'react-native-safe-area-context';
 
@@ -111,25 +111,56 @@ export default function DespachoSalidasScreen() {
     setLoadPct(10);
 
     try {
-      // Rutas planificadas aprobadas (listas para despachar)
+      // Rutas planificadas aprobadas (listas para despachar) - con manejo mejorado de errores
       const r1 = await fetch(ENDPOINTS.rutasPlan + (centro ? `&centro=${encodeURIComponent(centro)}` : ''), { signal: controller.signal });
       setLoadPct(40);
-      const ok1 = r1.ok;
-      const j1 = await r1.json();
-      if (!ok1) throw new Error(j1?.message || `Rutas HTTP ${r1.status}`);
+      
+      let j1;
+      try {
+        const text1 = await r1.text();
+        if (!text1 || text1.trim().startsWith('<')) {
+          throw new Error('Backend no disponible');
+        }
+        j1 = JSON.parse(text1);
+      } catch (parseError: any) {
+        if (parseError?.message === 'Backend no disponible') {
+          throw parseError;
+        }
+        throw new Error(`Respuesta inválida del servidor de rutas`);
+      }
+      
+      if (!r1.ok) throw new Error(j1?.message || `Rutas HTTP ${r1.status}`);
       setRutas(Array.isArray(j1) ? j1 : []);
 
-      // Salidas del día (programadas/en curso/cerradas)
+      // Salidas del día (programadas/en curso/cerradas) - con manejo mejorado de errores
       const r2 = await fetch(ENDPOINTS.salidas + (centro ? `&centro=${encodeURIComponent(centro)}` : ''), { signal: controller.signal });
       setLoadPct(75);
-      const ok2 = r2.ok;
-      const j2 = await r2.json();
-      if (!ok2) throw new Error(j2?.message || `Salidas HTTP ${r2.status}`);
+      
+      let j2;
+      try {
+        const text2 = await r2.text();
+        if (!text2 || text2.trim().startsWith('<')) {
+          throw new Error('Backend no disponible');
+        }
+        j2 = JSON.parse(text2);
+      } catch (parseError: any) {
+        if (parseError?.message === 'Backend no disponible') {
+          throw parseError;
+        }
+        throw new Error(`Respuesta inválida del servidor de salidas`);
+      }
+      
+      if (!r2.ok) throw new Error(j2?.message || `Salidas HTTP ${r2.status}`);
       setSalidas(Array.isArray(j2) ? j2 : []);
 
       setServerReachable(true);
-    } catch (e) {
-      console.error('[despacho-salidas] fetchAll error:', e);
+    } catch (e: any) {
+      // Solo logear errores detallados si no es el error conocido de backend no disponible
+      if (e?.message?.includes('Backend no disponible')) {
+        console.log('[despacho-salidas] Backend no disponible - mostrando mensaje al usuario');
+      } else {
+        console.error('[despacho-salidas] fetchAll error:', e);
+      }
       setServerReachable(false);
       setRutas([]);
       setSalidas([]);
@@ -198,15 +229,35 @@ export default function DespachoSalidasScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await res.json().catch(() => ({}));
+      
+      let data;
+      try {
+        const text = await res.text();
+        if (!text || text.trim().startsWith('<')) {
+          throw new Error('Backend no disponible');
+        }
+        data = JSON.parse(text);
+      } catch (parseError: any) {
+        if (parseError?.message === 'Backend no disponible') {
+          console.log(`[${action.toUpperCase()}] Backend no disponible - endpoint no implementado`);
+          return;
+        }
+        throw new Error(`Respuesta inválida del servidor para ${action}`);
+      }
+      
       if (!res.ok) {
-        console.error(`${action.toUpperCase()} error:`, data);
+        console.error(`${action.toUpperCase()} error:`, data?.message || `HTTP ${res.status}`);
         return;
       }
       console.log(`${action.toUpperCase()} ok (placeholder):`, data);
       // opcional: onRefresh();
-    } catch (e) {
-      console.error(`${action.toUpperCase()} exception:`, e);
+    } catch (e: any) {
+      // Solo logear errores detallados si no es el error conocido de backend no disponible
+      if (e?.message?.includes('Backend no disponible')) {
+        console.log(`[${action.toUpperCase()}] Endpoint no implementado en el backend`);
+      } else {
+        console.error(`${action.toUpperCase()} exception:`, e?.message || e);
+      }
     }
   }, [centro, turno, rutasFiltered, salidasFiltered]);
 
@@ -260,39 +311,72 @@ export default function DespachoSalidasScreen() {
             </View>
           </View>
 
-          {/* Turno (chips) */}
-          <View style={[styles.filterRow, { marginTop: 2 }]}>
-            {(['M','T','N'] as Turno[]).map(t => (
-              <Pressable
-                key={t}
-                onPress={() => setTurno(prev => prev === t ? null : t)}
-                style={[styles.chip, turno === t && styles.chipActive]}
-              >
-                <Text style={[styles.chipText, turno === t && styles.chipTextActive]}>
-                  {t === 'M' ? 'Turno Mañana' : t === 'T' ? 'Turno Tarde' : 'Turno Noche'}
-                </Text>
-              </Pressable>
-            ))}
+          {/* Turno (chips) - Divididos en 2 filas */}
+          <Text style={styles.sectionLabel}>Filtro por turno:</Text>
+          <View style={styles.chipContainer}>
+            <View style={styles.chipRow}>
+              {(['M','T'] as Turno[]).map(t => (
+                <Pressable
+                  key={t}
+                  onPress={() => setTurno(prev => prev === t ? null : t)}
+                  style={[styles.chip, turno === t && styles.chipActive]}
+                >
+                  <Text style={[styles.chipText, turno === t && styles.chipTextActive]}>
+                    {t === 'M' ? 'Turno Mañana' : 'Turno Tarde'}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <View style={styles.chipRow}>
+              {(['N'] as Turno[]).map(t => (
+                <Pressable
+                  key={t}
+                  onPress={() => setTurno(prev => prev === t ? null : t)}
+                  style={[styles.chip, turno === t && styles.chipActive]}
+                >
+                  <Text style={[styles.chipText, turno === t && styles.chipTextActive]}>
+                    Turno Noche
+                  </Text>
+                </Pressable>
+              ))}
+              {/* Espacio vacío para mantener la simetría */}
+              <View style={[styles.chip, { opacity: 0 }]}>
+                <Text style={styles.chipText}>Placeholder</Text>
+              </View>
+            </View>
           </View>
 
-          {/* Acciones (CRUD suaves) */}
-          <View style={styles.crudRow}>
-            <TouchableOpacity style={[styles.crudBtn, styles.create]} onPress={() => doAction('programar')}>
-              <Ionicons name="calendar-outline" size={22} />
-              <Text style={styles.crudText}>Programar</Text>
+          {/* Acciones - Una sola fila más espaciada */}
+          <Text style={styles.sectionLabel}>Acciones:</Text>
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={[styles.actionBtn, styles.config]} onPress={() => doAction('programar')}>
+              <Ionicons name="calendar-outline" size={20} />
+              <Text style={styles.actionText}>Programar</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.crudBtn, styles.update]} onPress={() => doAction('iniciar')}>
-              <Ionicons name="play-outline" size={22} />
-              <Text style={styles.crudText}>Iniciar</Text>
+            <TouchableOpacity style={[styles.actionBtn, styles.settings]} onPress={() => doAction('iniciar')}>
+              <Ionicons name="play-outline" size={20} />
+              <Text style={styles.actionText}>Iniciar</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.crudBtn, styles.read]} onPress={() => doAction('cerrar')}>
-              <Ionicons name="checkmark-done-outline" size={22} />
-              <Text style={styles.crudText}>Cerrar</Text>
+            <TouchableOpacity style={[styles.actionBtn, styles.simulate]} onPress={() => doAction('cerrar')}>
+              <Ionicons name="checkmark-done-outline" size={20} color="#fff" />
+              <Text style={styles.simulateText}>Cerrar</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.crudBtn, styles.delete]} onPress={() => doAction('incidencia')}>
-              <Ionicons name="alert-circle-outline" size={22} />
-              <Text style={styles.crudText}>Incidencia</Text>
+          </View>
+          
+          {/* Segunda fila de acciones */}
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={[styles.actionBtn, styles.incidencia]} onPress={() => doAction('incidencia')}>
+              <Ionicons name="alert-circle-outline" size={20} />
+              <Text style={styles.actionText}>Incidencia</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={[styles.actionBtn, styles.config]} onPress={() => doAction('config')}>
+              <Ionicons name="options-outline" size={20} />
+              <Text style={styles.actionText}>Config</Text>
+            </TouchableOpacity>
+            {/* Espacio vacío para mantener distribución */}
+            <View style={[styles.actionBtn, { opacity: 0 }]}>
+              <Text style={styles.actionText}>Placeholder</Text>
+            </View>
           </View>
         </View>
 
@@ -335,10 +419,29 @@ export default function DespachoSalidasScreen() {
               <View style={[styles.progressBarInner, { width: `${Math.max(0, Math.min(100, loadPct))}%` }]} />
             </View>
           </View>
+        ) : !serverReachable ? (
+          <View style={styles.errorPanel}>
+            <Ionicons name="cloud-offline-outline" size={64} color="#dc3545" />
+            <Text style={styles.errorTitle}>Sin conexión con el backend</Text>
+            <Text style={styles.errorText}>
+              No se pudo obtener información de rutas y salidas.{'\n'}
+              Verifique que el servidor backend esté funcionando.
+            </Text>
+            <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
+              <Ionicons name="refresh-outline" size={20} color="#fff" />
+              <Text style={styles.retryButtonText}>Reintentar</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <FlatList
             data={[{_header:true}, ...rutasFiltered, {_divider:true}, ...salidasFiltered]}
-            keyExtractor={(item, idx) => String((item as any).id ?? (item as any)._header ?? (item as any)._divider ?? idx)}
+            keyExtractor={(item, idx) => {
+              const it: any = item;
+              if (it._header) return 'header-unique';
+              if (it._divider) return 'divider-unique';
+              if (it.id) return `item-${it.id}`;
+              return `fallback-${idx}`;
+            }}
             contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 24 }}
             refreshing={refreshing}
             onRefresh={onRefresh}
@@ -474,6 +577,105 @@ const styles = StyleSheet.create({
   loadingText: { color: '#334155' },
   progressBarOuter: { width: '92%', height: 8, borderRadius: 8, backgroundColor: '#e5e7eb' },
   progressBarInner: { height: 8, borderRadius: 8, backgroundColor: '#2e78b7' },
+
+  // error panel
+  errorPanel: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    padding: 40,
+    backgroundColor: '#f8f9fa'
+  },
+  errorTitle: { 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    color: '#dc3545', 
+    marginTop: 16, 
+    marginBottom: 8, 
+    textAlign: 'center' 
+  },
+  errorText: { 
+    fontSize: 14, 
+    color: '#6c757d', 
+    textAlign: 'center', 
+    lineHeight: 20,
+    marginBottom: 24 
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#007bff',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  // Nuevos estilos para mejor organización
+  sectionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+    marginTop: 12,
+    paddingHorizontal: 12,
+  },
+  chipContainer: {
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  actionBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    borderWidth: 1,
+  },
+  actionText: {
+    fontWeight: '600',
+    color: '#374151',
+    fontSize: 13,
+  },
+  config: {
+    backgroundColor: '#ecfdf5',
+    borderColor: '#10b98133',
+  },
+  settings: {
+    backgroundColor: '#eef2ff',
+    borderColor: '#6366f133',
+  },
+  simulate: {
+    backgroundColor: '#2e78b7',
+    borderColor: '#2e78b7',
+  },
+  simulateText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  incidencia: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#ef444433',
+  },
 
   // utils
   flex1: { flex: 1 },

@@ -3,7 +3,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -20,18 +20,35 @@ interface MenuItem {
   route: RouteNames;
 }
 
-const menuItems: MenuItem[] = [
-   { id: 10, title: 'Atras', icon: 'arrow-back-outline', route: '/' },
-  { id: 1, title: 'Asignación Vehículo–Chofer', icon: 'swap-horizontal-outline', route: '/logistica/asignacion-vehiculo' },
-  { id: 2, title: 'Optimización de Carga', icon: 'cube-outline', route: '/logistica/optimizacion-carga' },
-  { id: 3, title: 'Planificación de Rutas', icon: 'map-outline', route: '/logistica/planificacion-rutas' },
-  { id: 4, title: 'Despacho y Salidas', icon: 'send-outline', route: '/logistica/despacho-salidas' },
-  { id: 5, title: 'Seguimiento en Tiempo Real', icon: 'locate-outline', route: '/logistica/seguimiento' },
-  { id: 6, title: 'Integración y Gestión', icon: 'list-outline', route: '/logistica/integracion-gestion' },
-  { id: 7, title: 'Incidencias y Reentregas', icon: 'alert-circle-outline', route: '/logistica/incidencias' },
-  { id: 8, title: 'Catálogo de Vehículos', icon: 'car-outline', route: '/logistica/vehiculos' },
-  { id: 9, title: 'Conductores', icon: 'person-outline', route: '/logistica/conductores' },
-];
+// Generar menú dinámico basado en la plataforma
+const getMenuItems = (): MenuItem[] => {
+  const baseItems: MenuItem[] = [
+    { id: 10, title: 'Atras', icon: 'arrow-back-outline', route: '/' },
+    { id: 1, title: 'Asignación Vehículo–Chofer', icon: 'swap-horizontal-outline', route: '/logistica/asignacion-vehiculo' },
+    { id: 2, title: 'Optimización de Carga', icon: 'cube-outline', route: '/logistica/optimizacion-carga' },
+    { id: 3, title: 'Planificación de Rutas', icon: 'map-outline', route: '/logistica/planificacion-rutas' },
+    { id: 4, title: 'Despacho y Salidas', icon: 'send-outline', route: '/logistica/despacho-salidas' },
+  ];
+
+  // Agregar seguimiento según la plataforma
+  if (Platform.OS === 'web') {
+    baseItems.push({ id: 5, title: 'Seguimiento Web', icon: 'desktop-outline', route: '/logistica/seguimiento-web' });
+  } else {
+    baseItems.push({ id: 11, title: 'Seguimiento Móvil', icon: 'phone-portrait-outline', route: '/logistica/seguimiento-movil' });
+  }
+
+  // Agregar elementos restantes
+  baseItems.push(
+    { id: 6, title: 'Integración y Gestión', icon: 'list-outline', route: '/logistica/integracion-gestion' },
+    { id: 7, title: 'Incidencias y Reentregas', icon: 'alert-circle-outline', route: '/logistica/incidencias' },
+    { id: 8, title: 'Catálogo de Vehículos', icon: 'car-outline', route: '/logistica/vehiculos' },
+    { id: 9, title: 'Conductores', icon: 'person-outline', route: '/logistica/conductores' }
+  );
+
+  return baseItems;
+};
+
+const menuItems: MenuItem[] = getMenuItems();
 
 interface UserData {
   id: number;
@@ -148,10 +165,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
   },
   menuText: { marginTop: 8, textAlign: 'center', fontSize: 14, fontWeight: '500', color: '#4a5568' },
 });

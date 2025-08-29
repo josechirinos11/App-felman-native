@@ -45,22 +45,7 @@ export default function OptimaTabLayout() {
       />
 
       {/* ====== NUEVAS VISTAS ====== */}
-      <Tabs.Screen
-        name="terminales"
-        options={{
-           href: null,
-          title: 'Terminales',
-          tabBarIcon: ({ color }) => <TabBarIcon name="tv-outline" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="operarios"
-        options={{
-           href: null,
-          title: 'Operarios',
-          tabBarIcon: ({ color }) => <TabBarIcon name="people-outline" color={color} />,
-        }}
-      />
+    
       <Tabs.Screen
         name="piezas-maquina"
         options={{
@@ -68,50 +53,7 @@ export default function OptimaTabLayout() {
           tabBarIcon: ({ color }) => <TabBarIcon name="analytics-outline" color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="trabajos-maquina"
-        options={{
-           href: null,
-          title: 'Trabajos/Máquina',
-          tabBarIcon: ({ color }) => <TabBarIcon name="list-outline" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="estado-pedidos"
-        options={{
-           href: null,
-          title: 'Pedidos',
-          tabBarIcon: ({ color }) => <TabBarIcon name="receipt-outline" color={color} />,
-        }}
-      />
-
-      {/* ====== VISTAS VIEJAS (OCULTAS) ====== */}
-      <Tabs.Screen
-        name="control-terminales"
-        options={{ href: null, title: 'Terminales (old)' }}
-      />
-      <Tabs.Screen
-        name="control-operarios"
-        options={{ href: null, title: 'Operarios (old)' }}
-      />
-      <Tabs.Screen
-        name="control-dashboard-barcoder"
-        options={{ href: null, title: 'Barcoder (old)' }}
-      />
-      <Tabs.Screen
-        name="control-dashboard-barcoder-det"
-        options={{ href: null, title: 'Barcoder Det (old)' }}
-      />
-      <Tabs.Screen
-        name="control-dashboard-barcoder-order"
-        options={{ href: null, title: 'Pedidos (old)' }}
-      />
-
-      {/* Si tenías algo como "inicio-tabs" para pruebas, también oculto */}
-      <Tabs.Screen
-        name="inicio-tabs"
-        options={{ href: null, title: 'inicio' }}
-      />
+     
 
       {/* Ajustes (si lo activas en el futuro) */}
       {/*

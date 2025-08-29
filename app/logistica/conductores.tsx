@@ -3,7 +3,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View,
+  ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView as SafeAreaViewSA } from 'react-native-safe-area-context';
 
@@ -80,12 +80,31 @@ export default function ConductoresScreen() {
       ].filter(Boolean).join('&');
       const r = await fetch(ENDPOINTS.list + (qs?`?${qs}`:''), { signal: controller.signal });
       setLoadPct(60);
-      const ok = r.ok; const j = await r.json();
-      if (!ok) throw new Error(j?.message || `Conductores HTTP ${r.status}`);
+      
+      let j;
+      try {
+        const text = await r.text();
+        if (!text || text.trim().startsWith('<')) {
+          throw new Error('Backend no disponible');
+        }
+        j = JSON.parse(text);
+      } catch (parseError: any) {
+        if (parseError?.message === 'Backend no disponible') {
+          throw parseError;
+        }
+        throw new Error(`Respuesta inválida del servidor de conductores`);
+      }
+      
+      if (!r.ok) throw new Error(j?.message || `Conductores HTTP ${r.status}`);
       setRows(Array.isArray(j) ? j : []);
       setServerReachable(true);
-    } catch (e) {
-      console.error('[conductores] fetchAll error:', e);
+    } catch (e: any) {
+      // Solo logear errores detallados si no es el error conocido de backend no disponible
+      if (e?.message?.includes('Backend no disponible')) {
+        console.log('[conductores] Backend no disponible - mostrando mensaje al usuario');
+      } else {
+        console.error('[conductores] fetchAll error:', e);
+      }
       setRows([]); setServerReachable(false);
     } finally {
       setLoadPct(100); setTimeout(()=>setLoadPct(0),600);
@@ -115,10 +134,36 @@ export default function ConductoresScreen() {
   const postAction = async (url: string, payload: any) => {
     try {
       const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-      const data = await r.json().catch(()=>({}));
-      if (!r.ok) { console.error('POST action error:', data); return { ok:false, data }; }
-      return { ok:true, data };
-    } catch (e) { console.error('POST action exception:', e); return { ok:false, data:null }; }
+      
+      let data;
+      try {
+        const text = await r.text();
+        if (!text || text.trim().startsWith('<')) {
+          throw new Error('Backend no disponible');
+        }
+        data = JSON.parse(text);
+      } catch (parseError: any) {
+        if (parseError?.message === 'Backend no disponible') {
+          console.log('[POST action] Backend no disponible - endpoint no implementado');
+          return { ok: false, data: null };
+        }
+        throw new Error(`Respuesta inválida del servidor`);
+      }
+      
+      if (!r.ok) {
+        console.error('POST action error:', data?.message || `HTTP ${r.status}`);
+        return { ok: false, data };
+      }
+      return { ok: true, data };
+    } catch (e: any) {
+      // Solo logear errores detallados si no es el error conocido de backend no disponible
+      if (e?.message?.includes('Backend no disponible')) {
+        console.log('[POST action] Endpoint no implementado en el backend');
+      } else {
+        console.error('POST action exception:', e?.message || e);
+      }
+      return { ok: false, data: null };
+    }
   };
   const actionCrear = async () => { setCrudModal('crear'); await postAction(ENDPOINTS.crear, { centro: centro || undefined }); };
   const actionActualizar = async () => { setCrudModal('actualizar'); await postAction(ENDPOINTS.actualizar, { ids: filtered.map(c=>c.id) }); };
@@ -170,24 +215,33 @@ export default function ConductoresScreen() {
             ))}
           </View>
 
-          {/* CRUD */}
-          <View style={styles.crudRow}>
-            <TouchableOpacity style={[styles.crudBtn, styles.create]} onPress={actionCrear}>
-              <Ionicons name="add-circle-outline" size={22} /><Text style={styles.crudText}>Crear</Text>
+          {/* CRUD - Acciones principales */}
+          <Text style={styles.sectionLabel}>Acciones sobre conductores:</Text>
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={[styles.actionBtn, styles.create]} onPress={actionCrear}>
+              <Ionicons name="add-circle-outline" size={20} />
+              <Text style={styles.actionText}>Crear</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.crudBtn, styles.update]} onPress={actionActualizar}>
-              <Ionicons name="create-outline" size={22} /><Text style={styles.crudText}>Actualizar</Text>
+            <TouchableOpacity style={[styles.actionBtn, styles.update]} onPress={actionActualizar}>
+              <Ionicons name="create-outline" size={20} />
+              <Text style={styles.actionText}>Actualizar</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.crudBtn, styles.delete]} onPress={actionEliminar}>
-              <Ionicons name="trash-outline" size={22} /><Text style={styles.crudText}>Eliminar</Text>
+            <TouchableOpacity style={[styles.actionBtn, styles.delete]} onPress={actionEliminar}>
+              <Ionicons name="trash-outline" size={20} />
+              <Text style={styles.actionText}>Eliminar</Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.crudRow}>
-            <TouchableOpacity style={[styles.crudBtn, styles.read]} onPress={actionImportar}>
-              <Ionicons name="cloud-download-outline" size={22} /><Text style={styles.crudText}>Importar</Text>
+
+          {/* Acciones de importación/exportación */}
+          <Text style={styles.sectionLabel}>Importar/Exportar:</Text>
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={[styles.actionBtn, styles.read]} onPress={actionImportar}>
+              <Ionicons name="cloud-download-outline" size={20} />
+              <Text style={styles.actionText}>Importar</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.crudBtn, styles.read]} onPress={actionExportar}>
-              <Ionicons name="cloud-upload-outline" size={22} /><Text style={styles.crudText}>Exportar</Text>
+            <TouchableOpacity style={[styles.actionBtn, styles.read]} onPress={actionExportar}>
+              <Ionicons name="cloud-upload-outline" size={20} />
+              <Text style={styles.actionText}>Exportar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -219,8 +273,24 @@ export default function ConductoresScreen() {
         {/* Lista */}
         {loading ? (
           <View style={styles.loadingPanel}>
-            <ActivityIndicator size="large"/><Text style={styles.loadingText}>Cargando {Math.round(loadPct)}%</Text>
-            <View style={styles.progressBarOuter}><View style={[styles.progressBarInner,{width:`${Math.round(loadPct)}%`}]} /></View>
+            <ActivityIndicator size="large"/>
+            <Text style={styles.loadingText}>Cargando {Math.max(0, Math.min(100, Math.round(loadPct)))}%</Text>
+            <View style={styles.progressBarOuter}>
+              <View style={[styles.progressBarInner,{width:`${Math.max(0, Math.min(100, loadPct))}%`}]} />
+            </View>
+          </View>
+        ) : !serverReachable ? (
+          <View style={styles.errorPanel}>
+            <Ionicons name="cloud-offline-outline" size={64} color="#dc3545" />
+            <Text style={styles.errorTitle}>Sin conexión con el backend</Text>
+            <Text style={styles.errorText}>
+              No se pudo obtener información de conductores.{'\n'}
+              Verifique que el servidor backend esté funcionando.
+            </Text>
+            <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
+              <Ionicons name="refresh-outline" size={20} color="#fff" />
+              <Text style={styles.retryButtonText}>Reintentar</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <FlatList
@@ -269,6 +339,37 @@ const styles = StyleSheet.create({
   crudRow:{flexDirection:'row', gap:10, paddingHorizontal:12, marginBottom:8},
   crudBtn:{flex:1, height:44, borderRadius:10, alignItems:'center', justifyContent:'center', flexDirection:'row', gap:8, borderWidth:1},
   crudText:{fontWeight:'600', color:'#374151'},
+
+  // Nuevos estilos para mejor organización
+  sectionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+    marginTop: 12,
+    paddingHorizontal: 12,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  actionBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    borderWidth: 1,
+  },
+  actionText: {
+    fontWeight: '600',
+    color: '#374151',
+    fontSize: 13,
+  },
   create:{backgroundColor:'#ecfdf5', borderColor:'#10b98133'},
   read:{backgroundColor:'#eef2ff', borderColor:'#6366f133'},
   update:{backgroundColor:'#fff7ed', borderColor:'#f59e0b33'},
@@ -296,6 +397,44 @@ const styles = StyleSheet.create({
   loadingText:{color:'#334155'},
   progressBarOuter:{width:'92%', height:8, borderRadius:8, backgroundColor:'#e5e7eb'},
   progressBarInner:{height:8, borderRadius:8, backgroundColor:'#2e78b7'},
+
+  // error panel
+  errorPanel: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    padding: 40,
+    backgroundColor: '#f8f9fa'
+  },
+  errorTitle: { 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    color: '#dc3545', 
+    marginTop: 16, 
+    marginBottom: 8, 
+    textAlign: 'center' 
+  },
+  errorText: { 
+    fontSize: 14, 
+    color: '#6c757d', 
+    textAlign: 'center', 
+    lineHeight: 20,
+    marginBottom: 24 
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#007bff',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
 
   flex1:{flex:1},
 });

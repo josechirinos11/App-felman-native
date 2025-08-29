@@ -3,15 +3,15 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    Modal,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView as SafeAreaViewSA } from 'react-native-safe-area-context';
 
@@ -97,7 +97,20 @@ export default function AsignacionVehiculoScreen() {
         });
         setLoadPct(50);
         setServerReachable(res.ok);
-        const data = await res.json();
+        
+        let data;
+        try {
+          const text = await res.text();
+          if (text.trim().startsWith('<')) {
+            // Es HTML (probablemente error del servidor)
+            throw new Error(`Server returned HTML instead of JSON. Status: ${res.status}`);
+          }
+          data = JSON.parse(text);
+        } catch (parseError) {
+          console.error('[asignacion-vehiculo] JSON parse error:', parseError);
+          throw new Error(`Invalid JSON response from server. Status: ${res.status}`);
+        }
+        
         setLoadPct(85);
 
         if (!res.ok) throw new Error(data?.message || `HTTP ${res.status}`);
@@ -191,19 +204,17 @@ export default function AsignacionVehiculoScreen() {
         {/* CRUD menú (colores claros + modal de pantalla completa “en construcción”) */}
         <View style={styles.crudRow}>
           <TouchableOpacity style={[styles.crudBtn, styles.create]} onPress={() => setCrudModal('create')}>
-            <Ionicons name="add-circle-outline" size={22} />
+            <Ionicons name="add-circle-outline" size={18} />
             <Text style={styles.crudText}>Crear</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.crudBtn, styles.read]} onPress={() => setCrudModal('read')}>
-            <Ionicons name="eye-outline" size={22} />
             <Text style={styles.crudText}>Consultar</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.crudBtn, styles.update]} onPress={() => setCrudModal('update')}>
-            <Ionicons name="create-outline" size={22} />
             <Text style={styles.crudText}>Actualizar</Text>
           </TouchableOpacity>
           <TouchableOpacity style={[styles.crudBtn, styles.delete]} onPress={() => setCrudModal('delete')}>
-            <Ionicons name="trash-outline" size={22} />
+            <Ionicons name="trash-outline" size={18} />
             <Text style={styles.crudText}>Eliminar</Text>
           </TouchableOpacity>
         </View>
@@ -301,12 +312,26 @@ const styles = StyleSheet.create({
   btnText: { color: '#fff', fontWeight: '700' },
 
   // CRUD
-  crudRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 12, marginBottom: 8 },
+  crudRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, marginBottom: 8 },
   crudBtn: {
-    flex: 1, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
-    flexDirection: 'row', gap: 8, borderWidth: 1,
+    flex: 1, 
+    minHeight: 50, 
+    borderRadius: 10, 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    flexDirection: 'row', 
+    gap: 6, 
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 8,
   },
-  crudText: { fontWeight: '600', color: '#374151' },
+  crudText: { 
+    fontWeight: '600', 
+    color: '#374151', 
+    fontSize: 12,
+    textAlign: 'center',
+    flexShrink: 1,
+  },
   create: { backgroundColor: '#ecfdf5', borderColor: '#10b98133' },   // verde claro
   read:   { backgroundColor: '#eef2ff', borderColor: '#6366f133' },   // índigo claro
   update: { backgroundColor: '#fff7ed', borderColor: '#f59e0b33' },   // ámbar claro

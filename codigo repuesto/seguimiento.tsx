@@ -3,21 +3,20 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View,
+  FlatList, Modal, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView as SafeAreaViewSA } from 'react-native-safe-area-context';
 
 import AppHeader from '../../components/AppHeader'; // Asumiendo que existe
-import MapViewUnified from '../../components/MapViewUnified';
+import MapViewUnified from '../../components/MapViewUnified-debug';
 import ModalHeader from '../../components/ModalHeader'; // Asumiendo que existe
-import { API_URL, WS_URL } from '../../config/constants';
-import { GOOGLE_MAPS_API_KEY } from '../../config/maps';
+import { API_URL } from '../../config/constants';
+import { getGoogleMapsApiKey } from '../../config/maps';
 
 import { PermissionsAndroid, Platform } from 'react-native';
 
 import * as Location from 'expo-location';
 
-import { safeFetchJson } from '../../utils/net';
 
 
 type Perm = 'idle' | 'checking' | 'granted' | 'denied';
@@ -61,14 +60,6 @@ const ENDPOINTS = {
   flota: `${API_URL}/control-optima/seguimiento/flota`,
   ruta: (routeId: string) => `${API_URL}/control-optima/seguimiento/ruta/${encodeURIComponent(routeId)}`,
   marcar: `${API_URL}/control-optima/seguimiento/marcar-entrega`,
-};
-
-const getGoogleMapsApiKey = () => {
-  return process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ||
-    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ||
-    process.env.REACT_APP_GOOGLE_MAPS_API_KEY ||
-    process.env.GOOGLE_MAPS_API_KEY ||
-    GOOGLE_MAPS_API_KEY || '';
 };
 
 export default function SeguimientoScreen() {
@@ -148,7 +139,9 @@ export default function SeguimientoScreen() {
 
   // === Inicialización de usuario ===
   useEffect(() => {
-    // requestLocationPermissions();
+    // Activar permisos de ubicación
+    requestLocationPermissions();
+    
     const loadUserData = async () => {
       try {
         const userData = await AsyncStorage.getItem('userData');
@@ -261,69 +254,68 @@ export default function SeguimientoScreen() {
     return null; // <-- clave
   };
 
-  // === Fetch de flota mejorado ===
+  // === Fetch de flota para refresh manual solamente ===
   const fetchFlota = useCallback(async () => {
-    if (loading && !refreshing) return;
+    if (loading) return; // Solo prevenir si ya está cargando
 
-    setLoading(true);
+    setRefreshing(true);
     setLoadPct(10);
 
     try {
-      const url = ENDPOINTS.flota + (centro ? `?centro=${encodeURIComponent(centro)}` : '');
-      const response = await fetch(url, {
-        headers: {
-          'Accept': 'application/json',
-
-        },
-      });
-
+      // Simulamos carga con timeout
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       setLoadPct(60);
 
-      if (!response.ok) {
-        throw new Error(`Error HTTP ${response.status}: ${response.statusText}`);
-      }
+      // Usar datos demo en lugar de llamadas al servidor
+      const demoFlota: VehicleDTO[] = [
+        {
+          id: 'VH001',
+          codigo: 'CAM001',
+          matricula: '1234-ABC',
+          conductor: 'Juan Pérez',
+          state: 'en_ruta',
+          lat: 39.4699075,
+          lng: -0.3762881,
+          routeId: 'RT001',
+          speed_kmh: 45,
+          centro: 'Valencia',
+          lastTs: Date.now(),
+        },
+        {
+          id: 'VH002',
+          codigo: 'FUR002',
+          matricula: '5678-DEF',
+          conductor: 'María García',
+          state: 'detenido',
+          lat: 39.4815,
+          lng: -0.3255,
+          routeId: 'RT002',
+          speed_kmh: 0,
+          centro: 'Valencia',
+          lastTs: Date.now(),
+        },
+      ];
 
-
-
-      const data = await safeFetchJson(ENDPOINTS.flota);
-      if (!data) {
-        failsRef.current += 1;
-        if (failsRef.current >= 3) {
-          setServerReachable(false);
-          // opcional: parar polling si no hay servidor
-          if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
-        }
-        return; // ⛔ no tocar flota ni initialRegion
-      }
-
-
-      failsRef.current = 0;
       setServerReachable(true);
 
-      const nueva = Array.isArray(data) ? data : [];
+      const nueva = demoFlota;
       if (!fleetsEqual(nueva, lastGoodFlotaRef.current)) {
         lastGoodFlotaRef.current = nueva;
         setFlota(nueva);
       }
 
-      const flotaData = Array.isArray(data) ? data : [];
-
-      setFlota(flotaData);
-      setServerReachable(true);
-
-      console.log(`[seguimiento] Flota actualizada: ${flotaData.length} vehículos`);
+      console.log(`[seguimiento] Flota demo actualizada manualmente: ${nueva.length} vehículos`);
 
     } catch (error) {
-      console.error('[seguimiento] Error al obtener flota:', error);
+      console.error('[seguimiento] Error al actualizar flota demo:', error);
       setServerReachable(false);
-      setFlota([]);
     } finally {
       setLoadPct(100);
       setTimeout(() => setLoadPct(0), 600);
-      setLoading(false);
       setRefreshing(false);
     }
-  }, [centro, loading, refreshing]);
+  }, []); // Sin dependencias para evitar recreación
 
   // === Fetch de ruta mejorado ===
   const fetchRoute = useCallback(async (routeId: string) => {
@@ -355,13 +347,83 @@ export default function SeguimientoScreen() {
     }
   }, []);
 
-  // === Carga inicial ===
+  // === Carga inicial (solo una vez) ===
   useEffect(() => {
-    fetchFlota();
-  }, [fetchFlota]);
+    // Llamada inicial sin dependencias para evitar bucle infinito
+    const loadInitialData = async () => {
+      console.log('[seguimiento] Debug: Iniciando loadInitialData');
+      setLoading(true);
+      setLoadPct(10);
 
-  // === WebSocket mejorado con reconexión ===
+      try {
+        // Simulamos carga con timeout
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        setLoadPct(60);
+
+        // Usar datos demo en lugar de llamadas al servidor
+        const demoFlota: VehicleDTO[] = [
+          {
+            id: 'VH001',
+            codigo: 'CAM001',
+            matricula: '1234-ABC',
+            conductor: 'Juan Pérez',
+            state: 'en_ruta',
+            lat: 39.4699075,
+            lng: -0.3762881,
+            routeId: 'RT001',
+            speed_kmh: 45,
+            centro: 'Valencia',
+            lastTs: Date.now(),
+          },
+          {
+            id: 'VH002',
+            codigo: 'FUR002',
+            matricula: '5678-DEF',
+            conductor: 'María García',
+            state: 'detenido',
+            lat: 39.4815,
+            lng: -0.3255,
+            routeId: 'RT002',
+            speed_kmh: 0,
+            centro: 'Valencia',
+            lastTs: Date.now(),
+          },
+        ];
+
+        setServerReachable(true);
+        lastGoodFlotaRef.current = demoFlota;
+        setFlota(demoFlota);
+
+        console.log(`[seguimiento] Flota demo cargada inicialmente: ${demoFlota.length} vehículos`);
+
+      } catch (error) {
+        console.error('[seguimiento] Error al cargar flota demo inicial:', error);
+        setServerReachable(false);
+        setFlota([]);
+      } finally {
+        console.log('[seguimiento] Debug: En finally, setLoading(false)');
+        setLoadPct(100);
+        setTimeout(() => setLoadPct(0), 600);
+        setLoading(false);
+        
+        // Forzar que se quite el loading después de un tiempo máximo como fallback
+        setTimeout(() => {
+          console.log('[seguimiento] Forzando fin de loading (fallback)');
+          setLoading(false);
+        }, 2000);
+      }
+    };
+
+    loadInitialData();
+  }, []); // Sin dependencias para ejecutar solo una vez
+
+  // === WebSocket deshabilitado para demo ===
   const connectWebSocket = useCallback(() => {
+    console.log('[seguimiento] WebSocket deshabilitado - usando datos demo estáticos');
+    return false; // Siempre retorna false para usar datos demo
+    
+    /* CÓDIGO ORIGINAL COMENTADO
     const wsUrl = String(WS_URL || '');
     if (!/^wss?:\/\//i.test(wsUrl)) {
       console.warn('[seguimiento] URL WebSocket inválida, usando polling');
@@ -372,7 +434,9 @@ export default function SeguimientoScreen() {
       console.warn('[seguimiento] WS localhost no accesible desde dispositivo; polling');
       return false;
     }
+    */
 
+    /* RESTO DEL CÓDIGO WEBSOCKET COMENTADO PARA DEMO
     try {
       if (wsRef.current) {
         wsRef.current.close();
@@ -383,98 +447,34 @@ export default function SeguimientoScreen() {
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
-      ws.onopen = () => {
-        console.log('[seguimiento] WebSocket conectado');
-        setWsStatus('connected');
-        reconnectAttemptsRef.current = 0;
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data: WebSocketData = JSON.parse(String(event.data));
-
-          if (data.type === 'gps' && data.payload) {
-            const payload = data.payload as VehicleDTO;
-
-            setFlota(prevFlota => {
-              const vehicleIndex = prevFlota.findIndex(v => v.id === payload.id);
-
-              if (vehicleIndex >= 0) {
-                const updatedFlota = [...prevFlota];
-                updatedFlota[vehicleIndex] = { ...updatedFlota[vehicleIndex], ...payload };
-                return updatedFlota;
-              } else {
-                return [...prevFlota, payload];
-              }
-            });
-          }
-
-          if (data.type === 'event' && data.payload?.routeId) {
-            const { routeId, stopId, status } = data.payload;
-            setSelectedRoute(prevRoute =>
-              prevRoute && prevRoute.routeId === routeId ? {
-                ...prevRoute,
-                stops: prevRoute.stops.map(stop =>
-                  stop.id === stopId ? { ...stop, status } : stop
-                )
-              } : prevRoute
-            );
-          }
-
-          if (data.type === 'error') {
-            console.error('[seguimiento] Error del servidor WS:', data.error);
-          }
-
-        } catch (parseError) {
-          console.warn('[seguimiento] Error parseando mensaje WS:', parseError);
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error('[seguimiento] Error en WebSocket:', error);
-        setWsStatus('disconnected');
-      };
-
-      ws.onclose = (event) => {
-        console.log('[seguimiento] WebSocket cerrado:', event.code, event.reason);
-        setWsStatus('disconnected');
-        wsRef.current = null;
-
-        if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
-          reconnectAttemptsRef.current += 1;
-          console.log(`[seguimiento] Reintentando conexión WS (${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`);
-
-          reconnectTimeoutRef.current = setTimeout(() => {
-            connectWebSocket();
-          }, WS_RECONNECT_INTERVAL);
-        } else {
-          console.warn('[seguimiento] Máximo de reintentos alcanzado, activando polling');
-          startPolling();
-        }
-      };
-
+      // ... resto del código WebSocket comentado
+      
       return true;
     } catch (error) {
       console.error('[seguimiento] Error inicializando WebSocket:', error);
       setWsStatus('disconnected');
       return false;
     }
+    */
   }, []);
 
-  // === Polling como fallback ===
+  // === Polling como fallback (deshabilitado para demo) ===
   const startPolling = useCallback(() => {
     if (pollRef.current) {
       clearInterval(pollRef.current);
     }
 
-    console.log('[seguimiento] Iniciando polling cada 15 segundos');
-    pollRef.current = setInterval(() => {
-      fetchFlota();
-    }, 15000);
-  }, [fetchFlota]);
+    console.log('[seguimiento] Polling deshabilitado - usando datos demo');
+    // Comentado para evitar llamadas infinitas
+    // pollRef.current = setInterval(() => {
+    //   fetchFlota();
+    // }, 15000);
+  }, []); // Sin dependencias
 
-  // === Iniciar tiempo real ===
+  // === Iniciar tiempo real (deshabilitado para demo) ===
   const startRealtime = useCallback(() => {
+    console.log('[seguimiento] Tiempo real deshabilitado - usando datos demo estáticos');
+    // Limpiar cualquier timer existente
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
@@ -485,11 +485,8 @@ export default function SeguimientoScreen() {
       pollRef.current = null;
     }
 
-    const wsConnected = connectWebSocket();
-    if (!wsConnected) {
-      startPolling();
-    }
-  }, [connectWebSocket, startPolling]);
+    // No iniciar WebSocket ni polling para demo
+  }, []);
 
   // === Efecto para iniciar tiempo real ===
   useEffect(() => {
@@ -571,7 +568,10 @@ export default function SeguimientoScreen() {
 
   // === Datos para el mapa optimizados (memoizados deeply) ===
   const mapData = useMemo(() => {
-    const vehicles = flotaFiltered.map(v => ({
+    // Si no hay datos reales, usar datos de prueba para Valencia
+    const hasRealData = flotaFiltered.length > 0;
+    
+    const vehicles = hasRealData ? flotaFiltered.map(v => ({
       id: v.id,
       lat: v.lat,
       lng: v.lng,
@@ -579,7 +579,27 @@ export default function SeguimientoScreen() {
       state: v.state || 'en_ruta',
       codigo: v.codigo || '',
       matricula: v.matricula || '',
-    }));
+    })) : [
+      // Datos de prueba para Valencia, España
+      {
+        id: 'demo-1',
+        lat: 39.4699,
+        lng: -0.3763,
+        heading: 45,
+        state: 'en_ruta' as const,
+        codigo: 'DEMO-001',
+        matricula: 'TEST-001',
+      },
+      {
+        id: 'demo-2', 
+        lat: 39.4750,
+        lng: -0.3800,
+        heading: 90,
+        state: 'detenido' as const,
+        codigo: 'DEMO-002',
+        matricula: 'TEST-002',
+      }
+    ];
 
     const stops = (selectedRoute?.stops || []).map(s => ({
       id: s.id,
@@ -598,6 +618,17 @@ export default function SeguimientoScreen() {
 
   // === Calcular región inicial del mapa ===
   const initialRegion = useMemo(() => {
+    // Usar región fija de Valencia para garantizar que el mapa se muestre correctamente
+    const valenciaRegion = {
+      latitude: 39.4699075,
+      longitude: -0.3762881,
+      latitudeDelta: 0.02, // Zoom más cercano
+      longitudeDelta: 0.02,
+    };
+
+    return valenciaRegion;
+
+    /* CÓDIGO ORIGINAL COMENTADO - Calculaba región dinámicamente
     if (flotaFiltered.length > 0) {
       const lats = flotaFiltered.map(v => v.lat);
       const lngs = flotaFiltered.map(v => v.lng);
@@ -620,22 +651,16 @@ export default function SeguimientoScreen() {
       };
     }
 
-    // Valencia, España por defecto
-    return {
-      latitude: 39.4699,
-      longitude: -0.3763,
-      latitudeDelta: 0.1,
-      longitudeDelta: 0.1,
-    };
-  }, [flotaFiltered]);
+    return valenciaRegion;
+    */
+  }, []);
 
   // === Refresh manual ===
   const handleRefresh = useCallback(() => {
     if (!refreshing) {
-      setRefreshing(true);
       fetchFlota();
     }
-  }, [refreshing, fetchFlota]);
+  }, [refreshing]); // Removemos fetchFlota de las dependencias
 
   // === Manejar cambio de región del mapa ===
   const handleRegionChange = useCallback((region: any) => {
@@ -644,10 +669,13 @@ export default function SeguimientoScreen() {
 
   // === Función para manejar el evento de mapa listo ===
   const handleMapReady = useCallback(() => {
-    console.log('Mapa listo');
+    console.log('🗺️ Mapa listo');
+    console.log('📍 Región inicial:', initialRegion);
+    console.log('🚗 Vehículos en mapa:', mapData.vehicles.length);
+    console.log('🔑 API Key configurada:', !!getGoogleMapsApiKey());
     setMapReady(true);
     // No llamar fit aquí para evitar loops; mover a useEffect
-  }, []);
+  }, [initialRegion, mapData.vehicles]);
 
   // === Función para centrar en todos los marcadores ===
   const handleFitAllMarkers = useCallback(() => {
@@ -685,9 +713,16 @@ export default function SeguimientoScreen() {
 
   // === Función para centrar en la ubicación del usuario ===
   const handleCenterOnUser = useCallback(() => {
-    // Implementar lógica de geolocalización aquí
-    // Por ahora, centrar en el primer vehículo si existe
-    if (flotaFiltered.length > 0) {
+    // Si tenemos la posición del usuario, centrar en ella
+    if (pos?.coords && mapRef.current) {
+      mapRef.current.animateToRegion({
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      });
+    } else if (flotaFiltered.length > 0) {
+      // Fallback: centrar en el primer vehículo
       const firstVehicle = flotaFiltered[0];
       mapRef.current?.animateToRegion({
         latitude: firstVehicle.lat,
@@ -695,8 +730,16 @@ export default function SeguimientoScreen() {
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
       });
+    } else {
+      // Fallback final: centrar en Valencia
+      mapRef.current?.animateToRegion({
+        latitude: 39.4699075,
+        longitude: -0.3762881,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      });
     }
-  }, [flotaFiltered]);
+  }, [pos, flotaFiltered]);
 
   // Key para MapViewUnified basado en hash simple de datos (fuerza remount solo si cambia)
   const mapKey = useMemo(() => JSON.stringify([flotaFiltered.length, selectedRoute?.routeId]), [flotaFiltered, selectedRoute]);
@@ -815,28 +858,24 @@ export default function SeguimientoScreen() {
           </View>
         </Modal>
 
-        {/* Contenido principal: Mapa + Lista */}
-        {loading && !refreshing ? (
-          <View style={styles.loadingPanel}>
-            <ActivityIndicator size="large" color="#2e78b7" />
-            <Text style={styles.loadingText}>Cargando {Math.round(loadPct)}%</Text>
-            <View style={styles.progressBarOuter}>
-              <View style={[styles.progressBarInner, { width: `${Math.round(loadPct)}%` }]} />
-            </View>
-          </View>
-        ) : (
+        {/* Contenido principal: Mapa + Lista - FORZADO PARA DEBUG */}
+        <View style={{ flex: 1 }}>
           <View style={{ flex: 1 }}>
             {/* Sección del Mapa */}
             <View style={styles.mapSection}>
               <Text style={styles.sectionTitle}>
-                Mapa {selectedVehicleId ? `- Vehículo ${selectedVehicleId}` : ''}
+                Mapa {selectedVehicleId ? `- Vehículo ${selectedVehicleId}` : ''} 
+                {/* Debug info */}
+                <Text style={{ fontSize: 12, color: '#666' }}>
+                  {mapData.vehicles.length > 0 ? ` (${mapData.vehicles.length} vehículos)` : ' (modo demo)'}
+                </Text>
               </Text>
               <View style={styles.mapContainer}>
                 <MapViewUnified
                   key={mapKey} // Fuerza remount solo cuando datos cambien
                   ref={mapRef}
                   style={styles.map}
-                  initialRegion={initialRegionRef.current}
+                  initialRegion={initialRegion}
                   vehicles={mapData.vehicles}
                   routeCoordinates={mapData.routeCoordinates}
                   stops={mapData.stops}
@@ -857,7 +896,7 @@ export default function SeguimientoScreen() {
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    style={styles.controlButton}
+                    style={[styles.controlButton, styles.controlButtonLast]}
                     onPress={handleFitAllMarkers}
                   >
                     <Ionicons name="expand" size={24} color="#333" />
@@ -935,7 +974,7 @@ export default function SeguimientoScreen() {
               )}
             />
           </View>
-        )}
+        </View>
       </SafeAreaViewSA>
     </SafeAreaProvider>
   );
@@ -1027,7 +1066,7 @@ const styles = StyleSheet.create({
 
 
   // Mapa
-  mapSection: { paddingHorizontal: 10, paddingBottom: 8 },
+  mapSection: { paddingHorizontal: 10, paddingBottom: 8, height: 450 }, // Altura aumentada
   sectionTitle: {
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -1038,27 +1077,44 @@ const styles = StyleSheet.create({
   mapContainer: {
     flex: 1,
     position: 'relative',
+    backgroundColor: '#f0f0f0', // Fondo gris para debug
+    borderRadius: 8,
+    overflow: 'hidden',
+    elevation: 3, // Sombra para Android
+    shadowColor: '#000', // Sombra para iOS
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
   map: {
     flex: 1,
     width: '100%',
+    minHeight: 350, // Altura mínima aumentada
   },
   mapControls: {
     position: 'absolute',
     right: 16,
     bottom: 16,
     backgroundColor: 'white',
-    borderRadius: 8,
-    elevation: 4,
+    borderRadius: 12,
+    elevation: 6,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    paddingVertical: 4,
   },
   controlButton: {
-    padding: 12,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 56,
+    minHeight: 56,
+  },
+  controlButtonLast: {
+    borderBottomWidth: 0,
   },
 
   // Lista

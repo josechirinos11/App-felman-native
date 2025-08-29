@@ -19,27 +19,43 @@ export function useAuth() {
     });
 
     useEffect(() => {
+        // Simplificar checkAuth para diagnosticar
         checkAuth();
     }, []);
 
     const checkAuth = async () => {
         try {
+            console.log('🔐 Verificando autenticación...');
+            
+            // Temporalmente simplificar para diagnosticar
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar 1 segundo
+            
             const token = await AsyncStorage.getItem('token');
             const userDataStr = await AsyncStorage.getItem('userData');
 
+            console.log('🔐 Token encontrado:', !!token);
+            console.log('🔐 UserData encontrado:', !!userDataStr);
+
             if (token && userDataStr) {
-                const userData = JSON.parse(userDataStr);
-                setState({
-                    token,
-                    usuario: userData,
-                    authenticated: true,
-                    loading: false
-                });
+                try {
+                    const userData = JSON.parse(userDataStr);
+                    console.log('🔐 Usuario parseado correctamente');
+                    setState({
+                        token,
+                        usuario: userData,
+                        authenticated: true,
+                        loading: false
+                    });
+                } catch (parseError) {
+                    console.error('🔐 Error al parsear userData:', parseError);
+                    setState(prev => ({ ...prev, loading: false }));
+                }
             } else {
+                console.log('🔐 No hay credenciales guardadas');
                 setState(prev => ({ ...prev, loading: false }));
             }
         } catch (error) {
-            console.error('Error checking auth:', error);
+            console.error('🔐 Error en checkAuth:', error);
             setState(prev => ({ ...prev, loading: false }));
         }
     }; 
@@ -50,27 +66,22 @@ export function useAuth() {
 
        const login = async (nombre: string, password: string) => {
         try {
-            // Usamos la constante API_URL importada
+            console.log('📡 Intentando login...');
             const url = `${API_URL}/auth/login`;
-            console.log('📡 Intentando login en:', url);
             const { data } = await axios.post(url, { nombre, password });
 
             if (!data) {
                 throw new Error('No se recibió respuesta del servidor');
             }
 
-            // La respuesta del servidor contiene el token y los datos del usuario
             const { token, ...userData } = data;
-            // Si el backend responde con user: { ... }
             let usuarioPlano = userData.user || userData;
-            // Normalizar a claves en español
             const usuarioNormalizado = {
                 id: usuarioPlano.id || 0,
                 nombre: usuarioPlano.nombre || usuarioPlano.name || '',
                 rol: usuarioPlano.rol || usuarioPlano.role || '',
             };
 
-            // Guardar token y datos de usuario normalizados
             await AsyncStorage.setItem('token', token);
             await AsyncStorage.setItem('userData', JSON.stringify(usuarioNormalizado));
 
@@ -80,30 +91,25 @@ export function useAuth() {
                 authenticated: true,
                 loading: false
             });
-            console.log('✅ Estado actualizado en login:', {
-                token,
-                usuario: usuarioNormalizado,
-                authenticated: true,
-                loading: false
-            });
 
             return { success: true };
         } catch (error: any) {
-            console.error('❌ Error en login - Respuesta del servidor:', error.response?.data);
-            if (error.response?.status) {
-                console.error('Estado de la respuesta:', error.response.status);
-            }
+            console.error('❌ Error en login:', error);
             
             let errorMessage = 'Error al iniciar sesión';
             
             if (error.response) {
-                // El servidor respondió con un estado de error
-                errorMessage = error.response.data?.mensaje || 'Error de autenticación';
+                const status = error.response.status;
+                if (status === 401) {
+                    errorMessage = 'Nombre de usuario o contraseña incorrectos';
+                } else if (status === 404) {
+                    errorMessage = 'Usuario no encontrado';
+                } else if (status === 403) {
+                    errorMessage = 'Acceso denegado';
+                }
             } else if (error.request) {
-                // La solicitud fue hecha pero no se recibió respuesta
                 errorMessage = 'No se pudo conectar con el servidor';
             } else {
-                // Error al configurar la solicitud
                 errorMessage = error.message;
             }
 

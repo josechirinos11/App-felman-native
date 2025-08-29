@@ -1,4 +1,4 @@
-// app/optima/_layout.tsx
+// app/logistica/_layout.tsx
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 
@@ -12,7 +12,7 @@ function TabBarIcon(props: {
   return <Ionicons size={24} style={{ marginBottom: -3 }} {...props} />;
 }
 
-export default function OptimaTabLayout() {
+export default function LogisticaTabLayout() {
   const colorScheme = useColorScheme();
   const { logout } = useAuth();
 
@@ -27,13 +27,14 @@ export default function OptimaTabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Inicio',
-          tabBarIcon: ({ color }) => <TabBarIcon name="home-outline" color={color} />,
+          title: 'Panel',
+          tabBarIcon: ({ color }) => <TabBarIcon name="grid-outline" color={color} />,
         }}
       />
       <Tabs.Screen
         name="asignacion-vehiculo"
         options={{
+          href: null,
           title: 'Asignación',
           tabBarIcon: ({ color }) => <TabBarIcon name="swap-horizontal-outline" color={color} />,
         }}
@@ -41,6 +42,7 @@ export default function OptimaTabLayout() {
       <Tabs.Screen
         name="optimizacion-carga"
         options={{
+           href: null,
           title: 'Optimización',
           tabBarIcon: ({ color }) => <TabBarIcon name="cube-outline" color={color} />,
         }}
@@ -55,20 +57,42 @@ export default function OptimaTabLayout() {
       <Tabs.Screen
         name="despacho-salidas"
         options={{
+          href: null,
           title: 'Despacho',
           tabBarIcon: ({ color }) => <TabBarIcon name="send-outline" color={color} />,
         }}
       />
+      
       <Tabs.Screen
-        name="seguimiento"
+        name="switch-vista-web-movil"
         options={{
           title: 'Seguimiento',
-          tabBarIcon: ({ color }) => <TabBarIcon name="locate-outline" color={color} />,
+          tabBarIcon: ({ color }) => <TabBarIcon name="location-outline" color={color} />,
+        }}
+      />
+
+      {/* Ocultar las vistas de seguimiento originales */}
+      <Tabs.Screen
+        name="seguimiento-web"
+        options={{
+          href: null,
+          title: 'Seguimiento Web',
+          tabBarIcon: ({ color }) => <TabBarIcon name="location-outline" color={color} />,
         }}
       />
       <Tabs.Screen
+        name="seguimiento-movil"
+        options={{
+          href: null,
+          title: 'Seguimiento Móvil',
+          tabBarIcon: ({ color }) => <TabBarIcon name="location-outline" color={color} />,
+        }}
+      />
+
+      <Tabs.Screen
         name="integracion-gestion"
         options={{
+            href: null,
           title: 'Integración',
           tabBarIcon: ({ color }) => <TabBarIcon name="list-outline" color={color} />,
         }}
@@ -76,6 +100,7 @@ export default function OptimaTabLayout() {
       <Tabs.Screen
         name="incidencias"
         options={{
+           href: null,
           title: 'Incidencias',
           tabBarIcon: ({ color }) => <TabBarIcon name="alert-circle-outline" color={color} />,
         }}
@@ -96,11 +121,7 @@ export default function OptimaTabLayout() {
       />
 
       {/* Ocultar tabs viejas */}
-      <Tabs.Screen name="control-terminales" options={{ href: null }} />
-      <Tabs.Screen name="control-operarios" options={{ href: null }} />
-      <Tabs.Screen name="control-dashboard-barcoder" options={{ href: null }} />
-      <Tabs.Screen name="control-dashboard-barcoder-det" options={{ href: null }} />
-      <Tabs.Screen name="control-dashboard-barcoder-order" options={{ href: null }} />
+
     </Tabs>
   );
 }

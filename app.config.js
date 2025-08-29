@@ -6,7 +6,6 @@ module.exports = {
   icon: "./assets/images/felmalogo.png",
   scheme: "appnativefelman",
   userInterfaceStyle: "automatic",
-  newArchEnabled: false,
   
   ios: {
     supportsTablet: true,
@@ -23,7 +22,6 @@ module.exports = {
   
   android: {
     package: "com.felman.appfelmannative",
-    versionCode: 1,
     icon: "./assets/images/felmalogo.png",
     adaptiveIcon: {
       foregroundImage: "./assets/images/adaptive-icon.png",
@@ -48,7 +46,7 @@ module.exports = {
     output: "static",
     favicon: "./assets/images/favicon.png",
     config: {
-      apiKey: "AIzaSyAEWw8B6utUMKBNmeou8EAovnWRGLxldGs"
+      apiKey: "AIzaSyAtdufUHs9jULLbARMm38OLQH6Y0D049QU"
     }
   },
   
@@ -74,11 +72,15 @@ module.exports = {
     ["expo-build-properties", {
       android: {
         compileSdkVersion: 35,
-        targetSdkVersion: 35,
+        targetSdkVersion: 34,
         buildToolsVersion: "35.0.0",
-        ndkVersion: "25.2.9519653",
-        enableProguardInReleaseBuilds: false,
-        enableShrinkResourcesInReleaseBuilds: false
+        ndkVersion: "26.1.10909125",
+        enableProguardInReleaseBuilds: true,
+        enableShrinkResourcesInReleaseBuilds: true,
+        minSdkVersion: 24,
+        // Optimizaciones adicionales para producción
+        enablePngCrunchInReleaseBuilds: true,
+        enableBundleCompression: true
       }
     }]
   ],

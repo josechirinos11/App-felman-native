@@ -3,23 +3,23 @@ import { Stack } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Dimensions, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AppHeader from '../../components/AppHeader';
-import { API_URL } from '../../config/constants';
+import { API_URL } from '../config/constants';
 
 type Row = Record<string, any>;
 type ApiResp = {
   items: Row[];
   page: number; pageSize: number; total: number;
   from: string; to: string; usedFrom?: string; usedTo?: string;
+  mode?: 'Pedido' | 'Entrega';
   orderBy: string; orderDir: 'ASC' | 'DESC';
-  agg: { piezas: number; area: number };
+  agg: { piezas: number; piezasLinea: number; piezasDet: number };
 };
 
 const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
 const fmt = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const prettyDateTime = (v?: any) => { const d = new Date(String(v)); return isNaN(d.getTime()) ? String(v ?? '—') : d.toLocaleString(); };
+const prettyDate = (v?: any) => { const d = new Date(String(v)); return isNaN(d.getTime()) ? String(v ?? '—') : d.toLocaleDateString(); };
 
-export default function ControlDashboardBarcoderDet() {
+export default function ControlDashboardBarcoderOrder() {
   const [from, setFrom] = useState(() => { const t = new Date(); const d30 = new Date(t); d30.setDate(d30.getDate() - 30); return fmt(d30); });
   const [to, setTo] = useState(() => fmt(new Date()));
   const [search, setSearch] = useState('');
@@ -27,15 +27,16 @@ export default function ControlDashboardBarcoderDet() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(50);
   const [total, setTotal] = useState(0);
-  const [agg, setAgg] = useState<{ piezas: number; area: number }>({ piezas: 0, area: 0 });
+  const [agg, setAgg] = useState<{ piezas: number; piezasLinea: number; piezasDet: number }>({ piezas: 0, piezasLinea: 0, piezasDet: 0 });
   const [usedFrom, setUsedFrom] = useState<string | undefined>();
   const [usedTo, setUsedTo] = useState<string | undefined>();
+  const [mode, setMode] = useState<'Pedido' | 'Entrega' | undefined>();
   const isSmallDevice = Dimensions.get('window').width < 500;
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [reachedEnd, setReachedEnd] = useState(false);
 
-  const ENDPOINT = `${API_URL}/control-optima/barcoder-det`;
+  const ENDPOINT = `${API_URL}/control-optima/barcoder-order`;
 
   const fetchPage = useCallback(async (pageToLoad: number, replace = false) => {
     if (loading) return;
@@ -47,16 +48,16 @@ export default function ControlDashboardBarcoderDet() {
       if (!res.ok) throw new Error((data as any)?.message || `HTTP ${res.status}`);
 
       setTotal(data.total || 0);
-      setAgg(data.agg || { piezas: 0, area: 0 });
+      setAgg(data.agg || { piezas: 0, piezasLinea: 0, piezasDet: 0 });
       setPage(data.page || pageToLoad);
-      setUsedFrom(data.usedFrom); setUsedTo(data.usedTo);
+      setUsedFrom(data.usedFrom); setUsedTo(data.usedTo); setMode(data.mode);
 
       const newItems = Array.isArray(data.items) ? data.items : [];
       setRows(prev => replace ? newItems : [...prev, ...newItems]);
       setReachedEnd(newItems.length < pageSize);
     } catch (e) {
-      console.error('[barcoder-det] error:', e);
-      if (replace) { setRows([]); setTotal(0); setAgg({ piezas: 0, area: 0 }); setUsedFrom(undefined); setUsedTo(undefined); }
+      console.error('[barcoder-order] error:', e);
+      if (replace) { setRows([]); setTotal(0); setAgg({ piezas: 0, piezasLinea: 0, piezasDet: 0 }); setUsedFrom(undefined); setUsedTo(undefined); setMode(undefined); }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -64,7 +65,7 @@ export default function ControlDashboardBarcoderDet() {
   }, [from, to, search, pageSize, ENDPOINT, loading]);
 
   const applyFilters = () => { setPage(1); setReachedEnd(false); setRefreshing(true); fetchPage(1, true); };
-  useEffect(() => { applyFilters(); /* carga inicial */ }, []);
+  useEffect(() => { applyFilters(); }, []);
 
   const onEndReached = () => { if (!loading && !reachedEnd) fetchPage(page + 1, false); };
   const onRefresh = () => applyFilters();
@@ -78,7 +79,7 @@ export default function ControlDashboardBarcoderDet() {
       <View style={styles.notice}>
         <Ionicons name="information-circle-outline" size={18} />
         <Text style={styles.noticeText}>
-          Sin datos en el rango solicitado. Mostrando: {used}
+          Sin datos en el rango solicitado. Mostrando: {used} (por {mode ?? 'FechaPedido'})
         </Text>
       </View>
     );
@@ -88,25 +89,24 @@ export default function ControlDashboardBarcoderDet() {
     <View style={styles.headerRow}>
       <View style={styles.kpi}><Ionicons name="analytics-outline" size={18} /><Text style={styles.kpiText}>Items: {rows.length} / {total}</Text></View>
       <View style={styles.kpi}><Ionicons name="cube-outline" size={18} /><Text style={styles.kpiText}>Piezas: {agg.piezas}</Text></View>
-      <View style={styles.kpi}><Ionicons name="layers-outline" size={18} /><Text style={styles.kpiText}>Área: {agg.area.toFixed(2)}</Text></View>
+      <View style={styles.kpi}><Ionicons name="pricetag-outline" size={18} /><Text style={styles.kpiText}>Piezas Línea: {agg.piezasLinea}</Text></View>
+      <View style={styles.kpi}><Ionicons name="list-outline" size={18} /><Text style={styles.kpiText}>Piezas Det: {agg.piezasDet}</Text></View>
     </View>
   ), [rows.length, total, agg]);
 
   const renderItem = ({ item }: { item: Row }) => (
     <View style={styles.card}>
       <View style={styles.cardHead}>
-        <Text style={styles.title}>{item.NOMBRE ?? '—'}</Text>
-        <Text style={styles.badge}>{item.ESTADO ?? '—'}</Text>
+        <Text style={styles.title}>{item.RazonSocial ?? '—'}</Text>
+        <Text style={styles.badge}>Pedido {item.Pedido ?? '—'}</Text>
       </View>
-      <Text style={styles.sub}>Centro: {item.CENTRO_TRABAJO ?? '—'}</Text>
-      {/* Campos específicos del DET */}
-      <Text>Trabajo: {item.TRABAJO ?? '—'} | {item.DESC_TRABAJO ?? '—'}</Text>
-      <Text>Producto: {item.PRODUCTO ?? '—'} | Vidrio: {item.VIDRIO ?? '—'} #{item.N_VIDRIO ?? '—'}</Text>
-      <Text>Pedido/Línea: {item.PEDIDO ?? '—'} / {item.LINEA ?? '—'}</Text>
-      <Text>Medidas: {item.MEDIDA_X ?? '—'} x {item.MEDIDA_Y ?? '—'} | Área: {item.AREA ?? '—'}</Text>
-      <Text>Piezas: {item.PIEZAS ?? '—'} | Pz/Lin: {item.PZ_LIN ?? '—'} | Long: {item.LONG_TRABAJO ?? '—'}</Text>
-      <Text>Operario: {item.USERNAME ?? '—'} | Prog: {item.PROGR ?? '—'}</Text>
-      <Text>Fecha comp.: {prettyDateTime(item.DATAHORA_COMPL)}</Text>
+      <Text style={styles.sub}>{item.Direccion ?? ''} {item.Localidad ?? ''} {item.Prov ?? ''} {item.CP ?? ''}</Text>
+      <Text>EstadoProd: {item.EstadoProd} | EstadoLinea: {item.EstadoLinea} | EstadoLinDet: {item.EstadoLinDet ?? '—'}</Text>
+      <Text>Fechas: Pedido {prettyDate(item.FechaPedido)} / Entrega {prettyDate(item.FechaEntrega)}</Text>
+      <Text>Tot Piezas: {item.TotPiezas ?? '—'} (Hechas: {item.TotPiezasHechas ?? '—'}) | #Pos: {item.TotNumPos ?? '—'}</Text>
+      <Text>Línea {item.Linea ?? '—'}: {item.DescrLinea ?? '—'} | {item.MedX ?? '—'}×{item.MedY ?? '—'}</Text>
+      <Text>Det: {item.CodDetPadre ?? '—'} → {item.CodDet ?? '—'} ({item.DescDet ?? '—'}) | Pzs: {item.PiezasDet ?? '—'} (Hechas: {item.PiezasHechasDet ?? '—'})</Text>
+      <Text>Bill: {item.NumBill ?? '—'} | Inv: {item.NumInv ?? '—'} | Caballete: {item.Caballete ?? '—'}</Text>
     </View>
   );
 
@@ -119,13 +119,9 @@ export default function ControlDashboardBarcoderDet() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{ title: 'Dashboard Barcoder Det' }} />
+      <Stack.Screen options={{ title: 'Dashboard Pedidos (Order)' }} />
 
-      <AppHeader
-        count={rows.length}          // o filtered.length, items.length, etc.
-        onRefresh={refresh}          // opcional
-      // serverReachableOverride={serverReachable} // sólo si NO usas useOfflineMode
-      />
+
 
       {/* Filtros */}
       {isSmallDevice ? (
@@ -201,7 +197,7 @@ const styles = StyleSheet.create({
   notice: { flexDirection: 'row', alignItems: 'center', gap: 6, margin: 10, padding: 10, backgroundColor: '#eff6ff', borderRadius: 10, borderColor: '#bfdbfe', borderWidth: 1 },
   noticeText: { color: '#1e3a8a' },
 
-  headerRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: '#f8fafc' },
+  headerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingHorizontal: 10, paddingVertical: 8, backgroundColor: '#f8fafc' },
   kpi: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff', paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, borderColor: '#e5e7eb', borderWidth: 1 },
   kpiText: { fontWeight: '600', color: '#374151' },
 

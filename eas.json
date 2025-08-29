@@ -15,14 +15,31 @@
     "preview": {
       "distribution": "internal",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://85.59.105.234:3000"
+        "EXPO_PUBLIC_API_URL": "http://85.59.105.234:3000",
+        "NODE_ENV": "production"
       }
     },
     "production": {
-      "distribution": "store"
+      "distribution": "store",
+      "android": {
+        "buildType": "aab",
+        "gradleCommand": ":app:bundleRelease"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://85.59.105.234:3000",
+        "NODE_ENV": "production"
+      }
+    },
+    "production-apk": {
+      "extends": "production",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      }
     }
   }
 }

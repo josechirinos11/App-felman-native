@@ -178,6 +178,12 @@ export default function ConfiguracionScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Configuración</Text>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="arrow-back-outline" size={24} color="#2e78b7" />
+          </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.scrollView}>
@@ -224,6 +230,23 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
     alignItems: 'center',
     marginBottom: 10,
+    position: 'relative',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   title: {
     fontSize: 24,

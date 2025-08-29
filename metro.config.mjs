@@ -36,6 +36,13 @@ config.transformer = {
       keep_classnames: true,
     },
   },
+  // Optimizaciones para producción
+  getTransformOptions: async () => ({
+    transform: {
+      experimentalImportSupport: false,
+      inlineRequires: true,
+    },
+  }),
 };
 
 // Configuración específica para desarrollo web

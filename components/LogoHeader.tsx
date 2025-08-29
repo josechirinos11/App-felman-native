@@ -20,21 +20,15 @@ const styles = StyleSheet.create({  container: {
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     elevation: 3,
-    // Shadow for iOS
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    // Shadow for iOS and Web
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
   },  logoContainer: {
     backgroundColor: '#f3f4f6',
     padding: 12,
     borderRadius: 15,
     elevation: 3,
-    // Shadow for iOS
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    // Shadow for iOS and Web
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
   },
   logo: {
     width: 120,

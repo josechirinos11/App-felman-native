@@ -20,11 +20,9 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   { id: 1, title: 'Moncada', icon: 'construct-outline', route: '/moncada' },
-    { id: 2, title: 'Almassera', icon: 'business-outline', route: '/optima' },
-    { id: 3, title: 'Almacén', icon: 'cube-outline', route: '/almacen' },
+  { id: 2, title: 'Almassera', icon: 'business-outline', route: '/optima' },
+  { id: 3, title: 'Almacén', icon: 'cube-outline', route: '/almacen' },
   { id: 4, title: 'Logistica', icon: 'map-outline', route: '/logistica' },
-
-
 ];
 
 
@@ -46,6 +44,7 @@ export default function HomeScreen() {
 
   // Verificar autenticación al cargar
   useEffect(() => {
+    console.log('🔍 Debug datos usuario:', userData);
     if (!authLoading && !authenticated) {
       console.log('🚫 Usuario no autenticado, redirigiendo a login...');
       router.replace('/login');
@@ -109,11 +108,15 @@ export default function HomeScreen() {
 
         {/* Panel superior con información del usuario */}
         <View style={styles.sidePanel}>
-          {userData ? (
+          {userData && typeof userData === 'object' ? (
             <View style={styles.userInfo}>
               <Text style={styles.welcomeText}>Bienvenido a felman,</Text>
-              <Text style={styles.userName}>{userData.nombre || userData.name || 'Sin nombre'}</Text>
-              <Text style={styles.userRole}>{userData.rol || userData.role || 'Sin rol'}</Text>
+              <Text style={styles.userName}>
+                {String(userData.nombre || userData.name || 'Sin nombre')}
+              </Text>
+              <Text style={styles.userRole}>
+                {String(userData.rol || userData.role || 'Sin rol')}
+              </Text>
             </View>
           ) : (
             <Text style={styles.notAuthText}>No hay datos de usuario.</Text>
@@ -132,7 +135,7 @@ export default function HomeScreen() {
                       onPress={() => router.push(item.route as any)}
                     >
                       <Ionicons name={item.icon} size={32} color="#2e78b7" />
-                      <Text style={styles.menuText}>{item.title}</Text>
+                      <Text style={styles.menuText}>{String(item.title || '')}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -175,11 +178,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     elevation: 3,
-    // Shadow for iOS
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    // Shadow for iOS and Web
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
   },
   welcomeText: {
     fontSize: 14,
@@ -215,11 +215,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     elevation: 3,
-    // Shadow for iOS
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    // Shadow for iOS and Web
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
   },
   menuText: {
     marginTop: 8,

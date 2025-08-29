@@ -3,15 +3,15 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    Modal,
-    Pressable,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView as SafeAreaViewSA } from 'react-native-safe-area-context';
 
@@ -119,22 +119,53 @@ export default function IncidenciasScreen() {
         (centro ? `&centro=${encodeURIComponent(centro)}` : '');
       const r1 = await fetch(`${API_URL}/control-optima/incidencias?${qsInc}`, { signal: controller.signal });
       setLoadPct(45);
-      const ok1 = r1.ok;
-      const j1 = await r1.json();
-      if (!ok1) throw new Error(j1?.message || `Incidencias HTTP ${r1.status}`);
+      
+      let j1;
+      try {
+        const text1 = await r1.text();
+        if (!text1 || text1.trim().startsWith('<')) {
+          throw new Error('Backend no disponible');
+        }
+        j1 = JSON.parse(text1);
+      } catch (parseError: any) {
+        if (parseError?.message === 'Backend no disponible') {
+          throw parseError;
+        }
+        throw new Error(`Respuesta inválida del servidor de incidencias`);
+      }
+      
+      if (!r1.ok) throw new Error(j1?.message || `Incidencias HTTP ${r1.status}`);
       setIncidencias(Array.isArray(j1) ? j1 : []);
 
       // Reentregas pendientes/programadas
       const r2 = await fetch(ENDPOINTS.reentregas + (centro ? `&centro=${encodeURIComponent(centro)}` : ''), { signal: controller.signal });
       setLoadPct(80);
-      const ok2 = r2.ok;
-      const j2 = await r2.json();
-      if (!ok2) throw new Error(j2?.message || `Reentregas HTTP ${r2.status}`);
+      
+      let j2;
+      try {
+        const text2 = await r2.text();
+        if (!text2 || text2.trim().startsWith('<')) {
+          throw new Error('Backend no disponible');
+        }
+        j2 = JSON.parse(text2);
+      } catch (parseError: any) {
+        if (parseError?.message === 'Backend no disponible') {
+          throw parseError;
+        }
+        throw new Error(`Respuesta inválida del servidor de reentregas`);
+      }
+      
+      if (!r2.ok) throw new Error(j2?.message || `Reentregas HTTP ${r2.status}`);
       setReentregas(Array.isArray(j2) ? j2 : []);
 
       setServerReachable(true);
-    } catch (e) {
-      console.error('[incidencias] fetchAll error:', e);
+    } catch (e: any) {
+      // Solo logear errores detallados si no es el error conocido de backend no disponible
+      if (e?.message?.includes('Backend no disponible')) {
+        console.log('[incidencias] Backend no disponible - mostrando mensaje al usuario');
+      } else {
+        console.error('[incidencias] fetchAll error:', e);
+      }
       setServerReachable(false);
       setIncidencias([]);
       setReentregas([]);
@@ -189,14 +220,34 @@ export default function IncidenciasScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await res.json().catch(() => ({}));
+      
+      let data;
+      try {
+        const text = await res.text();
+        if (!text || text.trim().startsWith('<')) {
+          throw new Error('Backend no disponible');
+        }
+        data = JSON.parse(text);
+      } catch (parseError: any) {
+        if (parseError?.message === 'Backend no disponible') {
+          console.log('[POST action] Backend no disponible - endpoint no implementado');
+          return { ok: false, data: null };
+        }
+        throw new Error(`Respuesta inválida del servidor`);
+      }
+      
       if (!res.ok) {
-        console.error('POST action error:', data);
+        console.error('POST action error:', data?.message || `HTTP ${res.status}`);
         return { ok: false, data };
       }
       return { ok: true, data };
-    } catch (e) {
-      console.error('POST action exception:', e);
+    } catch (e: any) {
+      // Solo logear errores detallados si no es el error conocido de backend no disponible
+      if (e?.message?.includes('Backend no disponible')) {
+        console.log('[POST action] Endpoint no implementado en el backend');
+      } else {
+        console.error('POST action exception:', e?.message || e);
+      }
       return { ok: false, data: null };
     }
   };
@@ -299,23 +350,29 @@ export default function IncidenciasScreen() {
             ))}
           </View>
 
-          {/* Acciones CRUD suaves */}
-          <View style={styles.crudRow}>
-            <TouchableOpacity style={[styles.crudBtn, styles.create]} onPress={actionCrear}>
-              <Ionicons name="add-circle-outline" size={22} />
-              <Text style={styles.crudText}>Crear</Text>
+          {/* Acciones principales - Una sola fila más espaciada */}
+          <Text style={styles.sectionLabel}>Acciones sobre incidencias:</Text>
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={[styles.actionBtn, styles.create]} onPress={actionCrear}>
+              <Ionicons name="add-circle-outline" size={20} />
+              <Text style={styles.actionText}>Crear</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.crudBtn, styles.update]} onPress={actionActualizar}>
-              <Ionicons name="create-outline" size={22} />
-              <Text style={styles.crudText}>Actualizar</Text>
+            <TouchableOpacity style={[styles.actionBtn, styles.update]} onPress={actionActualizar}>
+              <Ionicons name="create-outline" size={20} />
+              <Text style={styles.actionText}>Actualizar</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.crudBtn, styles.read]} onPress={actionCerrar}>
-              <Ionicons name="checkmark-done-outline" size={22} />
-              <Text style={styles.crudText}>Cerrar</Text>
+            <TouchableOpacity style={[styles.actionBtn, styles.read]} onPress={actionCerrar}>
+              <Ionicons name="checkmark-done-outline" size={20} />
+              <Text style={styles.actionText}>Cerrar</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.crudBtn, styles.delete]} onPress={actionReentrega}>
-              <Ionicons name="repeat-outline" size={22} />
-              <Text style={styles.crudText}>Programar reentrega</Text>
+          </View>
+
+          {/* Acciones sobre reentregas - Segunda fila */}
+          <Text style={styles.sectionLabel}>Acciones sobre reentregas:</Text>
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={[styles.actionBtn, styles.delete]} onPress={actionReentrega}>
+              <Ionicons name="repeat-outline" size={20} />
+              <Text style={styles.actionText}>Programar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -357,10 +414,28 @@ export default function IncidenciasScreen() {
               <View style={[styles.progressBarInner, { width: `${Math.max(0, Math.min(100, loadPct))}%` }]} />
             </View>
           </View>
+        ) : !serverReachable ? (
+          <View style={styles.errorPanel}>
+            <Ionicons name="cloud-offline-outline" size={64} color="#dc3545" />
+            <Text style={styles.errorTitle}>Sin conexión con el backend</Text>
+            <Text style={styles.errorText}>
+              No se pudo obtener información de incidencias y reentregas.{'\n'}
+              Verifique que el servidor backend esté funcionando.
+            </Text>
+            <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
+              <Ionicons name="refresh-outline" size={20} color="#fff" />
+              <Text style={styles.retryButtonText}>Reintentar</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <FlatList
             data={[{_header:true}, ...incidenciasFiltered, {_divider:true}, ...reentregasFiltered]}
-            keyExtractor={(item, idx) => String((item as any).id ?? (item as any)._header ?? (item as any)._divider ?? idx)}
+            keyExtractor={(item, idx) => {
+              const it = item as any;
+              if (it._header) return 'header-incidencias';
+              if (it._divider) return 'divider-reentregas';
+              return `item-${it.id || it.codigo || 'unknown'}-${idx}`;
+            }}
             contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 24 }}
             refreshing={refreshing}
             onRefresh={onRefresh}
@@ -456,10 +531,41 @@ const styles = StyleSheet.create({
   // CRUD
   crudRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 12, marginBottom: 8 },
   crudBtn: {
-    flex: 1, height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
-    flexDirection: 'row', gap: 8, borderWidth: 1,
+    flex: 1, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center',
+    flexDirection: 'row', gap: 6, borderWidth: 1,
   },
-  crudText: { fontWeight: '600', color: '#374151' },
+  crudText: { fontWeight: '600', color: '#374151', fontSize: 13, textAlign: 'center' },
+
+  // Nuevos estilos para mejor organización
+  sectionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+    marginTop: 12,
+    paddingHorizontal: 12,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  actionBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    borderWidth: 1,
+  },
+  actionText: {
+    fontWeight: '600',
+    color: '#374151',
+    fontSize: 13,
+  },
   create: { backgroundColor: '#ecfdf5', borderColor: '#10b98133' },   // Crear (verde claro)
   read:   { backgroundColor: '#eef2ff', borderColor: '#6366f133' },   // Cerrar (índigo claro)
   update: { backgroundColor: '#fff7ed', borderColor: '#f59e0b33' },   // Actualizar (ámbar claro)
@@ -501,8 +607,46 @@ const styles = StyleSheet.create({
   progressBarOuter: { width: '92%', height: 8, borderRadius: 8, backgroundColor: '#e5e7eb' },
   progressBarInner: { height: 8, borderRadius: 8, backgroundColor: '#2e78b7' },
 
+  // error panel
+  errorPanel: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    padding: 40,
+    backgroundColor: '#f8f9fa'
+  },
+  errorTitle: { 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    color: '#dc3545', 
+    marginTop: 16, 
+    marginBottom: 8, 
+    textAlign: 'center' 
+  },
+  errorText: { 
+    fontSize: 14, 
+    color: '#6c757d', 
+    textAlign: 'center', 
+    lineHeight: 20,
+    marginBottom: 24 
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#007bff',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
   // utils
   flex1: { flex: 1 },
   
-notes:{marginTop:6, color:'#64748b'},
+  notes: { marginTop: 6, color: '#64748b' },
 });

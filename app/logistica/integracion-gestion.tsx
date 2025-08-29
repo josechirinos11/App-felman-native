@@ -103,23 +103,56 @@ export default function IntegracionGestionScreen() {
     setLoadPct(10);
 
     try {
+      // Conectores - con manejo mejorado de errores
       const r1 = await fetch(ENDPOINTS.conectores + (centro ? `?centro=${encodeURIComponent(centro)}` : ''), { signal: controller.signal });
       setLoadPct(45);
-      const ok1 = r1.ok;
-      const j1 = await r1.json();
-      if (!ok1) throw new Error(j1?.message || `Conectores HTTP ${r1.status}`);
+      
+      let j1;
+      try {
+        const text1 = await r1.text();
+        if (!text1 || text1.trim().startsWith('<')) {
+          throw new Error('Backend no disponible');
+        }
+        j1 = JSON.parse(text1);
+      } catch (parseError: any) {
+        if (parseError?.message === 'Backend no disponible') {
+          throw parseError;
+        }
+        throw new Error(`Respuesta inválida del servidor de conectores`);
+      }
+      
+      if (!r1.ok) throw new Error(j1?.message || `Conectores HTTP ${r1.status}`);
       setConectores(Array.isArray(j1) ? j1 : []);
 
+      // Jobs - con manejo mejorado de errores
       const r2 = await fetch(ENDPOINTS.jobs, { signal: controller.signal });
       setLoadPct(80);
-      const ok2 = r2.ok;
-      const j2 = await r2.json();
-      if (!ok2) throw new Error(j2?.message || `Jobs HTTP ${r2.status}`);
+      
+      let j2;
+      try {
+        const text2 = await r2.text();
+        if (!text2 || text2.trim().startsWith('<')) {
+          throw new Error('Backend no disponible');
+        }
+        j2 = JSON.parse(text2);
+      } catch (parseError: any) {
+        if (parseError?.message === 'Backend no disponible') {
+          throw parseError;
+        }
+        throw new Error(`Respuesta inválida del servidor de jobs`);
+      }
+      
+      if (!r2.ok) throw new Error(j2?.message || `Jobs HTTP ${r2.status}`);
       setJobs(Array.isArray(j2) ? j2 : []);
 
       setServerReachable(true);
-    } catch (e) {
-      console.error('[integracion-gestion] fetchAll error:', e);
+    } catch (e: any) {
+      // Solo logear errores detallados si no es el error conocido de backend no disponible
+      if (e?.message?.includes('Backend no disponible')) {
+        console.log('[integracion-gestion] Backend no disponible - mostrando mensaje al usuario');
+      } else {
+        console.error('[integracion-gestion] fetchAll error:', e);
+      }
       setServerReachable(false);
       setConectores([]);
       setJobs([]);
@@ -166,14 +199,34 @@ export default function IntegracionGestionScreen() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-      const data = await res.json().catch(() => ({}));
+      
+      let data;
+      try {
+        const text = await res.text();
+        if (!text || text.trim().startsWith('<')) {
+          throw new Error('Backend no disponible');
+        }
+        data = JSON.parse(text);
+      } catch (parseError: any) {
+        if (parseError?.message === 'Backend no disponible') {
+          console.log('[POST action] Backend no disponible - endpoint no implementado');
+          return { ok: false, data: null };
+        }
+        throw new Error(`Respuesta inválida del servidor`);
+      }
+      
       if (!res.ok) {
-        console.error('POST action error:', data);
+        console.error('POST action error:', data?.message || `HTTP ${res.status}`);
         return { ok: false, data };
       }
       return { ok: true, data };
-    } catch (e) {
-      console.error('POST action exception:', e);
+    } catch (e: any) {
+      // Solo logear errores detallados si no es el error conocido de backend no disponible
+      if (e?.message?.includes('Backend no disponible')) {
+        console.log('[POST action] Endpoint no implementado en el backend');
+      } else {
+        console.error('POST action exception:', e?.message || e);
+      }
       return { ok: false, data: null };
     }
   };
@@ -261,35 +314,37 @@ export default function IntegracionGestionScreen() {
             </View>
           </View>
 
-          {/* Acciones principales */}
-          <View style={styles.crudRow}>
-            <TouchableOpacity style={[styles.crudBtn, styles.create]} onPress={() => setCrudModal('config')}>
-              <Ionicons name="construct-outline" size={22} />
-              <Text style={styles.crudText}>Config. conectores</Text>
+          {/* Acciones principales - Una sola fila más espaciada */}
+          <Text style={styles.sectionLabel}>Acciones sobre conectores:</Text>
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={[styles.actionBtn, styles.config]} onPress={() => setCrudModal('config')}>
+              <Ionicons name="construct-outline" size={20} />
+              <Text style={styles.actionText}>Config</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.crudBtn, styles.read]} onPress={handleTestConexion}>
-              <Ionicons name="pulse-outline" size={22} />
-              <Text style={styles.crudText}>Test conexión</Text>
+            <TouchableOpacity style={[styles.actionBtn, styles.settings]} onPress={handleTestConexion}>
+              <Ionicons name="pulse-outline" size={20} />
+              <Text style={styles.actionText}>Test</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.crudBtn, styles.update]} onPress={handleSincronizar}>
-              <Ionicons name="cloud-upload-outline" size={22} />
-              <Text style={styles.crudText}>Sincronizar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.crudBtn, styles.delete]} onPress={handleCrearWebhook}>
-              <Ionicons name="git-branch-outline" size={22} />
-              <Text style={styles.crudText}>Crear webhook</Text>
+            <TouchableOpacity style={[styles.actionBtn, styles.simulate]} onPress={handleSincronizar}>
+              <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
+              <Text style={styles.simulateText}>Sincronizar</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Acciones sobre jobs */}
-          <View style={styles.crudRow}>
-            <TouchableOpacity style={[styles.crudBtn, styles.pauseBtn]} onPress={handlePausar}>
-              <Ionicons name="pause-circle-outline" size={22} />
-              <Text style={styles.crudText}>Pausar jobs</Text>
+          {/* Acciones sobre jobs - Segunda fila */}
+          <Text style={styles.sectionLabel}>Acciones sobre jobs:</Text>
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={[styles.actionBtn, styles.webhook]} onPress={handleCrearWebhook}>
+              <Ionicons name="git-branch-outline" size={20} />
+              <Text style={styles.actionText}>Webhook</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.crudBtn, styles.resumeBtn]} onPress={handleReanudar}>
-              <Ionicons name="play-circle-outline" size={22} />
-              <Text style={styles.crudText}>Reanudar jobs</Text>
+            <TouchableOpacity style={[styles.actionBtn, styles.pauseAction]} onPress={handlePausar}>
+              <Ionicons name="pause-circle-outline" size={20} />
+              <Text style={styles.actionText}>Pausar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.actionBtn, styles.resumeAction]} onPress={handleReanudar}>
+              <Ionicons name="play-circle-outline" size={20} />
+              <Text style={styles.actionText}>Reanudar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -337,10 +392,29 @@ export default function IntegracionGestionScreen() {
               <View style={[styles.progressBarInner, { width: `${Math.max(0, Math.min(100, loadPct))}%` }]} />
             </View>
           </View>
+        ) : !serverReachable ? (
+          <View style={styles.errorPanel}>
+            <Ionicons name="cloud-offline-outline" size={64} color="#dc3545" />
+            <Text style={styles.errorTitle}>Sin conexión con el backend</Text>
+            <Text style={styles.errorText}>
+              No se pudo obtener información de conectores y jobs.{'\n'}
+              Verifique que el servidor backend esté funcionando.
+            </Text>
+            <TouchableOpacity style={styles.retryButton} onPress={onRefresh}>
+              <Ionicons name="refresh-outline" size={20} color="#fff" />
+              <Text style={styles.retryButtonText}>Reintentar</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <FlatList
             data={[{_header:true}, ...conectoresFiltered, {_divider:true}, ...jobsFiltered]}
-            keyExtractor={(item, idx) => String((item as any).id ?? (item as any)._header ?? (item as any)._divider ?? idx)}
+            keyExtractor={(item, idx) => {
+              const it: any = item;
+              if (it._header) return 'header-unique';
+              if (it._divider) return 'divider-unique';
+              if (it.id) return `item-${it.id}`;
+              return `fallback-${idx}`;
+            }}
             contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 24 }}
             refreshing={refreshing}
             onRefresh={onRefresh}
@@ -467,9 +541,106 @@ const styles = StyleSheet.create({
   progressBarOuter: { width: '92%', height: 8, borderRadius: 8, backgroundColor: '#e5e7eb' },
   progressBarInner: { height: 8, borderRadius: 8, backgroundColor: '#2e78b7' },
 
+  // error panel
+  errorPanel: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    padding: 40,
+    backgroundColor: '#f8f9fa'
+  },
+  errorTitle: { 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    color: '#dc3545', 
+    marginTop: 16, 
+    marginBottom: 8, 
+    textAlign: 'center' 
+  },
+  errorText: { 
+    fontSize: 14, 
+    color: '#6c757d', 
+    textAlign: 'center', 
+    lineHeight: 20,
+    marginBottom: 24 
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#007bff',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+
+  // Nuevos estilos para mejor organización
+  sectionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+    marginTop: 12,
+    paddingHorizontal: 12,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  actionBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    borderWidth: 1,
+  },
+  actionText: {
+    fontWeight: '600',
+    color: '#374151',
+    fontSize: 13,
+  },
+  config: {
+    backgroundColor: '#ecfdf5',
+    borderColor: '#10b98133',
+  },
+  settings: {
+    backgroundColor: '#eef2ff',
+    borderColor: '#6366f133',
+  },
+  simulate: {
+    backgroundColor: '#2e78b7',
+    borderColor: '#2e78b7',
+  },
+  simulateText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  webhook: {
+    backgroundColor: '#fef2f2',
+    borderColor: '#ef444433',
+  },
+  pauseAction: {
+    backgroundColor: '#fff7ed',
+    borderColor: '#f59e0b33',
+  },
+  resumeAction: {
+    backgroundColor: '#ecfdf5',
+    borderColor: '#10b98133',
+  },
+
   // utils
   flex1: { flex: 1 },
 
-
-notes:{marginTop:6, color:'#64748b'},
+  notes: { marginTop: 6, color: '#64748b' },
 });

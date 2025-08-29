@@ -84,11 +84,8 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     elevation: 3,
-    // Shadow for iOS
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    // Shadow for iOS and Web
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
   },  iconBackground: {
     width: 140,
     height: 140,
@@ -98,11 +95,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
     elevation: 4,
-    // Shadow for iOS
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    // Shadow for iOS and Web
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
   },
   constructionIcon: {
     marginBottom: 0,
@@ -141,11 +135,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 30,
     elevation: 2,
-    // Shadow for iOS
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
+    // Shadow for iOS and Web
+    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.2)',
   },
   backButtonText: {
     color: '#ffffff',

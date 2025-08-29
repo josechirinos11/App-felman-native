@@ -1,5 +1,11 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
+// FORZAR NDK 26.1.10909125 GLOBALMENTE - SOBRESCRIBIR CUALQUIER CONFIGURACIÓN POR DEFECTO
+allprojects {
+    project.ext.set("ndkVersion", "26.1.10909125")
+    project.ext.set("ANDROID_NDK_VERSION", "26.1.10909125")
+}
+
 buildscript {
   repositories {
     google()
@@ -36,5 +42,5 @@ allprojects {
 apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"
 
-// FORZAR NDK 25.2.9519653 para resolver problemas de C++ linking
-rootProject.ext.ndkVersion = "25.2.9519653"
+// FORZAR NDK 26.1.10909125 para compatibilidad C++20 con React Native 0.79.5
+rootProject.ext.ndkVersion = "26.1.10909125"

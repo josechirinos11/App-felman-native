@@ -7,10 +7,10 @@ import {
   ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AppHeader from '../../components/AppHeader';
-import ModalHeader from '../../components/ModalHeader';
-import { API_URL } from '../../config/constants';
-import { useOfflineMode } from '../../hooks/useOfflineMode';
+import AppHeader from '../components/AppHeader';
+import ModalHeader from '../components/ModalHeader';
+import { API_URL } from '../config/constants';
+import { useOfflineMode } from '../hooks/useOfflineMode';
 
 type Row = Record<string, any>;
 

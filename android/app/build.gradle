@@ -66,7 +66,7 @@ react {
 /**
  * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
  */
-def enableProguardInReleaseBuilds = (findProperty('android.enableProguardInReleaseBuilds') ?: false).toBoolean()
+def enableProguardInReleaseBuilds = (findProperty('android.enableProguardInReleaseBuilds') ?: true).toBoolean()
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -84,7 +84,6 @@ def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 android {
     ndkVersion rootProject.ext.ndkVersion
 
-    buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
     namespace 'com.felman.appfelmannative'
@@ -97,15 +96,15 @@ android {
         
         // Configuración de NDK para resolver problemas de C++ linking en reanimated
         ndk {
-            abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+            // Comentado para permitir APK universal con todas las arquitecturas
+            // abiFilters "armeabi-v7a", "arm64-v8a"
         }
         
         // Configuración de CMake para usar libc++_shared
         externalNativeBuild {
             cmake {
-                cppFlags "-std=c++17", "-fexceptions", "-frtti"
-                arguments "-DANDROID_STL=c++_shared", "-DANDROID_CPP_FEATURES=rtti exceptions"
-                targets "reanimated", "worklets"
+                cppFlags "-std=c++17"
+                arguments "-DANDROID_STL=c++_shared"
             }
         }
         
@@ -171,6 +170,11 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+    
+    // Google Play Services Maps - VERSIÓN ESPECÍFICA PARA COMPATIBILIDAD
+    implementation 'com.google.android.gms:play-services-maps:18.2.0'
+    implementation 'com.google.android.gms:play-services-base:18.3.0'
+    implementation 'com.google.android.gms:play-services-location:21.0.1'
 
     def isGifEnabled = (findProperty('expo.gif.enabled') ?: "") == "true";
     def isWebpEnabled = (findProperty('expo.webp.enabled') ?: "") == "true";

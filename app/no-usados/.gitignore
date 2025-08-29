@@ -1,0 +1,7 @@
+# Archivos temporales y de respaldo
+*.backup
+*.temp
+*.old
+
+# Excluir archivos vacíos o sin completar
+*.incomplete
