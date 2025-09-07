@@ -40,12 +40,21 @@ type Lote = {
 type Linea = {
   Módulo: string;
   Fabricada: number | null;
+  estadoTiempos?: 'completo' | 'parcial' | 'sin_tiempo';
   [key: string]: string | number | null | undefined;
 };
 
 type Fabricacion = {
   Módulo: string;
   [key: string]: string | number | null | undefined;
+};
+
+type OperarioLote = {
+  OperarioNombre: string;
+  CodigoOperario: string;
+  Tarea: string;
+  SegundosDedicados: number;
+  HH_MM_SS: string;
 };
 
 interface UserData {
@@ -142,6 +151,11 @@ const [modulesModalVisible, setModulesModalVisible] = useState(false); // Modal 
   const [selectedTareaNombre, setSelectedTareaNombre] = useState<string | null>(null);
   const [tareaModalModules, setTareaModalModules] = useState<Array<Linea & { TiempoTarea?: number | null }>>([]);
   const [loadingTareaModal, setLoadingTareaModal] = useState(false);
+  
+  // Estados para operarios del lote seleccionado
+  const [operariosLote, setOperariosLote] = useState<OperarioLote[]>([]);
+  const [loadingOperarios, setLoadingOperarios] = useState(false);
+  
   //const [userRole, setUserRole] = useState<string | null>(null);
 
   const [sqlVisible, setSqlVisible] = useState(false);
@@ -302,26 +316,64 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
   // Abrir modal para módulos
   const openModal = (num: string) => {
     setSelectedLote(num);
-  setUserModalVisible(false);      // por si acaso
-  setModulesModalVisible(true);    // ✅ solo abre el de módulos
+    setUserModalVisible(false);      // por si acaso
+    setModulesModalVisible(true);    // ✅ solo abre el de módulos
     setModules([]);
     setSelectedModule(null);
+    setOperariosLote([]); // Limpiar operarios previos
     setLoadingModules(true);
+    
+    // 1. PRIMERO: Cargar módulos y calcular sus estados basado en tiempos de tareas
     fetch(`${API_URL}/control-terminales/loteslineas?num_manual=${encodeURIComponent(num)}`)
       .then(res => {
         log('Respuesta de módulos:', res.status, res.ok);
         return res.json();
       })
-      .then((rows: Linea[]) => {
+      .then(async (rows: Linea[]) => {
         log('Módulos recibidos:', rows);
-        setModules(rows);
-        log('Módulos actualizados:', rows);
+        
+        // Para cada módulo, obtener los tiempos de todas las tareas
+        const modulesWithStatus = await Promise.all(rows.map(async (module) => {
+          try {
+            const tiemposRes = await fetch(`${API_URL}/control-terminales/tiempos-acumulados-modulo?num_manual=${encodeURIComponent(num)}&modulo=${encodeURIComponent(module.Módulo)}`);
+            const tiemposData = await tiemposRes.json();
+            
+            if (Array.isArray(tiemposData)) {
+              // Contar tareas con tiempo > 0
+              const tareasConTiempo = tiemposData.filter(t => (t.TiempoAcumulado ?? 0) > 0).length;
+              const totalTareas = Object.keys(tareaNombres).length; // Total de tareas definidas
+              
+              let estado: 'completo' | 'parcial' | 'sin_tiempo';
+              if (tareasConTiempo === 0) {
+                estado = 'sin_tiempo'; // Rojo
+              } else if (tareasConTiempo === totalTareas) {
+                estado = 'completo'; // Verde
+              } else {
+                estado = 'parcial'; // Amarillo
+              }
+              
+              return { ...module, estadoTiempos: estado };
+            }
+            return { ...module, estadoTiempos: 'sin_tiempo' as const };
+          } catch (error) {
+            log('Error al cargar tiempos para módulo:', module.Módulo, error);
+            return { ...module, estadoTiempos: 'sin_tiempo' as const };
+          }
+        }));
+        
+        setModules(modulesWithStatus);
+        log('Módulos actualizados con estados:', modulesWithStatus);
       })
       .catch(error => {
         log('Error al cargar módulos:', error);
         console.error(error);
       })
       .finally(() => setLoadingModules(false));
+
+    // 2. SEGUNDO: Cargar operarios en segundo plano (sin bloquear la UI)
+    setTimeout(() => {
+      loadOperarios(num);
+    }, 100); // Pequeño delay para que primero se muestren los módulos
   };
 
   // Carga detalles de módulo
@@ -329,6 +381,8 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
     if (!selectedLote) return;
     setSelectedModule(mod.Módulo);
     setLoadingTiempos(true);
+    
+    // 1. PRIMERO: Cargar tiempos (prioridad)
     fetch(`${API_URL}/control-terminales/tiempos-acumulados-modulo?num_manual=${encodeURIComponent(selectedLote)}&modulo=${encodeURIComponent(mod.Módulo)}`)
       .then(res => {
         log('Respuesta de tiempos acumulados:', res.status, res.ok);
@@ -345,12 +399,70 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
 
         setTiemposAcumulados(tiemposProcesados);
         log('Tiempos actualizados:', tiemposProcesados.length);
+        
+        // 2. SEGUNDO: Si no hay operarios cargados, cargarlos ahora
+        if (operariosLote.length === 0 && selectedLote) {
+          setTimeout(() => {
+            loadOperarios(selectedLote);
+          }, 100);
+        }
       })
       .catch(error => {
         log('Error al cargar tiempos:', error);
         console.error(error);
       })
       .finally(() => setLoadingTiempos(false));
+  };
+
+  // Carga información de operarios para un lote específico
+  const loadOperarios = (numeroManual: string) => {
+    setLoadingOperarios(true);
+    fetch(`${API_URL}/control-terminales/tiempos-operario-lote?num_manual=${encodeURIComponent(numeroManual)}`)
+      .then(res => {
+        log('Respuesta de operarios:', res.status, res.ok);
+        return res.json();
+      })
+      .then((json: OperarioLote[]) => {
+        log('Operarios recibidos:', json);
+        setOperariosLote(Array.isArray(json) ? json : []);
+      })
+      .catch(error => {
+        log('Error al cargar operarios:', error);
+        console.error(error);
+        setOperariosLote([]);
+      })
+      .finally(() => setLoadingOperarios(false));
+  };
+
+  // Función para obtener el operario que trabajó en una tarea específica
+  const getOperarioPorTarea = (nombreTarea: string): OperarioLote | null => {
+    if (!operariosLote.length) return null;
+    
+    // Mapeo de tareas para mejorar la coincidencia
+    const mapeoTareas: { [key: string]: string[] } = {
+      'CORTE': ['CORTE'],
+      'PRE-ARMADO': ['PREARMADO', 'PRE-ARMADO', 'PRE_ARMADO'],
+      'ARMADO': ['ARMADO'],
+      'HERRAJE': ['HERRAJE', 'HERRAJEHOJA'],
+      'MATRIMONIO': ['MATRIMONIO'],
+      'COMPACTO': ['COMPACTO'],
+      'ACRISTALADO': ['ACRISTALADO'],
+      'EMBALAJE': ['EMBALAJE']
+    };
+
+    const tareaUpper = nombreTarea.toUpperCase();
+    const variantes = mapeoTareas[tareaUpper] || [tareaUpper];
+    
+    // Buscar operario que coincida con alguna variante de la tarea
+    for (const variante of variantes) {
+      const operario = operariosLote.find(op => 
+        op.Tarea.toUpperCase().includes(variante) || 
+        variante.includes(op.Tarea.toUpperCase())
+      );
+      if (operario) return operario;
+    }
+    
+    return null;
   };
 
 
@@ -460,7 +572,7 @@ onUserPress={({ userName, role }) => {
             <Text style={[
               styles.filterText,
               statusFilter === filter && styles.filterTextActive
-            ]}>
+            ]} numberOfLines={1} adjustsFontSizeToFit>
               {filter}
             </Text>
           </TouchableOpacity>
@@ -526,9 +638,16 @@ onUserPress={({ userName, role }) => {
                           // Abrir modal de tarea con módulos y tiempos por modulo para esta tarea
                           setSelectedTareaNumero(tarea.numero);
                           setSelectedTareaNombre(tarea.nombre);
-                          // reutilizamos selectedLote para la consulta
                           setTareaModalVisible(true);
-                          // cargar módulos y tiempos por módulo para la tarea
+                          
+                          // Cargar operarios solo si no están disponibles (no bloquear la carga de módulos)
+                          if (operariosLote.length === 0) {
+                            setTimeout(() => {
+                              loadOperarios(item.NumeroManual);
+                            }, 100);
+                          }
+                          
+                          // PRIMERO: cargar módulos y tiempos por módulo para la tarea (prioridad)
                           (async () => {
                             if (!item.NumeroManual) return;
                             setLoadingTareaModal(true);
@@ -603,31 +722,65 @@ onUserPress={({ userName, role }) => {
               ) : (
                 <View style={styles.modalContent}>
                   <Text style={styles.modalTitle}>Tiempos de: {selectedModule}</Text>
-                  <ScrollView>
-                    {tiemposAcumulados.map((item, idx) => (
-                      <View key={idx} style={styles.detailCard}>
-                        <Text style={styles.detailTextBold}>{item.NumeroTarea}</Text>
-                        <Text style={styles.detailText}>{formatSeconds(item.TiempoAcumulado)}</Text>
-                      </View>
-                    ))}
+                  
+                  {/* Mostrar indicador solo si se están cargando operarios Y ya se mostraron los tiempos */}
+                  {loadingOperarios && tiemposAcumulados.length > 0 && (
+                    <View style={styles.loadingOperarios}>
+                      <ActivityIndicator size="small" color={COLORS.primary} />
+                      <Text style={[styles.loadingText, styles.androidTextFix]}>Verificando operarios...</Text>
+                    </View>
+                  )}
+                  
+                  <ScrollView style={styles.modalScrollView}>
+                    {tiemposAcumulados.map((item, idx) => {
+                      const operario = getOperarioPorTarea(item.NumeroTarea);
+                      const tienetiempo = item.TiempoAcumulado != null && item.TiempoAcumulado > 0;
+                      return (
+                        <View key={idx} style={styles.detailCard}>
+                          <View style={styles.tareaInfo}>
+                            <Text style={[styles.detailTextBold, styles.androidTextFix]}>{item.NumeroTarea}</Text>
+                            {/* Solo mostrar info de operario si hay tiempo registrado */}
+                            {tienetiempo && !loadingOperarios && operariosLote.length > 0 && (
+                              operario ? (
+                                <Text style={[styles.operarioText, styles.androidTextFix]}>
+                                  👤 {operario.OperarioNombre}
+                                </Text>
+                              ) : (
+                                <Text style={[styles.operarioText, styles.androidTextFix]}>
+                                  ❓ Sin operario asignado
+                                </Text>
+                              )
+                            )}
+                          </View>
+                          <Text style={[styles.detailText, styles.androidTextFix]}>{formatSeconds(item.TiempoAcumulado)}</Text>
+                        </View>
+                      );
+                    })}
                   </ScrollView>
                 </View>
               )
             ) : (
               <View style={styles.modalContent}>
-                <ScrollView style={{ maxHeight: '100%', maxWidth: '100%', }}>
-                  {modules.map((mod, idx) => (
-                    <TouchableOpacity
-                      key={idx}
-                      style={[
-                        styles.cardSmall,
-                        mod.Fabricada === 1 ? styles.moduleFabricado : styles.modulePendiente
-                      ]}
-                      onPress={() => loadDetails(mod)}
-                    >
-                      <Text style={styles.cardTitleSmall}>{mod.Módulo}</Text>
-                    </TouchableOpacity>
-                  ))}
+                <ScrollView style={[styles.modalScrollView, { maxHeight: '100%', maxWidth: '100%' }]}>
+                  {modules.map((mod, idx) => {
+                    // Determinar el estilo basado en el estado de tiempos
+                    let moduleStyle = styles.moduleSinTiempo; // Rojo por defecto
+                    if (mod.estadoTiempos === 'completo') {
+                      moduleStyle = styles.moduleTiempoCompleto; // Verde
+                    } else if (mod.estadoTiempos === 'parcial') {
+                      moduleStyle = styles.moduleTiempoParcial; // Amarillo
+                    }
+                    
+                    return (
+                      <TouchableOpacity
+                        key={idx}
+                        style={[styles.cardSmall, moduleStyle]}
+                        onPress={() => loadDetails(mod)}
+                      >
+                        <Text style={[styles.cardTitleSmall, styles.androidTextFix]}>{mod.Módulo}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </ScrollView>
               </View>
             )}
@@ -642,17 +795,46 @@ onUserPress={({ userName, role }) => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>{selectedTareaNombre ?? 'Tarea'}</Text>
+            
+            {/* Mostrar indicador solo si se están cargando operarios Y ya hay módulos */}
+            {loadingOperarios && tareaModalModules.length > 0 && (
+              <View style={styles.loadingOperarios}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+                <Text style={[styles.loadingText, styles.androidTextFix]}>Verificando operarios...</Text>
+              </View>
+            )}
+            
             {loadingTareaModal ? (
               <ActivityIndicator />
             ) : (
               <View style={styles.modalContent}>
-                <ScrollView>
-                  {tareaModalModules.map((mod, idx) => (
-                    <View key={idx} style={[styles.detailCard, { justifyContent: 'space-between' }]}>
-                      <Text style={styles.detailTextBold}>{mod.Módulo}</Text>
-                      <Text style={styles.detailText}>{mod.TiempoTarea != null ? formatSeconds(mod.TiempoTarea) : '-'}</Text>
-                    </View>
-                  ))}
+                <ScrollView style={styles.modalScrollView}>
+                  {tareaModalModules.map((mod, idx) => {
+                    const operario = getOperarioPorTarea(selectedTareaNombre || '');
+                    const tienetiempo = mod.TiempoTarea != null && mod.TiempoTarea > 0;
+                    return (
+                      <View key={idx} style={[styles.detailCard, { justifyContent: 'space-between' }]}>
+                        <View style={styles.tareaInfo}>
+                          <Text style={[styles.detailTextBold, styles.androidTextFix]}>{mod.Módulo}</Text>
+                          {/* Solo mostrar info de operario si hay tiempo registrado */}
+                          {tienetiempo && !loadingOperarios && operariosLote.length > 0 && (
+                            operario ? (
+                              <Text style={[styles.operarioText, styles.androidTextFix]}>
+                                👤 {operario.OperarioNombre}
+                              </Text>
+                            ) : (
+                              <Text style={[styles.operarioText, styles.androidTextFix]}>
+                                ❓ Sin operario asignado
+                              </Text>
+                            )
+                          )}
+                        </View>
+                        <Text style={[styles.detailText, styles.androidTextFix]}>
+                          {mod.TiempoTarea != null ? formatSeconds(mod.TiempoTarea) : '-'}
+                        </Text>
+                      </View>
+                    );
+                  })}
                 </ScrollView>
               </View>
             )}
@@ -710,26 +892,31 @@ cardWeb: {
   searchInput: { flex: 1, height: 40, marginLeft: 8 },
   filterContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 8,
+    paddingHorizontal: 4, // Reducido de 8 a 4
     paddingVertical: 8,
-    justifyContent: 'space-around',
+    justifyContent: 'space-between', // Cambiado de space-around a space-between
     backgroundColor: COLORS.background,
+    flexWrap: 'wrap', // Permitir que se envuelvan si es necesario
   },
   filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 8, // Reducido de 16 a 8
+    paddingVertical: 6, // Reducido de 8 a 6
+    borderRadius: 16, // Reducido de 20 a 16
     backgroundColor: '#f0f0f0',
-    marginHorizontal: 4,
+    marginHorizontal: 2, // Reducido de 4 a 2
+    marginVertical: 2, // Agregado para separación vertical
     borderWidth: 1,
     borderColor: '#ddd',
+    flex: 1, // Usar flex para distribuir el espacio igualmente
+    maxWidth: '24%', // Máximo ancho del 24% para 4 botones
+    minWidth: 70, // Ancho mínimo para legibilidad
   },
   filterButtonActive: {
     backgroundColor: COLORS.primary,
     borderColor: COLORS.primary,
   },
   filterText: {
-    fontSize: 14,
+    fontSize: 12, // Reducido de 14 a 12
     fontWeight: '600',
     color: '#666',
     textAlign: 'center',
@@ -803,9 +990,34 @@ cardWeb: {
     shadowOpacity: 0.15,
     shadowRadius: 3,
   },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { backgroundColor: '#fff', borderRadius: 12, padding: 16, width: '80%', maxHeight: '80%' },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 12, color: COLORS.primary, textAlign: 'center' },
+  modalOverlay: { 
+    flex: 1, 
+    backgroundColor: 'rgba(0,0,0,0.5)', 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  modalContent: { 
+    backgroundColor: '#fff', 
+    borderRadius: 12, 
+    padding: 16, 
+    width: '80%', 
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8, // Mejorar elevación para Android
+  },
+  modalTitle: { 
+    fontSize: 20, 
+    fontWeight: 'bold', 
+    marginBottom: 12, 
+    color: COLORS.primary, 
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
   tareasContainer: { 
     flexDirection: 'row', 
     flexWrap: 'wrap', 
@@ -845,14 +1057,123 @@ cardWeb: {
     textAlign: 'center',
     color: '#333'
   },
-  cardSmall: { backgroundColor: '#eef6fb', padding: 12, borderRadius: 8, marginVertical: 4 },
-  cardTitleSmall: { color: COLORS.primary, fontWeight: 'bold' },
-  moduleFabricado: { backgroundColor: '#d4edda' },
-  modulePendiente: { backgroundColor: '#ffd7d7' },
-  closeButton: { marginTop: 12, backgroundColor: COLORS.primary, padding: 10, borderRadius: 8 },
-  closeText: { color: '#fff', textAlign: 'center', fontWeight: 'bold' },
-  detailCard: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee', alignItems: 'center' },
-  detailText: { fontSize: 16 },
-  detailTextBold: { fontSize: 16, fontWeight: 'bold' },
+  cardSmall: { 
+    backgroundColor: '#eef6fb', 
+    padding: 12, 
+    borderRadius: 8, 
+    marginVertical: 4,
+    borderWidth: 1,
+    borderColor: '#d1e7f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cardTitleSmall: { 
+    color: COLORS.primary, 
+    fontWeight: 'bold',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  moduleFabricado: { 
+    backgroundColor: '#d4edda',
+    borderColor: '#28a745',
+    borderWidth: 2,
+  },
+  modulePendiente: { 
+    backgroundColor: '#ffd7d7',
+    borderColor: '#dc3545',
+    borderWidth: 2,
+  },
+  // Nuevos estilos basados en estado de tiempos
+  moduleTiempoCompleto: { 
+    backgroundColor: '#d4edda', // Verde - todas las tareas tienen tiempo
+    borderColor: '#28a745',
+    borderWidth: 2,
+  },
+  moduleTiempoParcial: { 
+    backgroundColor: '#fff3cd', // Amarillo - algunas tareas tienen tiempo
+    borderColor: '#ffc107',
+    borderWidth: 2,
+  },
+  moduleSinTiempo: { 
+    backgroundColor: '#f8d7da', // Rojo - ninguna tarea tiene tiempo
+    borderColor: '#dc3545',
+    borderWidth: 2,
+  },
+  closeButton: { 
+    marginTop: 12, 
+    backgroundColor: COLORS.primary, 
+    padding: 12, 
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  closeText: { 
+    color: '#fff', 
+    textAlign: 'center', 
+    fontWeight: 'bold',
+    fontSize: 16,
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  detailCard: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    paddingVertical: 12, 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#eee', 
+    alignItems: 'center',
+    backgroundColor: '#fff', // Asegurar fondo blanco
+  },
+  detailText: { 
+    fontSize: 16, 
+    color: '#1f2937', // Color de texto explícito para buena visibilidad
+    fontWeight: '500' 
+  },
+  detailTextBold: { 
+    fontSize: 16, 
+    fontWeight: 'bold', 
+    color: '#1f2937' // Color de texto explícito para buena visibilidad
+  },
+  modalScrollView: {
+    backgroundColor: '#fff',
+    maxHeight: '100%',
+  },
+  // Estilos adicionales para garantizar visibilidad en Android release
+  androidTextFix: {
+    textShadowColor: 'transparent',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 0,
+  },
+  tareaInfo: {
+    flex: 1,
+    flexDirection: 'column',
+  },
+  operarioText: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
+  loadingOperarios: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  loadingText: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginLeft: 8,
+  },
   refreshButton: { marginLeft: 8, padding: 4 }
 });
