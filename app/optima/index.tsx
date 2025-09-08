@@ -27,6 +27,7 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
     { id: 1, title: 'Atras', icon: 'arrow-back-outline', route: '/' },
   { id: 2, title: 'Control Terminales', icon: 'clipboard-outline', route: 'optima/piezas-maquina' },
+  { id: 3, title: 'Terminales Almassera', icon: 'desktop-outline', route: 'optima/control-terminales-almassera' },
  
   
 ];

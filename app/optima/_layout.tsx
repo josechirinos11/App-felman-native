@@ -53,6 +53,14 @@ export default function OptimaTabLayout() {
           tabBarIcon: ({ color }) => <TabBarIcon name="analytics-outline" color={color} />,
         }}
       />
+
+      <Tabs.Screen
+        name="control-terminales-almassera"
+        options={{
+          title: 'Almassera',
+          tabBarIcon: ({ color }) => <TabBarIcon name="desktop-outline" color={color} />,
+        }}
+      />
      
 
       {/* Ajustes (si lo activas en el futuro) */}
