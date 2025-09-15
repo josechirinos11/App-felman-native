@@ -3,7 +3,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Animated, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import COLORS from '../constants/Colors';
 
@@ -132,20 +132,38 @@ export default function ModalHeader({ visible, onClose, userName, role }: ModalH
   const screenWidth = Dimensions.get('window').width;
   const router = useRouter();
   const anim = React.useRef(new Animated.Value(0)).current;
+  const backdropAnim = React.useRef(new Animated.Value(0)).current;
   // Panel width: 70% en móvil, 320px por defecto en desktop
   const defaultPanelWidth = screenWidth < 600 ? Math.round(screenWidth * 0.7) : 320;
   const [panelWidth, setPanelWidth] = React.useState(defaultPanelWidth);
   const [subMenuVisible, setSubMenuVisible] = React.useState<number | null>(null);
+    const subMenuAnim = React.useRef(new Animated.Value(0)).current;
+    React.useEffect(() => {
+      if (subMenuVisible !== null) {
+        Animated.timing(subMenuAnim, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+      } else {
+        Animated.timing(subMenuAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+      }
+    }, [subMenuVisible]);
 
   React.useEffect(() => {
     if (visible) {
-      Animated.timing(anim, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+      Animated.timing(anim, { toValue: 1, duration: 260, useNativeDriver: true }).start(() => {
+        Animated.timing(backdropAnim, { toValue: 1, duration: 180, useNativeDriver: true }).start();
+      });
+    } else {
+      Animated.timing(backdropAnim, { toValue: 0, duration: 120, useNativeDriver: true }).start();
+      Animated.timing(anim, { toValue: 0, duration: 200, useNativeDriver: true }).start();
     }
-  }, [visible, anim]);
+  }, [visible, anim, backdropAnim]);
 
   const translateX = anim.interpolate({
     inputRange: [0, 1],
     outputRange: [-(panelWidth + 20), 0],
+  });
+  const backdropOpacity = backdropAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 0.25],
   });
 
   if (!visible) return null;
@@ -167,131 +185,176 @@ export default function ModalHeader({ visible, onClose, userName, role }: ModalH
             if (w && w !== panelWidth) setPanelWidth(w);
           }}
         >
-          <View style={styles.headerRow}>
-            <Text style={styles.modalTitle}>Usuario</Text>
+          <View style={styles.headerRowLogo}>
+            <Image source={require('../assets/images/logo.png')} style={styles.logoImg} resizeMode="contain" />
+            <View style={styles.userInfoContainer}>
+              <Text style={styles.modalUser}>{userName}</Text>
+              <Text style={styles.modalRole}>{role}</Text>
+            </View>
             <Pressable onPress={handleCloseWithAnimation} style={styles.iconBtn}>
               <Ionicons name="close" size={22} color={COLORS.text} />
             </Pressable>
           </View>
 
-          <ScrollView contentContainerStyle={styles.cardContent} showsVerticalScrollIndicator={false}>
-            <Text style={styles.modalUser}>{userName}</Text>
-            <Text style={styles.modalRole}>{role}</Text>
-
-            {/* Menú principal */}
-            <View style={{ width: '100%', marginTop: 18 }}>
-              {MENU.map((section, idx) => (
-                <Pressable
-                  key={section.title}
-                  style={styles.menuTitleBtn}
-                  onPress={() => {
-                    if (section.title === 'INICIO' && section.route) {
+          <View style={{ flex: 1, justifyContent: 'flex-start', position: 'relative' }}>
+            {subMenuVisible === null ? (
+              <>
+                <ScrollView contentContainerStyle={styles.cardContent} showsVerticalScrollIndicator={false}>
+                  {/* Menú principal */}
+                  <View style={{ width: '100%', marginTop: 18 }}>
+                    {MENU.map((section, idx) => (
+                      <Pressable
+                        key={section.title}
+                        style={styles.menuTitleBtn}
+                        onPress={() => {
+                          if (section.title === 'INICIO' && section.route) {
+                            onClose();
+                            router.push(section.route as any);
+                          } else {
+                            setSubMenuVisible(idx);
+                          }
+                        }}
+                      >
+                        <Text style={styles.menuTitleText}>{section.title}</Text>
+                        {section.title === 'INICIO' ? (
+                          <Ionicons name="home-outline" size={18} color={COLORS.primary} />
+                        ) : null}
+                      </Pressable>
+                    ))}
+                  </View>
+                </ScrollView>
+                {/* Configuración fijo abajo */}
+                <View style={styles.configBottomContainer}>
+                  <Pressable
+                    style={styles.configBtn}
+                    onPress={() => {
                       onClose();
-                      router.push(section.route as any);
-                    } else {
-                      setSubMenuVisible(idx);
-                    }
-                  }}
-                >
-                  <Text style={styles.menuTitleText}>{section.title}</Text>
-                  {section.title === 'INICIO' ? (
-                    <Ionicons name="home-outline" size={18} color={COLORS.primary} />
-                  ) : null}
-                </Pressable>
-              ))}
-            </View>
-
-            {/* Configuración y cerrar */}
-            <View style={{ width: '100%', marginTop: 12 }}>
-              <Pressable
-                style={styles.configBtn}
-                onPress={() => {
-                  onClose();
-                  router.push('/(tabs)/configuracion');
-                }}
-              >
-                <Ionicons name="settings-outline" size={18} color="#1976d2" />
-                <Text style={styles.configBtnText}>Configuraciones</Text>
-              </Pressable>
-              <Pressable style={styles.closeBtn} onPress={handleCloseWithAnimation}>
-                <Text style={styles.closeBtnText}>Cerrar</Text>
-              </Pressable>
-            </View>
-          </ScrollView>
+                      router.push('/(tabs)/configuracion');
+                    }}
+                  >
+                    <Ionicons name="settings-outline" size={18} color="#1976d2" />
+                    <Text style={styles.configBtnText}>Configuraciones</Text>
+                  </Pressable>
+                </View>
+              </>
+            ) : (
+              <Animated.View style={{ flex: 1, position: 'absolute', width: '100%', height: '100%', backgroundColor: '#fff', zIndex: 300, left: 0, top: 0, transform: [{ translateX: subMenuAnim.interpolate({ inputRange: [0, 1], outputRange: [-panelWidth, 0] }) }] }}>
+                <View style={styles.headerRowLogo}>
+                  <Pressable onPress={() => {
+                    Animated.timing(subMenuAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+                      setSubMenuVisible(null);
+                    });
+                  }} style={styles.backBtn}>
+                    <Ionicons name="arrow-back" size={22} color={COLORS.primary} />
+                  </Pressable>
+                  <View style={styles.userInfoContainer}>
+                    <Text style={styles.subMenuTitle}>{MENU[subMenuVisible].title}</Text>
+                  </View>
+                </View>
+                <ScrollView contentContainerStyle={styles.cardContent} showsVerticalScrollIndicator={false}>
+                  <View style={{ width: '100%', marginTop: 8 }}>
+                    {MENU[subMenuVisible].menuItems && MENU[subMenuVisible].menuItems.map((item) => (
+                      <Pressable
+                        key={item.id}
+                        style={styles.subMenuBtn}
+                        onPress={() => {
+                          setSubMenuVisible(null);
+                          onClose();
+                          router.push(item.route as any);
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Ionicons name={item.icon as any} size={20} color={COLORS.primary} />
+                          <Text style={styles.subMenuBtnTextBlue}>{item.title}</Text>
+                        </View>
+                      </Pressable>
+                    ))}
+                    {MENU[subMenuVisible].subMenus && MENU[subMenuVisible].subMenus!.map((item) => (
+                      <Pressable
+                        key={item.label}
+                        style={styles.subMenuBtn}
+                        onPress={() => {
+                          setSubMenuVisible(null);
+                          onClose();
+                          router.push(item.route as any);
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          {item.icon ? <Ionicons name={item.icon as any} size={20} color={COLORS.primary} /> : null}
+                          <Text style={styles.subMenuBtnTextBlue}>{item.label}</Text>
+                        </View>
+                      </Pressable>
+                    ))}
+                  </View>
+                </ScrollView>
+                {/* Configuración fijo abajo */}
+                <View style={styles.configBottomContainer}>
+                  <Pressable
+                    style={styles.configBtn}
+                    onPress={() => {
+                      onClose();
+                      router.push('/(tabs)/configuracion');
+                    }}
+                  >
+                    <Ionicons name="settings-outline" size={18} color="#1976d2" />
+                    <Text style={styles.configBtnText}>Configuraciones</Text>
+                  </Pressable>
+                </View>
+              </Animated.View>
+            )}
+          </View>
         </Animated.View>
       </View>
 
-      {/* Backdrop */}
-      <Pressable style={[styles.backdrop, { left: panelWidth }]} onPress={handleCloseWithAnimation} />
+      {/* Backdrop animado */}
+      <Animated.View style={[styles.backdrop, { left: panelWidth, opacity: backdropOpacity }]} pointerEvents={visible ? 'auto' : 'none'}>
+        <Pressable style={{ flex: 1 }} onPress={handleCloseWithAnimation} />
+      </Animated.View>
 
-      {/* Modal secundario para submenús */}
-      <Modal
-        visible={subMenuVisible !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSubMenuVisible(null)}
-      >
-        <Pressable style={styles.subMenuBackdrop} onPress={() => setSubMenuVisible(null)} />
-        {subMenuVisible !== null && (
-          <View
-            style={{
-              ...styles.subMenuDropdown,
-              // Calcula la altura máxima solo si hay muchos ítems
-              maxHeight:
-                (MENU[subMenuVisible].menuItems?.length ?? MENU[subMenuVisible].subMenus?.length ?? 0) > 6
-                  ? 320
-                  : undefined,
-              top: 70 + ((subMenuVisible + 2) * 42), // dos escalones más abajo
-            }}
-          >
-            <Text style={styles.subMenuTitle}>{MENU[subMenuVisible].title}</Text>
-            <ScrollView
-              style={{ flexGrow: 0 }}
-              contentContainerStyle={styles.subMenuList}
-              showsVerticalScrollIndicator={true}
-            >
-              {MENU[subMenuVisible].menuItems && MENU[subMenuVisible].menuItems.map((item) => (
-                <Pressable
-                  key={item.id}
-                  style={styles.subMenuBtn}
-                  onPress={() => {
-                    setSubMenuVisible(null);
-                    onClose();
-                    router.push(item.route as any);
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Ionicons name={item.icon as any} size={20} color={COLORS.primary} />
-                    <Text style={styles.subMenuBtnTextBlue}>{item.title}</Text>
-                  </View>
-                </Pressable>
-              ))}
-              {MENU[subMenuVisible].subMenus && MENU[subMenuVisible].subMenus!.map((item) => (
-                <Pressable
-                  key={item.label}
-                  style={styles.subMenuBtn}
-                  onPress={() => {
-                    setSubMenuVisible(null);
-                    onClose();
-                    router.push(item.route as any);
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      {item.icon ? <Ionicons name={item.icon as any} size={20} color={COLORS.primary} /> : null}
-                    <Text style={styles.subMenuBtnTextBlue}>{item.label}</Text>
-                  </View>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-      </Modal>
     </SafeAreaView>
   );
 }
 
 
 const styles = StyleSheet.create({
+  backBtn: {
+    padding: 6,
+    marginRight: 2,
+  },
+  headerRowLogo: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingRight: 6,
+    marginBottom: 10,
+  },
+  logoImg: {
+    width: 70,
+    height: 40,
+    marginRight: 8,
+  },
+  userInfoContainer: {
+    flex: 1,
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+    gap: 0,
+  },
+  configBottomContainer: {
+    width: '100%',
+    paddingBottom: 10,
+    position: 'absolute',
+    left: 0,
+    bottom: 0,
+    backgroundColor: '#fff',
+    zIndex: 10,
+    borderBottomRightRadius: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#e6e6e6',
+    alignItems: 'center',
+  },
   overlaySafe: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     zIndex: 1000,

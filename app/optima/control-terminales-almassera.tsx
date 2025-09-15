@@ -6,18 +6,18 @@ import DateTimePicker, { DateTimePickerAndroid, DateTimePickerEvent } from '@rea
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    Modal,
-    Platform,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    useWindowDimensions,
-    View
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  useWindowDimensions,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -842,8 +842,8 @@ export default function ControlTerminalesAlmassera() {
 
       {/* Filtros de fecha */}
       <View style={styles.filtersGrid}>
-        <View style={styles.filterRow}>
-          <View style={[styles.inputGroup, styles.flex1]}>
+        <View style={[styles.filterRow, Platform.OS === 'web' ? { gap: 24 } : {}]}>
+          <View style={[styles.inputGroup, styles.flex1, Platform.OS === 'web' ? { minWidth: 180, maxWidth: 220 } : {}]}>
             <Text style={styles.label}>Desde</Text>
             {Platform.OS === 'web' ? (
               // @ts-ignore
@@ -855,9 +855,11 @@ export default function ControlTerminalesAlmassera() {
                   borderWidth: 1, 
                   borderColor: dateError ? '#ef4444' : '#ddd', 
                   borderRadius: 8, 
-                  padding: 10, 
-                  height: 40, 
-                  width: '100%' 
+                  padding: 6, 
+                  height: 32, 
+                  width: '100%',
+                  fontSize: 14,
+                  marginRight: Platform.OS === 'web' ? 0 : undefined
                 }}
               />
             ) : (
@@ -869,13 +871,21 @@ export default function ControlTerminalesAlmassera() {
                   dateError ? styles.inputError : {}
                 ]}
               >
-                <Text>{from || 'YYYY-MM-DD'}</Text>
-                <Ionicons name="calendar-outline" size={18} color="#666" />
+                <Text style={{
+                  fontSize: 16,
+                  color: from ? '#111827' : '#888',
+                  fontWeight: from ? 'bold' : 'normal',
+                  flex: 1,
+                  textAlign: 'left',
+                }}>
+                  {from && validYmd(from) ? from : 'Selecciona fecha'}
+                </Text>
+                <Ionicons name="calendar-outline" size={20} color="#2e78b7" />
               </Pressable>
             )}
           </View>
           
-          <View style={[styles.inputGroup, styles.flex1]}>
+          <View style={[styles.inputGroup, styles.flex1, Platform.OS === 'web' ? { minWidth: 180, maxWidth: 220 } : {}]}>
             <Text style={styles.label}>Hasta</Text>
             {Platform.OS === 'web' ? (
               // @ts-ignore
@@ -887,9 +897,11 @@ export default function ControlTerminalesAlmassera() {
                   borderWidth: 1, 
                   borderColor: dateError ? '#ef4444' : '#ddd', 
                   borderRadius: 8, 
-                  padding: 10, 
-                  height: 40, 
-                  width: '100%' 
+                  padding: 6, 
+                  height: 32, 
+                  width: '100%',
+                  fontSize: 14,
+                  marginLeft: Platform.OS === 'web' ? 0 : undefined
                 }}
               />
             ) : (
@@ -901,28 +913,73 @@ export default function ControlTerminalesAlmassera() {
                   dateError ? styles.inputError : {}
                 ]}
               >
-                <Text>{to || 'YYYY-MM-DD'}</Text>
-                <Ionicons name="calendar-outline" size={18} color="#666" />
+                <Text style={{
+                  fontSize: 16,
+                  color: to ? '#111827' : '#888',
+                  fontWeight: to ? 'bold' : 'normal',
+                  flex: 1,
+                  textAlign: 'left',
+                }}>
+                  {to && validYmd(to) ? to : 'Selecciona fecha'}
+                </Text>
+                <Ionicons name="calendar-outline" size={20} color="#2e78b7" />
               </Pressable>
             )}
           </View>
         </View>
 
-        {/* Botón aplicar filtros */}
-        <View style={styles.filterRow}>
-          <Pressable
-            style={[
-              styles.btn, 
-              (!validYmd(from) || !validYmd(to)) && styles.btnDisabled, 
-              styles.flex1
-            ]}
-            onPress={() => fetchData(true)}
-            disabled={!validYmd(from) || !validYmd(to)}
-          >
-            <Ionicons name="refresh-outline" size={20} color="#fff" />
-            <Text style={styles.btnText}>Buscar datos</Text>
-          </Pressable>
-        </View>
+        {/* Botón aplicar filtros y búsqueda en la misma fila en web */}
+        {Platform.OS === 'web' ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 12, marginBottom: 12 }}>
+            <Pressable
+              style={[
+                styles.btn,
+                (!validYmd(from) || !validYmd(to)) && styles.btnDisabled,
+                { minWidth: 180, maxWidth: 220, height: 32, padding: 0 }
+              ]}
+              onPress={() => fetchData(true)}
+              disabled={!validYmd(from) || !validYmd(to)}
+            >
+              <Ionicons name="refresh-outline" size={18} color="#fff" />
+              <Text style={[styles.btnText, { fontSize: 14 }]}>Buscar datos</Text>
+            </Pressable>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: 'transparent' }}>
+              <Ionicons name="search-outline" size={18} color="#757575" style={{ marginRight: 6 }} />
+              <TextInput
+                style={{
+                  fontSize: 14,
+                  height: 32,
+                  padding: 4,
+                  flex: 1,
+                  minWidth: 220,
+                  maxWidth: 320,
+                  borderWidth: 1,
+                  borderColor: '#e5e7eb',
+                  borderRadius: 8,
+                  backgroundColor: '#fff',
+                }}
+                placeholder="Buscar por pedido, cliente, centro de trabajo u operario"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            </View>
+          </View>
+        ) : (
+          <View style={styles.filterRow}>
+            <Pressable
+              style={[
+                styles.btn,
+                (!validYmd(from) || !validYmd(to)) && styles.btnDisabled,
+                styles.flex1
+              ]}
+              onPress={() => fetchData(true)}
+              disabled={!validYmd(from) || !validYmd(to)}
+            >
+              <Ionicons name="refresh-outline" size={20} color="#fff" />
+              <Text style={styles.btnText}>Buscar datos</Text>
+            </Pressable>
+          </View>
+        )}
 
         {/* Error de fechas */}
         {dateError ? (
@@ -930,17 +987,6 @@ export default function ControlTerminalesAlmassera() {
             <Text style={styles.errorText}>{dateError}</Text>
           </View>
         ) : null}
-      </View>
-
-      {/* Búsqueda */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={20} color="#757575" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Buscar por pedido, cliente, centro de trabajo u operario"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
       </View>
 
       {/* Filtros de estado */}

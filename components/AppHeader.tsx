@@ -54,16 +54,13 @@ export default function AppHeader({
 
   return (
     <View style={styles.wrapper}>
-      <View style={[styles.leftCol, isSmallDevice && { minWidth: 20 }]}>
-        <Pressable onPress={handleUserPress} style={{ paddingVertical: 6 }}>
-          <View style={styles.row}>
-            <Image source={require('../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
-            {!isSmallDevice && <Text numberOfLines={1} style={styles.user}>{displayedUser}</Text>}
-          </View>
-          <View style={[styles.row, { marginTop: 2 }]}>
-            <Ionicons name="menu-outline" size={16} color={COLORS.textSecondary} />
-           
-           
+      <View style={[styles.leftCol, isSmallDevice && { minWidth: 20 }]}> 
+        <Pressable onPress={handleUserPress} style={styles.logoMenuPressable}>
+          <View style={styles.logoMenuContainer}>
+            {Platform.OS === 'web' ? (
+              <Image source={require('../assets/images/logo.png')} style={styles.logoLarge} resizeMode="contain" />
+            ) : null}
+            <Ionicons name="menu-outline" size={32} color="#ef4444" style={styles.menuIconLarge} />
           </View>
         </Pressable>
       </View>
@@ -108,9 +105,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
   },
-  leftCol: { minWidth: 90, alignItems: 'flex-start', justifyContent: 'center' },
+  leftCol: { minWidth: 90, alignItems: 'center', justifyContent: 'center' },
   centerCol: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  rightCol: { minWidth: 90, alignItems: 'flex-start', justifyContent: 'flex-start' },
+  rightCol: { minWidth: 90, alignItems: 'flex-end', justifyContent: 'center' },
+  logoMenuPressable: {
+    paddingVertical: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  logoMenuContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+    width: '100%',
+  },
+  logoLarge: {
+    width: 56,
+    height: 40,
+    marginRight: 0,
+  },
+  menuIconLarge: {
+    marginLeft: 0,
+  },
   row: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'flex-start' },
   logo: { width: 28, height: 20, marginRight: 6 },
   user: { marginLeft: 6, fontSize: 14, fontWeight: '700', color: COLORS.text, maxWidth: 220 },
