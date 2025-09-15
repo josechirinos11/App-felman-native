@@ -22,6 +22,7 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { id: 1, title: 'Atras', icon: 'arrow-back-outline', route: '/' },
   { id: 2, title: 'Terminales', icon: 'location-outline', route: '/moncada/control-terminales' },
+    { id: 2, title: 'Tiempo real', icon: 'time-outline', route: '/moncada/control-tiempo-real' },
 
   { id: 3, title: 'Control Pedidos', icon: 'cube-outline', route: '/moncada/control-pedidos' },
   { id: 4, title: 'Control de Incidencias', icon: 'alert-circle-outline', route: '/moncada/control-incidencias' },

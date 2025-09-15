@@ -44,3 +44,8 @@ apply plugin: "com.facebook.react.rootproject"
 
 // FORZAR NDK 26.1.10909125 para compatibilidad C++20 con React Native 0.79.5
 rootProject.ext.ndkVersion = "26.1.10909125"
+// Static SDK / build tools values used by modules via rootProject.ext
+rootProject.ext.compileSdkVersion = 35
+rootProject.ext.targetSdkVersion = 34
+rootProject.ext.minSdkVersion = 24
+rootProject.ext.buildToolsVersion = "35.0.0"

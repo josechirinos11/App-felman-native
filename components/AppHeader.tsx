@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { usePathname } from 'expo-router';
 import React from 'react';
-import { Dimensions, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import COLORS from '../constants/Colors';
 
 type Props = {
@@ -57,12 +57,13 @@ export default function AppHeader({
       <View style={[styles.leftCol, isSmallDevice && { minWidth: 20 }]}>
         <Pressable onPress={handleUserPress} style={{ paddingVertical: 6 }}>
           <View style={styles.row}>
-            <Ionicons name="person-circle-outline" size={18} color={COLORS.text} />
+            <Image source={require('../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
             {!isSmallDevice && <Text numberOfLines={1} style={styles.user}>{displayedUser}</Text>}
           </View>
           <View style={[styles.row, { marginTop: 2 }]}>
-            <Ionicons name="shield-checkmark-outline" size={16} color={COLORS.textSecondary} />
-            {!isSmallDevice && <Text numberOfLines={1} style={styles.role}>{displayedRole}</Text>}
+            <Ionicons name="menu-outline" size={16} color={COLORS.textSecondary} />
+           
+           
           </View>
         </Pressable>
       </View>
@@ -111,6 +112,7 @@ const styles = StyleSheet.create({
   centerCol: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   rightCol: { minWidth: 90, alignItems: 'flex-start', justifyContent: 'flex-start' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'flex-start' },
+  logo: { width: 28, height: 20, marginRight: 6 },
   user: { marginLeft: 6, fontSize: 14, fontWeight: '700', color: COLORS.text, maxWidth: 220 },
   role: { marginLeft: 6, fontSize: 12, color: COLORS.textSecondary, maxWidth: 220 },
   conn: { marginLeft: 6, fontSize: 12, fontWeight: '600' },

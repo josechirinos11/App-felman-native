@@ -20,7 +20,9 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "http://85.59.105.234:3000",
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "ANDROID_NDK_VERSION": "26.1.10909125",
+        "ANDROID_SDK_ROOT": ""
       }
     },
     "production": {
@@ -31,7 +33,9 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "http://85.59.105.234:3000",
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "ANDROID_NDK_VERSION": "26.1.10909125",
+        "ANDROID_SDK_ROOT": ""
       }
     },
     "production-apk": {
@@ -39,6 +43,10 @@
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease"
+      },
+      "env": {
+        "ANDROID_NDK_VERSION": "26.1.10909125",
+        "ANDROID_SDK_ROOT": ""
       }
     }
   }

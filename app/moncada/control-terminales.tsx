@@ -86,7 +86,8 @@ const { authenticated, loading: authLoading } = useAuth();
     6: 'MATRIMONIO',
     7: 'COMPACTO',
     9: 'ACRISTALADO',
-    10: 'EMBALAJE'
+    10: 'EMBALAJE',
+    11: 'OPTIMIZACION',
   };
 
   // Formatear fecha y hora
@@ -889,7 +890,12 @@ cardWeb: {
   connected: { color: COLORS.success },
   disconnected: { color: COLORS.error },
   searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surface, margin: 8, paddingHorizontal: 12, borderRadius: 8, elevation: 2 },
-  searchInput: { flex: 1, height: 40, marginLeft: 8 },
+searchInput: {
+  flex: 1,
+  height: 40,
+  marginLeft: 8,
+  color: '#333333', // gris oscuro
+},
   filterContainer: {
     flexDirection: 'row',
     paddingHorizontal: 4, // Reducido de 8 a 4
