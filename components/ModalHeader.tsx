@@ -3,7 +3,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Animated, Dimensions, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Dimensions, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import COLORS from '../constants/Colors';
 
@@ -136,6 +136,8 @@ export default function ModalHeader({ visible, onClose, userName, role }: ModalH
   // Panel width: 70% en móvil, 320px por defecto en desktop
   const defaultPanelWidth = screenWidth < 600 ? Math.round(screenWidth * 0.7) : 320;
   const [panelWidth, setPanelWidth] = React.useState(defaultPanelWidth);
+  const isWeb = Platform.OS === 'web';
+  const isMobile = !isWeb && screenWidth < 600;
   const [subMenuVisible, setSubMenuVisible] = React.useState<number | null>(null);
     const subMenuAnim = React.useRef(new Animated.Value(0)).current;
     React.useEffect(() => {
@@ -178,16 +180,16 @@ export default function ModalHeader({ visible, onClose, userName, role }: ModalH
     <SafeAreaView style={styles.overlaySafe} pointerEvents="box-none">
       <View style={styles.sidePanelContainer}>
         <Animated.View
-          style={[styles.sidePanel, { width: panelWidth, maxWidth: 420, minWidth: 220, transform: [{ translateX }] }]}
+          style={[styles.sidePanel, { width: panelWidth, maxWidth: 420, minWidth: 220, transform: [{ translateX }] }, isMobile && styles.sidePanelMobile]}
           onLayout={(e) => {
             // Mantener el ancho responsivo
             const w = e.nativeEvent.layout.width || panelWidth;
             if (w && w !== panelWidth) setPanelWidth(w);
           }}
         >
-          <View style={styles.headerRowLogo}>
-            <Image source={require('../assets/images/logo.png')} style={styles.logoImg} resizeMode="contain" />
-            <View style={styles.userInfoContainer}>
+          <View style={[styles.headerRowLogo, isMobile && styles.headerRowLogoMobile]}>
+            <Image source={require('../assets/images/logo.png')} style={[styles.logoImg, isMobile && styles.logoImgMobile]} resizeMode="contain" />
+            <View style={[styles.userInfoContainer, isMobile && styles.userInfoContainerMobile]}>
               <Text style={styles.modalUser}>{userName}</Text>
               <Text style={styles.modalRole}>{role}</Text>
             </View>
@@ -424,10 +426,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.18)', zIndex: 100,
   },
   subMenuDropdown: {
-    position: 'absolute',
-    left: 24,
-    minWidth: 220,
-    maxWidth: 340,
+  position: 'absolute',
+  left: 24,
+  minWidth: 220,
+  maxWidth: 340,
     backgroundColor: '#fff',
     borderRadius: 12,
     paddingVertical: 10,
@@ -438,6 +440,28 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 12,
     zIndex: 200,
+  },
+  subMenuDropdownMobile: {
+    left: 12,
+    minWidth: 160,
+    maxWidth: 260,
+    paddingHorizontal: 8,
+  },
+  headerRowLogoMobile: {
+    paddingRight: 4,
+  },
+  logoImgMobile: {
+    width: 48,
+    height: 28,
+  },
+  userInfoContainerMobile: {
+    alignItems: 'flex-start',
+    marginRight: 4,
+  },
+  sidePanelMobile: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 12,
   },
   subMenuScroll: {
     maxHeight: 320,

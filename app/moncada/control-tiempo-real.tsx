@@ -2,13 +2,13 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    Modal, Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity, useWindowDimensions, View
+  ActivityIndicator,
+  FlatList,
+  Modal, Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity, useWindowDimensions, View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -155,8 +155,58 @@ const { authenticated, loading: authLoading } = useAuth();
   const [loadingTiempo, setLoadingTiempo] = useState(false);
   const [filterMode, setFilterMode] = useState<'operador' | 'tarea' | 'pedido'>('operador');
   const [groupedList, setGroupedList] = useState<any[]>([]);
+  const [counts, setCounts] = useState<{ operador: number; tarea: number; pedido: number }>({ operador: 0, tarea: 0, pedido: 0 });
+  // cache para polling incremental: key -> record
+  const cacheRef = React.useRef<Map<string, TiempoRealRecord>>(new Map());
+  // contador de consultas
+  const fetchCountRef = React.useRef<number>(0);
+  const [fetchCount, setFetchCount] = useState<number>(0);
+  // keep latest filterMode in a ref for poll closure
+  const filterModeRef = React.useRef(filterMode);
+  useEffect(()=>{ filterModeRef.current = filterMode; }, [filterMode]);
+
+  // Recompute groupedList immediately when filterMode changes using current cache
+  useEffect(() => {
+    try {
+      const m = cacheRef.current || new Map<string, TiempoRealRecord>();
+      const groups = computeGroupsFromMap(m, filterMode);
+      setGroupedList(groups);
+    } catch (e) {
+      // ignore
+    }
+  }, [filterMode]);
+
+  // Recompute counts from cache whenever cache changes
+  useEffect(() => {
+    const m = cacheRef.current || new Map<string, TiempoRealRecord>();
+    const operadorSet = new Set<string>();
+    const tareaSet = new Set<string>();
+    const pedidoSet = new Set<string>();
+    for (const r of m.values()) {
+      operadorSet.add(operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario));
+      tareaSet.add(String(r.CodigoTarea ?? 'SIN_TAREA'));
+      pedidoSet.add(String(r.NumeroManual ?? 'SIN_PEDIDO'));
+    }
+    setCounts({ operador: operadorSet.size, tarea: tareaSet.size, pedido: pedidoSet.size });
+  }, [fetchCount]);
+  // highlight groups that changed recently
+  const [highlightedGroups, setHighlightedGroups] = useState<Record<string, boolean>>({});
+  const highlightTimeoutsRef = React.useRef<number[]>([]);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [detailList, setDetailList] = useState<TiempoRealRecord[]>([]);
+  const [modalCounts, setModalCounts] = useState<{ operador: number; tarea: number; pedido: number }>({ operador: 0, tarea: 0, pedido: 0 });
+  // compute modal counts whenever detailList changes
+  useEffect(() => {
+    const op = new Set<string>();
+    const ta = new Set<string>();
+    const pe = new Set<string>();
+    for (const r of detailList) {
+      op.add(operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario));
+      ta.add(String(r.CodigoTarea ?? 'SIN_TAREA'));
+      pe.add(String(r.NumeroManual ?? 'SIN_PEDIDO'));
+    }
+    setModalCounts({ operador: op.size, tarea: ta.size, pedido: pe.size });
+  }, [detailList]);
   const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
   const [modalContext, setModalContext] = useState<'operador' | 'tarea' | 'pedido' | null>(null);
   const [modalGroupBy, setModalGroupBy] = useState<'none' | 'operador' | 'tarea' | 'pedido'>('none');
@@ -180,9 +230,26 @@ const [userData, setUserData] = useState<UserData | null>(null);
    const [modalUser, setModalUser] = React.useState({ userName: '', role: '' });
    const router = useRouter();
 
+  // polling control
+  const [pollingEnabled, setPollingEnabled] = useState<boolean>(true);
+  const pollingEnabledRef = React.useRef<boolean>(true);
+  const intervalIdRef = React.useRef<any>(null);
+  useEffect(()=>{ pollingEnabledRef.current = pollingEnabled; }, [pollingEnabled]);
+
+  // nowTick fuerza rerender en intervalos para actualizar estadisticas en tiempo real
+  const [nowTick, setNowTick] = useState<number>(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Constante de jornada reutilizable
+  const JORNADA_SECONDS = 7.5 * 3600; // 27000
+
   // Detectar plataforma web para layout específico
   const isWeb = Platform.OS === 'web';
   const { width: windowWidth } = useWindowDimensions();
+  const isMobile = !isWeb && windowWidth < 600;
   const cols = isWeb ? 4 : 3;
   const gap = 8;
   // Calcular ancho específico para garantizar N columnas exactas
@@ -267,7 +334,7 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
   async function fetchTiempoReal() {
     try {
       setLoadingTiempo(true);
-      const res = await fetch(`${API_URL}/control-terminales/tiempo-real`);
+      const res = await fetch(`${API_URL}/control-terminales/tiempo-real-nueva`);
       if (!res.ok) {
         console.warn('[tiempo-real] respuesta no ok', res.status);
         setTiempoRecords([]);
@@ -290,10 +357,21 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
   // Helper para obtener timestamp (Fecha + HoraInicio/HoraFin)
   const recordTimestamp = (r: TiempoRealRecord) => {
     try {
-      const fecha = r.Fecha || r.FechaInicio || r.FechaFin;
-      const hora = r.HoraInicio || r.HoraFin || '00:00:00';
+      // Preferir FechaInicio/HoraInicio cuando exista (más precisa para inicio de tarea)
+      const fecha = r.FechaInicio || r.Fecha || r.FechaFin;
+      let hora = r.HoraInicio || r.HoraFin || '00:00:00';
       if (!fecha) return 0;
-      // Crear ISO-like string
+      const normalizeHora = (h?: string | null) => {
+        if (!h) return '00:00:00';
+        const s = String(h).trim();
+        if (!s) return '00:00:00';
+        // si viene 'HH:MM' añadir segundos
+        if (/^\d{1,2}:\d{2}$/.test(s)) return `${s}:00`;
+        // si ya tiene segundos, devolver
+        if (/^\d{1,2}:\d{2}:\d{2}$/.test(s)) return s;
+        return s;
+      };
+      hora = normalizeHora(hora);
       const s = `${fecha}T${hora}`;
       const t = new Date(s).getTime();
       return isNaN(t) ? 0 : t;
@@ -313,49 +391,266 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
   };
 
   // Recalcula la lista agrupada según filterMode y tiempoRecords
-  useEffect(() => {
-    if (!Array.isArray(tiempoRecords)) {
-      setGroupedList([]);
-      return;
+  // We'll compute groupedList from a Map cache to allow incremental updates
+  const keyForRecord = (r: TiempoRealRecord) => `${r.CodigoSerie ?? ''}-${r.CodigoNumero ?? ''}-${r.Linea ?? ''}`;
+
+  // Helper para calcular estadistica temporal sobre un array de registros
+  const computeEstadisticaForArray = (arr: TiempoRealRecord[]) => {
+    // Devuelve lo acumulado (activo/status/remaining). El cálculo dependiente del tiempo
+    // transcurrido se hará en render usando `nowTick` para evitar recalcular en helper.
+    let active = 0;
+    let hasOpen = false;
+    for (const it of arr) {
+      const v = it.TiempoDedicado ?? 0;
+      if (typeof v === 'number' && !isNaN(v)) active += v;
+      if ((it as any).Abierta === 1 || !it.HoraFin || !it.FechaFin) {
+        hasOpen = true;
+      }
     }
+    const jornadaSeconds = JORNADA_SECONDS || 7.5 * 3600;
+    const remaining = Math.max(0, jornadaSeconds - active);
+    const status: 'parcial' | 'total' = hasOpen ? 'parcial' : 'total';
+    return {
+      activeSeconds: Math.floor(active),
+      status,
+      remainingSeconds: Math.floor(remaining),
+    };
+  };
 
+  // Formato abreviado para horas y minutos: 'H h MM'
+  const formatHoursMinutes = (seconds?: number | null) => {
+    if (seconds == null) return '-';
+    const s = Math.max(0, Math.floor(Number(seconds)));
+    const hours = Math.floor(s / 3600);
+    const mins = Math.floor((s % 3600) / 60);
+    return `${hours}h ${String(mins).padStart(2, '0')}m`;
+  };
+
+  // Calcular elapsed desde 06:30 hasta `now`, capear por jornada y excluir solapamiento con la pausa de comida 09:30-10:00 (30 minutos)
+  const computeEffectiveElapsed = (nowDate?: Date) => {
+    const now = nowDate ? new Date(nowDate) : new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 30, 0);
+    let total = Math.floor((now.getTime() - start.getTime()) / 1000);
+    if (total < 0) total = 0;
+    if (total > (JORNADA_SECONDS || 7.5 * 3600)) total = JORNADA_SECONDS || 7.5 * 3600;
+
+    const breakStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 30, 0);
+  const breakEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 0, 0);
+    const overlapStart = Math.max(start.getTime(), breakStart.getTime());
+    const overlapEnd = Math.min(now.getTime(), breakEnd.getTime());
+    let breakOverlap = 0;
+    if (overlapEnd > overlapStart) breakOverlap = Math.floor((overlapEnd - overlapStart) / 1000);
+    if (breakOverlap > total) breakOverlap = total;
+
+    const effective = Math.max(0, total - breakOverlap);
+    return { total, breakOverlap, effective };
+  };
+
+  const computeGroupsFromMap = (m: Map<string, TiempoRealRecord>, mode: 'operador'|'tarea'|'pedido') => {
     const map = new Map<string, TiempoRealRecord[]>();
+    for (const r of m.values()) {
+      let key = 'SIN';
+      if (mode === 'operador') key = operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario);
+      else if (mode === 'tarea') key = (r.CodigoTarea || 'SIN_TAREA').toString();
+      else key = (r.NumeroManual || 'SIN_PEDIDO').toString();
 
-    if (filterMode === 'operador') {
-      for (const r of tiempoRecords) {
-        const key = operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario);
-        const arr = map.get(key) || [];
-        arr.push(r);
-        map.set(key, arr);
-      }
-    } else if (filterMode === 'tarea') {
-      for (const r of tiempoRecords) {
-        const key = (r.CodigoTarea || 'SIN_TAREA').toString();
-        const arr = map.get(key) || [];
-        arr.push(r);
-        map.set(key, arr);
-      }
-    } else {
-      // pedido -> NumeroManual
-      for (const r of tiempoRecords) {
-        const key = (r.NumeroManual || 'SIN_PEDIDO').toString();
-        const arr = map.get(key) || [];
-        arr.push(r);
-        map.set(key, arr);
-      }
+      const arr = map.get(key) || [];
+      arr.push(r);
+      map.set(key, arr);
     }
 
     const groups: any[] = [];
-    for (const [key, arr] of map.entries()) {
-      // ordenar por timestamp y coger el último
+    for (const [k, arr] of map.entries()) {
       const last = arr.reduce((a, b) => (recordTimestamp(a) > recordTimestamp(b) ? a : b));
-      groups.push({ key, last, count: arr.length });
+      const estadistica = computeEstadisticaForArray(arr);
+      groups.push({ key: k, last, count: arr.length, estadistica });
     }
+    groups.sort((a,b)=> String(a.key).localeCompare(String(b.key)));
+    return groups;
+  };
 
-    // ordenar por key
-    groups.sort((a, b) => String(a.key).localeCompare(String(b.key)));
-    setGroupedList(groups);
-  }, [tiempoRecords, filterMode]);
+  // Apply diffs between newMap and cacheRef.current; only update groupedList for changed groups
+  const applyDiffs = (newMap: Map<string, TiempoRealRecord>) => {
+    const oldMap = cacheRef.current;
+    // Build groupings for old and new
+    const oldGroups = computeGroupsFromMap(oldMap, filterModeRef.current);
+    const newGroups = computeGroupsFromMap(newMap, filterModeRef.current);
+
+    // Quick path: if group lengths and keys identical and last entries equal, avoid setGroupedList
+    const same = oldGroups.length === newGroups.length && oldGroups.every((g,i)=> g.key === newGroups[i].key && JSON.stringify(g.last) === JSON.stringify(newGroups[i].last) && g.count === newGroups[i].count);
+    if (same) return; // nothing changed at grouping level
+
+    // Determine which group keys changed to highlight them briefly
+    const changedGroupKeys = newGroups.filter((ng, idx) => {
+      const og = oldGroups[idx];
+      if (!og) return true;
+      return og.key !== ng.key || og.count !== ng.count || JSON.stringify(og.last) !== JSON.stringify(ng.last);
+    }).map(g=>g.key);
+
+    // set groupedList to trigger render
+    setGroupedList(newGroups);
+
+    if (changedGroupKeys.length > 0) {
+      setHighlightedGroups(prev => {
+        const copy = { ...prev };
+        for (const k of changedGroupKeys) copy[k] = true;
+        return copy;
+      });
+
+      // schedule removal after 1s
+      const tId = window.setTimeout(() => {
+        setHighlightedGroups(prev => {
+          const copy = { ...prev };
+          for (const k of changedGroupKeys) delete copy[k];
+          return copy;
+        });
+      }, 1000);
+      highlightTimeoutsRef.current.push(tId);
+    }
+  };
+
+  // Polling tick: fetch rows, diff against cacheRef, update cacheRef and groupedList incrementally
+  async function tick() {
+    try {
+      fetchCountRef.current += 1;
+      setFetchCount(fetchCountRef.current);
+      console.log(`[tiempo-real] consulta #${fetchCountRef.current} iniciada`);
+
+      const res = await fetch(`${API_URL}/control-terminales/tiempo-real-nueva`);
+      if (!res.ok) {
+        console.warn('[tiempo-real] respuesta no ok', res.status);
+        return;
+      }
+      const rows = await res.json();
+      if (!Array.isArray(rows)) {
+        console.warn('[tiempo-real] payload no es array');
+        return;
+      }
+
+      const next = new Map<string, TiempoRealRecord>();
+      // track whether any change ocurred
+      let changed = false;
+
+      for (const r of rows) {
+        const key = keyForRecord(r);
+        next.set(key, r);
+
+        const prev = cacheRef.current.get(key);
+        if (!prev || JSON.stringify(prev) !== JSON.stringify(r)) {
+          changed = true;
+        }
+      }
+
+      // detect deletes
+      for (const key of cacheRef.current.keys()) {
+        if (!next.has(key)) {
+          changed = true;
+          break;
+        }
+      }
+
+      if (changed) {
+        // commit new cache
+        cacheRef.current = next;
+        // update groupedList based on new cache
+        applyDiffs(next);
+        // update tiempoRecords state for compatibility with other parts
+        setTiempoRecords(Array.from(next.values()));
+        console.log(`[tiempo-real] consulta #${fetchCountRef.current} aplicó cambios, filas=${next.size}`);
+      } else {
+        console.log(`[tiempo-real] consulta #${fetchCountRef.current} no hubo cambios`);
+      }
+    } catch (err) {
+      console.error('[tiempo-real] tick error', err);
+    }
+  }
+
+  // start polling when component mounts
+  useEffect(() => {
+    // helper to compute current tick interval
+    const getIntervalMs = () => (typeof document !== 'undefined' && (document as any).hidden) ? 15000 : 4000;
+
+    // handler to (re)start interval
+    const startInterval = () => {
+      if (intervalIdRef.current) clearInterval(intervalIdRef.current);
+      if (!pollingEnabledRef.current) return;
+      intervalIdRef.current = setInterval(() => tick(), getIntervalMs());
+      console.log('[tiempo-real] polling started');
+    };
+
+    const stopInterval = () => {
+      if (intervalIdRef.current) {
+        clearInterval(intervalIdRef.current);
+        intervalIdRef.current = null;
+        console.log('[tiempo-real] polling stopped');
+      }
+    };
+
+    // visibility handler to restart interval when tab visibility changes
+    const onVisibility = () => {
+      stopInterval();
+      startInterval();
+    };
+
+    // initial fetch to populate cache
+    (async () => {
+      try {
+        setLoadingTiempo(true);
+        const res = await fetch(`${API_URL}/control-terminales/tiempo-real-nueva`);
+        if (res.ok) {
+          const rows = await res.json();
+          if (Array.isArray(rows)) {
+            const m = new Map<string, TiempoRealRecord>();
+            for (const r of rows) m.set(keyForRecord(r), r);
+            cacheRef.current = m;
+            setTiempoRecords(Array.from(m.values()));
+            setGroupedList(computeGroupsFromMap(m, filterModeRef.current));
+            fetchCountRef.current += 1;
+            setFetchCount(fetchCountRef.current);
+            console.log(`[tiempo-real] consulta #${fetchCountRef.current} inicializada, filas=${m.size}`);
+          }
+        } else {
+          console.warn('[tiempo-real] respuesta no ok en inicial');
+        }
+      } catch (err) {
+        console.error('[tiempo-real] error inicial', err);
+      } finally {
+        setLoadingTiempo(false);
+      }
+      // start interval after initial (respect pollingEnabled)
+      if (pollingEnabledRef.current) startInterval();
+      if (typeof document !== 'undefined') {
+        document.addEventListener('visibilitychange', onVisibility);
+      }
+    })();
+
+    return () => {
+      if (intervalIdRef.current) clearInterval(intervalIdRef.current);
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', onVisibility);
+      }
+      // clear any pending highlight timeouts
+      for (const t of highlightTimeoutsRef.current) clearTimeout(t);
+    };
+  }, []);
+
+  // Effect to start/stop polling when pollingEnabled changes
+  useEffect(()=>{
+    if (pollingEnabled) {
+      pollingEnabledRef.current = true;
+      // immediate tick when enabling
+      tick();
+      if (intervalIdRef.current) clearInterval(intervalIdRef.current);
+      const ms = (typeof document !== 'undefined' && (document as any).hidden) ? 15000 : 4000;
+      intervalIdRef.current = setInterval(() => tick(), ms);
+      console.log('[tiempo-real] polling enabled by toggle');
+    } else {
+      pollingEnabledRef.current = false;
+      if (intervalIdRef.current) { clearInterval(intervalIdRef.current); intervalIdRef.current = null; }
+      console.log('[tiempo-real] polling disabled by toggle');
+    }
+    return () => {};
+  }, [pollingEnabled]);
   // Removed other endpoint handlers (modules, operarios, tareas) — this screen only uses tiempo-real
 
 
@@ -454,6 +749,9 @@ if (!allowed) {
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
+        <TouchableOpacity onPress={() => { setPollingEnabled(p => !p); }} style={[styles.toggleButton, pollingEnabled ? styles.toggleOn : styles.toggleOff]}>
+          <Text style={[styles.toggleText]}>{pollingEnabled ? 'ON' : 'OFF'}</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Detail modal for selected group */}
@@ -462,7 +760,7 @@ if (!allowed) {
         animationType="slide"
         onRequestClose={() => setDetailModalVisible(false)}
       >
-        <View style={[styles.modalContainer, { padding: 12 }]}>
+        <View style={[styles.modalContainer, isMobile ? styles.modalContainerMobile : { padding: 12 }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text style={{ fontSize: 18, fontWeight: '700' }}>{selectedGroupKey}</Text>
             <TouchableOpacity onPress={() => setDetailModalVisible(false)} style={{ padding: 8 }}>
@@ -471,21 +769,21 @@ if (!allowed) {
           </View>
 
           {/* Modal grouping controls */}
-          <View style={{ flexDirection: 'row', justifyContent: 'flex-start', marginVertical: 8, gap: 8 }}>
+          <View style={[{ flexDirection: 'row', justifyContent: 'flex-start', marginVertical: 8, gap: 8 }, isMobile && styles.filterRowMobile]}>
             {/* Decide which grouping options to show based on modalContext */}
             {modalContext !== 'operador' && (
-              <TouchableOpacity style={[styles.filterButton, modalGroupBy === 'operador' && styles.filterButtonActive]} onPress={() => setModalGroupBy(modalGroupBy === 'operador' ? 'none' : 'operador')}>
-                <Text style={[styles.filterText, modalGroupBy === 'operador' && styles.filterTextActive]}>Agrupar por Operario</Text>
+              <TouchableOpacity style={[styles.filterButton, modalGroupBy === 'operador' && styles.filterButtonActive, isMobile && styles.filterButtonMobile]} onPress={() => setModalGroupBy(modalGroupBy === 'operador' ? 'none' : 'operador')}>
+                <Text style={[styles.filterText, modalGroupBy === 'operador' && styles.filterTextActive]}>Agrupar por Operario{modalCounts.operador ? ` · ${modalCounts.operador}` : ''}</Text>
               </TouchableOpacity>
             )}
             {modalContext !== 'tarea' && (
-              <TouchableOpacity style={[styles.filterButton, modalGroupBy === 'tarea' && styles.filterButtonActive]} onPress={() => setModalGroupBy(modalGroupBy === 'tarea' ? 'none' : 'tarea')}>
-                <Text style={[styles.filterText, modalGroupBy === 'tarea' && styles.filterTextActive]}>Agrupar por Tarea</Text>
+              <TouchableOpacity style={[styles.filterButton, modalGroupBy === 'tarea' && styles.filterButtonActive, isMobile && styles.filterButtonMobile]} onPress={() => setModalGroupBy(modalGroupBy === 'tarea' ? 'none' : 'tarea')}>
+                <Text style={[styles.filterText, modalGroupBy === 'tarea' && styles.filterTextActive]}>Agrupar por Tarea{modalCounts.tarea ? ` · ${modalCounts.tarea}` : ''}</Text>
               </TouchableOpacity>
             )}
             {modalContext !== 'pedido' && (
-              <TouchableOpacity style={[styles.filterButton, modalGroupBy === 'pedido' && styles.filterButtonActive]} onPress={() => setModalGroupBy(modalGroupBy === 'pedido' ? 'none' : 'pedido')}>
-                <Text style={[styles.filterText, modalGroupBy === 'pedido' && styles.filterTextActive]}>Agrupar por Pedido</Text>
+              <TouchableOpacity style={[styles.filterButton, modalGroupBy === 'pedido' && styles.filterButtonActive, isMobile && styles.filterButtonMobile]} onPress={() => setModalGroupBy(modalGroupBy === 'pedido' ? 'none' : 'pedido')}>
+                <Text style={[styles.filterText, modalGroupBy === 'pedido' && styles.filterTextActive]}>Agrupar por Pedido{modalCounts.pedido ? ` · ${modalCounts.pedido}` : ''}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -522,9 +820,12 @@ if (!allowed) {
                 map.set(key, arr);
               }
 
-              const groups: Array<{ key: string; items: TiempoRealRecord[] }> = [];
+              const groups: Array<{ key: string; items: TiempoRealRecord[]; estadistica?: { activeSeconds:number; status:'parcial'|'total'; remainingSeconds:number } }> = [];
               for (const [k, arr] of map.entries()) {
-                groups.push({ key: k, items: arr.sort((a,b)=> recordTimestamp(b) - recordTimestamp(a)) });
+                const sorted = arr.sort((a,b)=> recordTimestamp(b) - recordTimestamp(a));
+                // calcular estadistica (activo/inactivo/estado/restante/porcentaje)
+                const estadistica = computeEstadisticaForArray(sorted);
+                groups.push({ key: k, items: sorted, estadistica });
               }
               groups.sort((a,b)=> String(a.key).localeCompare(String(b.key)));
 
@@ -534,24 +835,48 @@ if (!allowed) {
                   keyExtractor={(g) => String(g.key)}
                   renderItem={({ item: g }) => (
                     <View style={{ marginBottom: 8 }}>
-                      <View style={[styles.card, { padding: 10 }] }>
-                        <Text style={{ fontWeight: '700', color: COLORS.primary }}>{g.key} <Text style={{ color: '#6b7280' }}>· {g.items.length}</Text></Text>
-                        {g.items.slice(0,3).map((it, idx) => {
-                          const parts: string[] = [];
-                          if (modalContext !== 'operador' && modalGroupBy !== 'operador') {
-                            parts.push(operarioFirstNameKey(it.OperarioNombre || it.CodigoOperario));
-                          }
-                          if (modalContext !== 'tarea' && modalGroupBy !== 'tarea') {
-                            parts.push(String(it.CodigoTarea ?? '-'));
-                          }
-                          if (modalContext !== 'pedido' && modalGroupBy !== 'pedido') {
-                            parts.push(String(it.NumeroManual ?? '-'));
-                          }
-                          parts.push(formatDuration(it.TiempoDedicado ?? null));
-                          return (
-                            <Text key={idx} style={{ color: '#374151', marginTop: 6 }}>{parts.join(' · ')}</Text>
-                          );
-                        })}
+                      <View style={[styles.card, { padding: 10 }]}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Text style={{ fontWeight: '700', color: COLORS.primary }}>{g.key} <Text style={{ color: '#6b7280' }}>· {g.items.length}</Text></Text>
+                          {g.estadistica ? (() => {
+                            const now = new Date(nowTick);
+                            const { total, breakOverlap, effective } = computeEffectiveElapsed(now);
+                            let elapsed = effective; // effective elapsed (excluye pausa comida)
+                            if (elapsed > (JORNADA_SECONDS || 7.5 * 3600)) elapsed = JORNADA_SECONDS || 7.5 * 3600;
+                            const inactive = Math.max(0, elapsed - (g.estadistica.activeSeconds || 0));
+                            const percentActivity = elapsed > 0 ? Math.max(0, Math.min(100, Math.round(((g.estadistica.activeSeconds || 0) / elapsed) * 100))) : 0;
+                            return (
+                              <View style={styles.estadisticaContainer}>
+                                <Text style={styles.estadisticaLabel}>Act</Text>
+                                <Text style={styles.estadisticaValue}>{formatHoursMinutes(g.estadistica.activeSeconds)}</Text>
+                                <Text style={styles.estadisticaLabel}>Inac</Text>
+                                <Text style={styles.estadisticaValue}>{formatHoursMinutes(inactive)}</Text>
+                                <Text style={g.estadistica.status === 'parcial' ? styles.estadisticaStatusParcial : styles.estadisticaStatus}>{g.estadistica.status.toUpperCase()}</Text>
+                                <View style={styles.estadisticaBadges}>
+                                  <View style={styles.valorBadge}>
+                                    <Text style={styles.valorLabel}>Valor</Text>
+                                    <Text style={styles.valorPercent}>{percentActivity}%</Text>
+                                  </View>
+                                </View>
+                              </View>
+                            );
+                          })() : null}
+                        </View>
+                        <View style={{ marginTop: 8 }}>
+                          {g.items.map((it, idx) => (
+                            <View key={`${g.key}-${idx}`} style={styles.modalItemCard}>
+                              <View style={styles.modalItemHeader}>
+                                <Text style={styles.modalItemTitle}>{operarioFirstNameKey(it.OperarioNombre || it.CodigoOperario)}</Text>
+                                <Text style={styles.modalItemDate}>{formatDateOnly(it.Fecha)}</Text>
+                              </View>
+                              <Text style={styles.modalItemLine}>{String(it.CodigoTarea ?? '-') }  ·  {String(it.NumeroManual ?? '-')}  ·  {it.Modulo ?? '-'}</Text>
+                              <View style={styles.modalItemFooter}>
+                                <Text style={styles.modalItemMeta}>Tiempo: {formatDuration(it.TiempoDedicado ?? null)}</Text>
+                                <Text style={styles.modalItemMeta}>{it.HoraInicio ?? '-'} → {it.HoraFin ?? '-'}</Text>
+                              </View>
+                            </View>
+                          ))}
+                        </View>
                       </View>
                     </View>
                   )}
@@ -567,14 +892,14 @@ if (!allowed) {
   {/* Lista agrupada tiempo-real */}
   <View style={{ flex: 1, paddingHorizontal: 12, paddingVertical: 8 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-          <TouchableOpacity style={[styles.filterButton, filterMode === 'operador' && styles.filterButtonActive]} onPress={() => setFilterMode('operador')}>
-            <Text style={[styles.filterText, filterMode === 'operador' && styles.filterTextActive]}>Operador</Text>
+          <TouchableOpacity style={[styles.filterButton, filterMode === 'operador' && styles.filterButtonActive, isMobile && styles.filterButtonMobile]} onPress={() => setFilterMode('operador')}>
+            <Text style={[styles.filterText, filterMode === 'operador' && styles.filterTextActive]}>Operador{filterMode === 'operador' ? ` · ${counts.operador}` : ''}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.filterButton, filterMode === 'tarea' && styles.filterButtonActive]} onPress={() => setFilterMode('tarea')}>
-            <Text style={[styles.filterText, filterMode === 'tarea' && styles.filterTextActive]}>Tarea</Text>
+          <TouchableOpacity style={[styles.filterButton, filterMode === 'tarea' && styles.filterButtonActive, isMobile && styles.filterButtonMobile]} onPress={() => setFilterMode('tarea')}>
+            <Text style={[styles.filterText, filterMode === 'tarea' && styles.filterTextActive]}>Tarea{filterMode === 'tarea' ? ` · ${counts.tarea}` : ''}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.filterButton, filterMode === 'pedido' && styles.filterButtonActive]} onPress={() => setFilterMode('pedido')}>
-            <Text style={[styles.filterText, filterMode === 'pedido' && styles.filterTextActive]}>Pedido</Text>
+          <TouchableOpacity style={[styles.filterButton, filterMode === 'pedido' && styles.filterButtonActive, isMobile && styles.filterButtonMobile]} onPress={() => setFilterMode('pedido')}>
+            <Text style={[styles.filterText, filterMode === 'pedido' && styles.filterTextActive]}>Pedido{filterMode === 'pedido' ? ` · ${counts.pedido}` : ''}</Text>
           </TouchableOpacity>
         </View>
 
@@ -593,20 +918,37 @@ if (!allowed) {
               let title = item.key;
               let subtitle = '';
 
+              let badges: Array<{ key: string; label: string }> = [];
               if (filterMode === 'operador') {
                 title = item.key; // Operario first-name key (already normalized)
-                // Mostrar solo el primer nombre en la lista para evitar confusión
-                subtitle = `${last.CodigoTarea || ''} · ${last.NumeroManual || ''} · ${last.Modulo || ''} · ${last.CodigoPuesto || ''} · ${formatDuration(last.TiempoDedicado ?? null)}`;
+                badges = [
+                  { key: 'tarea', label: String(last.CodigoTarea ?? '-') },
+                  { key: 'numero', label: String(last.NumeroManual ?? '-') },
+                  { key: 'modulo', label: String(last.Modulo ?? '-') },
+                  { key: 'dur', label: formatDuration(last.TiempoDedicado ?? null) },
+                  { key: 'horas', label: `${last.HoraInicio ?? '-'}→${last.HoraFin ?? '-'}` },
+                ];
               } else if (filterMode === 'tarea') {
                 title = item.key; // CodigoTarea
-                subtitle = `${last.OperarioNombre || last.CodigoOperario || ''} · ${last.NumeroManual || ''} · ${last.Modulo || ''} · ${last.CodigoPuesto || ''} · ${formatDuration(last.TiempoDedicado ?? null)}`;
+                badges = [
+                  { key: 'oper', label: operarioFirstNameKey(last.OperarioNombre || last.CodigoOperario) },
+                  { key: 'numero', label: String(last.NumeroManual ?? '-') },
+                  { key: 'modulo', label: String(last.Modulo ?? '-') },
+                  { key: 'dur', label: formatDuration(last.TiempoDedicado ?? null) },
+                ];
               } else {
                 title = item.key; // NumeroManual
-                subtitle = `${last.CodigoTarea || ''} · ${last.NumeroManual || ''} · ${last.Modulo || ''} · ${last.CodigoPuesto || ''} · ${formatDuration(last.TiempoDedicado ?? null)}`;
+                badges = [
+                  { key: 'tarea', label: String(last.CodigoTarea ?? '-') },
+                  { key: 'modulo', label: String(last.Modulo ?? '-') },
+                  { key: 'puesto', label: String(last.CodigoPuesto ?? '-') },
+                  { key: 'dur', label: formatDuration(last.TiempoDedicado ?? null) },
+                ];
               }
 
+              const isHighlighted = highlightedGroups[item.key];
               return (
-                <TouchableOpacity key={item.key} style={styles.card} onPress={() => {
+                <TouchableOpacity key={item.key} style={[styles.card, isHighlighted ? { backgroundColor: '#fff7e6' } : undefined]} onPress={() => {
                   // abrir modal con todos los items del grupo
                   const all = tiempoRecords.filter((r) => {
                     if (filterMode === 'operador') return operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario) === item.key;
@@ -627,9 +969,185 @@ if (!allowed) {
                 }}>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                         <Text style={{ fontWeight: '700', color: COLORS.primary }}>{title}</Text>
-                        <Text style={{ color: '#6b7280' }}>{item.count}</Text>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={{ color: '#6b7280', fontWeight: '600' }}>{item.count}</Text>
+                          {item.estadistica ? (() => {
+                            const now = new Date(nowTick);
+                            const { total, breakOverlap, effective } = computeEffectiveElapsed(now);
+                            let elapsed = effective; // effective elapsed (excluye pausa comida)
+                            if (elapsed > (JORNADA_SECONDS || 7.5 * 3600)) elapsed = JORNADA_SECONDS || 7.5 * 3600;
+
+                            // detectar si esta tarjeta de tarea aplica a mas de un operario
+                            let isTareaMultiOperator = false;
+                            if (filterMode === 'tarea') {
+                              const groupItems = (item as any).items ?? tiempoRecords.filter((r) => (r.CodigoTarea || 'SIN_TAREA').toString() === item.key);
+                              const ops = new Set(groupItems.map((x:any) => operarioFirstNameKey(x.OperarioNombre || x.CodigoOperario)));
+                              isTareaMultiOperator = ops.size > 1;
+                            }
+
+                            if (isTareaMultiOperator) {
+                              // mostrar una flecha hacia abajo / mensaje indicando revisar la tabla individual
+                              return (
+                                <View style={styles.estadisticaContainerInline}>
+                                  <Text style={{ fontWeight: '700', color: '#374151' }}>⬇ Mira desglose individual</Text>
+                                </View>
+                              );
+                            }
+
+                            // Caso normal: mostrar Act/Inac/Estado/Valor
+                            const inactive = Math.max(0, elapsed - (item.estadistica.activeSeconds || 0));
+                            const percentActivity = elapsed > 0 ? Math.max(0, Math.min(100, Math.round(((item.estadistica.activeSeconds || 0) / elapsed) * 100))) : 0;
+                            return (
+                              <View style={styles.estadisticaContainerInline}>
+                                <View style={styles.estadisticaInlineBlock}>
+                                  <Text style={styles.estadisticaLabel}>Act</Text>
+                                  <Text style={styles.estadisticaValue}>{formatHoursMinutes(item.estadistica.activeSeconds)}</Text>
+                                </View>
+                                <View style={styles.estadisticaInlineBlock}>
+                                  <Text style={styles.estadisticaLabel}>Inac</Text>
+                                  <Text style={styles.estadisticaValue}>{formatHoursMinutes(inactive)}</Text>
+                                </View>
+                                <Text style={item.estadistica.status === 'parcial' ? styles.estadisticaStatusParcial : styles.estadisticaStatus}>{item.estadistica.status.toUpperCase()}</Text>
+                                <View style={styles.estadisticaInlineBlock}>
+                                  <View style={styles.valorBadgeInline}>
+                                    <Text style={styles.valorLabel}>Valor</Text>
+                                    <Text style={styles.valorPercent}>{percentActivity}%</Text>
+                                  </View>
+                                </View>
+                              </View>
+                            );
+                          })() : null}
+                        </View>
                       </View>
-                      <Text style={{ marginTop: 6, color: '#374151' }}>{subtitle}</Text>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6, gap: 6 }}>
+                        {badges.map(b => (
+                          <View key={b.key} style={styles.badge}><Text style={styles.badgeText}>{b.label}</Text></View>
+                        ))}
+                      </View>
+
+                      {/* Si estamos viendo por tarea, mostrar desglose por operario si hay >1 operario */}
+                      {filterMode === 'tarea' && (() => {
+                        // agrupar por operario dentro del grupo
+                        const opMap = new Map<string, { active: number; count: number; anyOpen: boolean }>();
+                        // item.items puede no existir (agrupamientos ligeros). Usar fallback desde tiempoRecords
+                        const groupItems = (item as any).items ?? tiempoRecords.filter((r) => (r.CodigoTarea || 'SIN_TAREA').toString() === item.key);
+                        for (const it of groupItems) {
+                          const op = operarioFirstNameKey(it.OperarioNombre || it.CodigoOperario);
+                          const s = opMap.get(op) || { active: 0, count: 0, anyOpen: false };
+                          s.active += (it.TiempoDedicado ?? 0) as number;
+                          s.count += 1;
+                          if ((it as any).Abierta === 1 || !it.HoraFin || !it.FechaFin) s.anyOpen = true;
+                          opMap.set(op, s);
+                        }
+                        if (opMap.size <= 1) return null;
+
+                              const now = new Date(nowTick);
+                              const { total, breakOverlap, effective } = computeEffectiveElapsed(now);
+                              let elapsed = effective;
+                        if (elapsed > JORNADA_SECONDS) elapsed = JORNADA_SECONDS;
+
+                        let totalActive = 0;
+                        const rows: Array<{ op: string; active: number; inactive: number; status: 'parcial'|'total'; percent: number }> = [];
+                        for (const [op, v] of opMap.entries()) {
+                          const active = Math.floor(v.active);
+                          totalActive += active;
+                          const inactive = Math.max(0, elapsed - active);
+                          const status: 'parcial'|'total' = v.anyOpen ? 'parcial' : 'total';
+                          const percent = elapsed > 0 ? Math.round((active / elapsed) * 100) : 0;
+                          rows.push({ op, active, inactive, status, percent });
+                        }
+
+                        return (
+                          <View style={{ marginTop: 8, padding: 8, backgroundColor: '#fbfbfe', borderRadius: 8 }}>
+                            <Text style={{ fontWeight: '700', marginBottom: 6 }}>Desglose por operario</Text>
+                            <View style={{ flexDirection: 'row', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#e6eef6' }}>
+                              <Text style={{ flex: 2, fontWeight: '700' }}>Operario</Text>
+                              <Text style={{ flex: 1, textAlign: 'right', fontWeight: '700' }}>Act</Text>
+                              <Text style={{ flex: 1, textAlign: 'right', fontWeight: '700' }}>Inac</Text>
+                              <Text style={{ width: 80, textAlign: 'right', fontWeight: '700' }}>Estado</Text>
+                              <Text style={{ width: 72, textAlign: 'right', fontWeight: '700' }}>Valor</Text>
+                            </View>
+
+                            {rows.map(r => (
+                              <View key={r.op} style={{ flexDirection: 'row', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' }}>
+                                <Text style={{ flex: 2 }}>{r.op}</Text>
+                                <Text style={{ flex: 1, textAlign: 'right' }}>{formatHoursMinutes(r.active)}</Text>
+                                <Text style={{ flex: 1, textAlign: 'right' }}>{formatHoursMinutes(r.inactive)}</Text>
+                                <Text style={[{ width: 80, textAlign: 'right', fontWeight: '700' }, r.status === 'parcial' ? styles.estadisticaStatusParcial : styles.estadisticaStatus]}>{r.status.toUpperCase()}</Text>
+                                <Text style={{ width: 72, textAlign: 'right' }}>{r.percent}%</Text>
+                              </View>
+                            ))}
+                            <View style={{ flexDirection: 'row', paddingVertical: 8, marginTop: 6, borderTopWidth: 1, borderTopColor: '#e6eef6' }}>
+                              <Text style={{ flex: 2, fontWeight: '800' }}>Total</Text>
+                              <Text style={{ flex: 1, textAlign: 'right', fontWeight: '800' }}>{formatHoursMinutes(totalActive)}</Text>
+                              <Text style={{ flex: 1, textAlign: 'right', fontWeight: '800' }}>{formatHoursMinutes(Math.max(0, elapsed - totalActive))}</Text>
+                              <Text style={{ width: 80, textAlign: 'right', fontWeight: '800' }}>—</Text>
+                            </View>
+                          </View>
+                        );
+                      })()}
+
+                      {/* Si estamos viendo por pedido, mostrar desglose por tarea dentro del pedido */}
+                      {filterMode === 'pedido' && (() => {
+                        // agrupar por CodigoTarea dentro del pedido
+                        const tareaMap = new Map<string, { active: number; count: number; anyOpen: boolean }>();
+                        const groupItemsPedido = (item as any).items ?? tiempoRecords.filter((r) => (r.NumeroManual || 'SIN_PEDIDO').toString() === item.key);
+                        for (const it of groupItemsPedido) {
+                          const tarea = (it.CodigoTarea || 'SIN_TAREA').toString();
+                          const s = tareaMap.get(tarea) || { active: 0, count: 0, anyOpen: false };
+                          s.active += (it.TiempoDedicado ?? 0) as number;
+                          s.count += 1;
+                          if ((it as any).Abierta === 1 || !it.HoraFin || !it.FechaFin) s.anyOpen = true;
+                          tareaMap.set(tarea, s);
+                        }
+                        if (tareaMap.size <= 1) return null;
+
+                        const now = new Date(nowTick);
+                        const { total, breakOverlap, effective } = computeEffectiveElapsed(now);
+                        let elapsed = effective;
+                        if (elapsed > (JORNADA_SECONDS || 7.5 * 3600)) elapsed = JORNADA_SECONDS || 7.5 * 3600;
+
+                        let totalActiveT = 0;
+                        const rowsT: Array<{ tarea: string; active: number; inactive: number; status: 'parcial'|'total'; percent: number }> = [];
+                        for (const [tarea, v] of tareaMap.entries()) {
+                          const active = Math.floor(v.active);
+                          totalActiveT += active;
+                          const inactive = Math.max(0, elapsed - active);
+                          const status: 'parcial'|'total' = v.anyOpen ? 'parcial' : 'total';
+                          const percent = elapsed > 0 ? Math.round((active / elapsed) * 100) : 0;
+                          rowsT.push({ tarea, active, inactive, status, percent });
+                        }
+
+                        return (
+                          <View style={{ marginTop: 8, padding: 8, backgroundColor: '#f7fbf9', borderRadius: 8 }}>
+                            <Text style={{ fontWeight: '700', marginBottom: 6 }}>Tareas en pedido</Text>
+                            <View style={{ flexDirection: 'row', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#e6eef6' }}>
+                              <Text style={{ flex: 2, fontWeight: '700' }}>Tarea</Text>
+                              <Text style={{ flex: 1, textAlign: 'right', fontWeight: '700' }}>Act</Text>
+                              <Text style={{ flex: 1, textAlign: 'right', fontWeight: '700' }}>Inac</Text>
+                              <Text style={{ width: 80, textAlign: 'right', fontWeight: '700' }}>Estado</Text>
+                              <Text style={{ width: 72, textAlign: 'right', fontWeight: '700' }}>Valor</Text>
+                            </View>
+
+                            {rowsT.map(r => (
+                              <View key={r.tarea} style={{ flexDirection: 'row', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' }}>
+                                <Text style={{ flex: 2 }}>{r.tarea}</Text>
+                                <Text style={{ flex: 1, textAlign: 'right' }}>{formatHoursMinutes(r.active)}</Text>
+                                <Text style={{ flex: 1, textAlign: 'right' }}>{formatHoursMinutes(r.inactive)}</Text>
+                                <Text style={[{ width: 80, textAlign: 'right', fontWeight: '700' }, r.status === 'parcial' ? styles.estadisticaStatusParcial : styles.estadisticaStatus]}>{r.status.toUpperCase()}</Text>
+                                <Text style={{ width: 72, textAlign: 'right' }}>{r.percent}%</Text>
+                              </View>
+                            ))}
+
+                            <View style={{ flexDirection: 'row', paddingVertical: 8, marginTop: 6, borderTopWidth: 1, borderTopColor: '#e6eef6' }}>
+                              <Text style={{ flex: 2, fontWeight: '800' }}>Total</Text>
+                              <Text style={{ flex: 1, textAlign: 'right', fontWeight: '800' }}>{formatHoursMinutes(totalActiveT)}</Text>
+                              <Text style={{ flex: 1, textAlign: 'right', fontWeight: '800' }}>{formatHoursMinutes(Math.max(0, elapsed - totalActiveT))}</Text>
+                              <Text style={{ width: 80, textAlign: 'right', fontWeight: '800' }}>—</Text>
+                            </View>
+                          </View>
+                        );
+                      })()}
                 </TouchableOpacity>
               );
             }}
@@ -959,6 +1477,24 @@ searchInput: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
+  modalContainerMobile: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    paddingTop: 12,
+    paddingHorizontal: 12,
+  },
+  filterRowMobile: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: 6,
+  },
+  filterButtonMobile: {
+    flex: 1,
+    maxWidth: '100%',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
   // Estilos adicionales para garantizar visibilidad en Android release
   androidTextFix: {
     textShadowColor: 'transparent',
@@ -990,4 +1526,168 @@ searchInput: {
     marginLeft: 8,
   },
   refreshButton: { marginLeft: 8, padding: 4 }
+  ,
+  // Toggle styles for polling ON/OFF
+  toggleButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    marginLeft: 8,
+  },
+  toggleOn: {
+    backgroundColor: '#10b981', // green-500
+    borderColor: '#059669',
+  },
+  toggleOff: {
+    backgroundColor: '#ef4444', // red-500
+    borderColor: '#dc2626',
+  },
+  toggleText: {
+    color: '#fff',
+    fontWeight: '700',
+  }
+  ,
+  badge: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginRight: 6,
+    marginBottom: 4,
+  },
+  badgeText: {
+    fontSize: 12,
+    color: '#0f172a',
+    fontWeight: '600',
+  }
+  ,
+  modalItemCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e6eef6',
+  },
+  modalItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalItemTitle: {
+    fontWeight: '700',
+    color: COLORS.primary,
+  },
+  modalItemDate: {
+    color: '#6b7280',
+    fontSize: 12,
+  },
+  modalItemLine: {
+    marginTop: 6,
+    color: '#374151',
+  },
+  modalItemFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  modalItemMeta: {
+    color: '#1f2937',
+    fontWeight: '600',
+    fontSize: 13,
+  }
+  ,
+  estadisticaContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e6eef6',
+  },
+  estadisticaLabel: {
+    fontSize: 11,
+    color: '#475569',
+    fontWeight: '700',
+    marginRight: 4,
+  },
+  estadisticaValue: {
+    fontSize: 12,
+    color: '#0f172a',
+    fontWeight: '700',
+    marginRight: 8,
+  },
+  estadisticaStatus: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#065f46',
+    backgroundColor: '#d1fae5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    marginLeft: 8,
+  },
+  estadisticaStatusParcial: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#78350f',
+    backgroundColor: '#fff7cc',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    marginLeft: 8,
+  },
+  estadisticaBadges: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  estadisticaContainerInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  estadisticaInlineBlock: {
+    alignItems: 'center',
+    marginLeft: 6,
+  }
+  ,
+  valorBadge: {
+    backgroundColor: '#fff7e6',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ffd7a1',
+    alignItems: 'center',
+  },
+  valorBadgeInline: {
+    backgroundColor: '#fff7e6',
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#ffd7a1',
+    alignItems: 'center',
+  },
+  valorLabel: {
+    fontSize: 11,
+    color: '#92400e',
+    fontWeight: '800',
+  },
+  valorPercent: {
+    fontSize: 13,
+    color: '#92400e',
+    fontWeight: '900',
+    marginLeft: 6,
+  }
 });

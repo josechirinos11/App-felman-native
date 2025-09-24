@@ -54,10 +54,10 @@ export default function AppHeader({
 
   return (
     <View style={styles.wrapper}>
-      <View style={[styles.leftCol, isSmallDevice && { minWidth: 20 }]}> 
-        <Pressable onPress={handleUserPress} style={styles.logoMenuPressable}>
-          <View style={styles.logoMenuContainer}>
-            {Platform.OS === 'web' ? (
+      <View style={[styles.leftCol, isSmallDevice && styles.leftColSmall]}> 
+        <Pressable onPress={handleUserPress} style={[styles.logoMenuPressable, isSmallDevice && styles.logoMenuPressableSmall]}>
+          <View style={[styles.logoMenuContainer, isSmallDevice && styles.logoMenuContainerSmall]}>
+            {Platform.OS === 'web' && !isSmallDevice ? (
               <Image source={require('../assets/images/logo.png')} style={styles.logoLarge} resizeMode="contain" />
             ) : null}
             <Ionicons name="menu-outline" size={32} color="#ef4444" style={styles.menuIconLarge} />
@@ -106,11 +106,18 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   leftCol: { minWidth: 90, alignItems: 'center', justifyContent: 'center' },
+  leftColSmall: { minWidth: 60, alignItems: 'flex-start', justifyContent: 'center' },
   centerCol: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   rightCol: { minWidth: 90, alignItems: 'flex-end', justifyContent: 'center' },
   logoMenuPressable: {
     paddingVertical: 6,
     alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  logoMenuPressableSmall: {
+    paddingVertical: 6,
+    alignItems: 'flex-start',
     justifyContent: 'center',
     width: '100%',
   },
@@ -120,6 +127,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 16,
     width: '100%',
+  },
+  logoMenuContainerSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 12,
+    width: '100%',
+    paddingLeft: 0,
   },
   logoLarge: {
     width: 56,
