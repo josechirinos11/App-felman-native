@@ -671,7 +671,7 @@ export default function ControlTerminalesScreen() {
             )}
           </View>
 
-          {/* Mostrar estadísticas detalladas */}
+          {/* Mostrar modal estadísticas detalladas */}
           {modalContext && selectedGroupKey && (() => {
             const stats = computeDetailedStats(modalContext, selectedGroupKey, tiempoRecords);
             return (
@@ -689,8 +689,11 @@ export default function ControlTerminalesScreen() {
             <FlatList
               data={detailList}
               keyExtractor={(it, idx) => `${it.NumeroManual ?? 'nm'}-${idx}-${it.Fecha ?? ''}-${it.HoraInicio ?? ''}`}
+              style={[isWeb ? styles.flatListWeb : isTablet ? styles.flatListTablet : styles.flatListMobile, { flex: 1 }]}
+              contentContainerStyle={{ paddingBottom: 24, gap: gap, columnGap: gap }}
+              numColumns={numColumns}
               renderItem={({ item }) => (
-                <View style={[styles.card, { padding: 8, marginVertical: 4 }]}>
+                <View style={[styles.card, { flex: 1, minWidth: 0, margin: gap / 2, padding: 8 }, modalContext !== 'operador' ? {} : {},]}> {/* flex:1 y separación */}
                   {modalContext !== 'operador' && (
                     <Text style={{ fontWeight: '700' }}>{operarioFirstNameKey(item.OperarioNombre || item.CodigoOperario)}</Text>
                   )}
@@ -729,15 +732,18 @@ export default function ControlTerminalesScreen() {
                 <FlatList
                   data={groups}
                   keyExtractor={(g) => String(g.key)}
+                  style={[isWeb ? styles.flatListWeb : isTablet ? styles.flatListTablet : styles.flatListMobile, { flex: 1 }]}
+                  contentContainerStyle={{ paddingBottom: 24, gap: gap, columnGap: gap }}
+                  numColumns={numColumns}
                   renderItem={({ item: g }) => (
-                    <View style={{ marginBottom: 8 }}>
-                      <View style={[styles.card, { padding: 10 }]}>
+                    <View style={[{ flex: 1, minWidth: 0, margin: gap / 2 }]}>
+                      <View style={[styles.card, { padding: 10 }]}> {/* flex:1 y separación */}
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                           <Text style={{ fontWeight: '700', color: COLORS.primary }}>{g.key} <Text style={{ color: '#6b7280' }}>· {g.items.length}</Text></Text>
                           {g.estadistica ? (() => {
                             const now = new Date(nowTick);
                             const { total, breakOverlap, effective } = computeEffectiveElapsed(now);
-                            let elapsed = effective; // effective elapsed (excluye pausa comida)
+                            let elapsed = effective;
                             if (elapsed > (JORNADA_SECONDS || 7.5 * 3600)) elapsed = JORNADA_SECONDS || 7.5 * 3600;
                             const inactive = Math.max(0, elapsed - (g.estadistica.activeSeconds || 0));
                             const percentActivity = elapsed > 0 ? Math.max(0, Math.min(100, Math.round(((g.estadistica.activeSeconds || 0) / elapsed) * 100))) : 0;
@@ -804,18 +810,15 @@ export default function ControlTerminalesScreen() {
             data={filteredGroupedList}
             keyExtractor={(item) => item.key}
             style={[isWeb ? styles.flatListWeb : isTablet ? styles.flatListTablet : styles.flatListMobile, { flex: 1 }]}
-            contentContainerStyle={{ paddingBottom: 24 }}
+            contentContainerStyle={{ paddingBottom: 24, gap: gap, columnGap: gap }}
             nestedScrollEnabled
             numColumns={numColumns}
             renderItem={({ item }) => {
               const last: TiempoRealRecord = item.last;
-              // Mostrar campos según filterMode
               let title = item.key;
-              let subtitle = '';
-
               let badges: Array<{ key: string; label: string }> = [];
               if (filterMode === 'operador') {
-                title = item.key; // Operario first-name key (already normalized)
+                title = item.key;
                 badges = [
                   { key: 'tarea', label: String(last.CodigoTarea ?? '-') },
                   { key: 'numero', label: String(last.NumeroManual ?? '-') },
@@ -824,7 +827,7 @@ export default function ControlTerminalesScreen() {
                   { key: 'horas', label: `${last.HoraInicio ?? '-'}→${last.HoraFin ?? '-'}` },
                 ];
               } else if (filterMode === 'tarea') {
-                title = item.key; // CodigoTarea
+                title = item.key;
                 badges = [
                   { key: 'oper', label: operarioFirstNameKey(last.OperarioNombre || last.CodigoOperario) },
                   { key: 'numero', label: String(last.NumeroManual ?? '-') },
@@ -832,7 +835,7 @@ export default function ControlTerminalesScreen() {
                   { key: 'dur', label: formatDuration(last.TiempoDedicado ?? null) },
                 ];
               } else {
-                title = item.key; // NumeroManual
+                title = item.key;
                 badges = [
                   { key: 'tarea', label: String(last.CodigoTarea ?? '-') },
                   { key: 'modulo', label: String(last.Modulo ?? '-') },
@@ -840,56 +843,52 @@ export default function ControlTerminalesScreen() {
                   { key: 'dur', label: formatDuration(last.TiempoDedicado ?? null) },
                 ];
               }
-
               const isHighlighted = highlightedGroups[item.key];
               return (
-                <TouchableOpacity key={item.key} style={[styles.card, isHighlighted ? { backgroundColor: '#fff7e6' } : undefined]} onPress={() => {
-                  // abrir modal con todos los items del grupo
-                  const all = tiempoRecords.filter((r) => {
-                    if (filterMode === 'operador') return operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario) === item.key;
-                    if (filterMode === 'tarea') return (r.CodigoTarea || 'SIN_TAREA').toString() === item.key;
-                    return (r.NumeroManual || 'SIN_PEDIDO').toString() === item.key;
-                  });
-                  setDetailList(all.sort((a,b)=> recordTimestamp(b) - recordTimestamp(a)));
-                  setSelectedGroupKey(item.key);
-                  setModalContext(filterMode);
-                  // seleccionar automáticamente el primer botón visible en el modal
-                  const order: Array<'operador'|'tarea'|'pedido'> = ['operador','tarea','pedido'];
-                  let defaultGroup: 'none' | 'operador' | 'tarea' | 'pedido' = 'none';
-                  for (const opt of order) {
-                    if (filterMode !== opt) { defaultGroup = opt; break; }
-                  }
-                  setModalGroupBy(defaultGroup);
-                  setDetailModalVisible(true);
-                }}>
+                <TouchableOpacity
+                  key={item.key}
+                  style={[styles.card, { flex: 1, minWidth: 0, margin: gap / 2 }, isHighlighted ? { backgroundColor: '#fff7e6' } : undefined]}
+                  onPress={() => {
+                    const all = tiempoRecords.filter((r) => {
+                      if (filterMode === 'operador') return operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario) === item.key;
+                      if (filterMode === 'tarea') return (r.CodigoTarea || 'SIN_TAREA').toString() === item.key;
+                      return (r.NumeroManual || 'SIN_PEDIDO').toString() === item.key;
+                    });
+                    setDetailList(all.sort((a,b)=> recordTimestamp(b) - recordTimestamp(a)));
+                    setSelectedGroupKey(item.key);
+                    setModalContext(filterMode);
+                    const order: Array<'operador'|'tarea'|'pedido'> = ['operador','tarea','pedido'];
+                    let defaultGroup: 'none' | 'operador' | 'tarea' | 'pedido' = 'none';
+                    for (const opt of order) {
+                      if (filterMode !== opt) { defaultGroup = opt; break; }
+                    }
+                    setModalGroupBy(defaultGroup);
+                    setDetailModalVisible(true);
+                  }}
+                >
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ fontWeight: '700', color: COLORS.primary }}>{title}</Text>
                     <View style={{ alignItems: 'flex-end' }}>
                       <Text style={{ color: '#6b7280', fontWeight: '600' }}>{item.count}</Text>
+                      {/* ...estadistica y badges... */}
                       {item.estadistica ? (() => {
                         const now = new Date(nowTick);
                         const { total, breakOverlap, effective } = computeEffectiveElapsed(now);
-                        let elapsed = effective; // effective elapsed (excluye pausa comida)
+                        let elapsed = effective;
                         if (elapsed > (JORNADA_SECONDS || 7.5 * 3600)) elapsed = JORNADA_SECONDS || 7.5 * 3600;
-
-                        // detectar si esta tarjeta de tarea aplica a mas de un operario
                         let isTareaMultiOperator = false;
                         if (filterMode === 'tarea') {
                           const groupItems = item.items ?? [];
                           const ops = new Set(groupItems.map((x:any) => operarioFirstNameKey(x.OperarioNombre || x.CodigoOperario)));
                           isTareaMultiOperator = ops.size > 1;
                         }
-
                         if (isTareaMultiOperator) {
-                          // mostrar una flecha hacia abajo / mensaje indicando revisar la tabla individual
                           return (
                             <View style={styles.estadisticaContainerInline}>
                               <Text style={{ fontWeight: '700', color: '#374151' }}>⬇ Mira desglose individual</Text>
                             </View>
                           );
                         }
-
-                        // Caso normal: mostrar Act/Inac/Estado/Valor
                         const inactive = Math.max(0, elapsed - (item.estadistica.activeSeconds || 0));
                         const percentActivity = elapsed > 0 ? Math.max(0, Math.min(100, Math.round(((item.estadistica.activeSeconds || 0) / elapsed) * 100))) : 0;
                         return (
@@ -919,10 +918,8 @@ export default function ControlTerminalesScreen() {
                       <View key={b.key} style={styles.badge}><Text style={styles.badgeText}>{b.label}</Text></View>
                     ))}
                   </View>
-
-                  {/* Si estamos viendo por tarea, mostrar desglose por operario si hay >1 operario */}
+                  {/* ...desglose por operario/tarea si aplica... */}
                   {filterMode === 'tarea' && (() => {
-                    // agrupar por operario dentro del grupo
                     const opMap = new Map<string, { active: number; count: number; anyOpen: boolean }>();
                     const groupItems = item.items ?? [];
                     for (const it of groupItems) {
@@ -934,12 +931,10 @@ export default function ControlTerminalesScreen() {
                       opMap.set(op, s);
                     }
                     if (opMap.size <= 1) return null;
-
                     const now = new Date(nowTick);
                     const { total, breakOverlap, effective } = computeEffectiveElapsed(now);
                     let elapsed = effective;
                     if (elapsed > JORNADA_SECONDS) elapsed = JORNADA_SECONDS;
-
                     let totalActive = 0;
                     const rows: Array<{ op: string; active: number; inactive: number; status: 'parcial'|'total'; percent: number }> = [];
                     for (const [op, v] of opMap.entries()) {
@@ -950,7 +945,6 @@ export default function ControlTerminalesScreen() {
                       const percent = elapsed > 0 ? Math.round((active / elapsed) * 100) : 0;
                       rows.push({ op, active, inactive, status, percent });
                     }
-
                     return (
                       <View style={{ marginTop: 8, padding: 8, backgroundColor: '#fbfbfe', borderRadius: 8 }}>
                         <Text style={{ fontWeight: '700', marginBottom: 6 }}>Desglose por operario</Text>
@@ -961,7 +955,6 @@ export default function ControlTerminalesScreen() {
                           <Text style={{ width: 80, textAlign: 'right', fontWeight: '700' }}>Estado</Text>
                           <Text style={{ width: 72, textAlign: 'right', fontWeight: '700' }}>Valor</Text>
                         </View>
-
                         {rows.map(r => (
                           <View key={r.op} style={{ flexDirection: 'row', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' }}>
                             <Text style={{ flex: 2 }}>{r.op}</Text>
@@ -980,10 +973,7 @@ export default function ControlTerminalesScreen() {
                       </View>
                     );
                   })()}
-
-                  {/* Si estamos viendo por pedido, mostrar desglose por tarea dentro del pedido */}
                   {filterMode === 'pedido' && (() => {
-                    // agrupar por CodigoTarea dentro del pedido
                     const tareaMap = new Map<string, { active: number; count: number; anyOpen: boolean }>();
                     const groupItemsPedido = item.items ?? [];
                     for (const it of groupItemsPedido) {
@@ -995,12 +985,10 @@ export default function ControlTerminalesScreen() {
                       tareaMap.set(tarea, s);
                     }
                     if (tareaMap.size <= 1) return null;
-
                     const now = new Date(nowTick);
                     const { total, breakOverlap, effective } = computeEffectiveElapsed(now);
                     let elapsed = effective;
                     if (elapsed > (JORNADA_SECONDS || 7.5 * 3600)) elapsed = JORNADA_SECONDS || 7.5 * 3600;
-
                     let totalActiveT = 0;
                     const rowsT: Array<{ tarea: string; active: number; inactive: number; status: 'parcial'|'total'; percent: number }> = [];
                     for (const [tarea, v] of tareaMap.entries()) {
@@ -1011,7 +999,6 @@ export default function ControlTerminalesScreen() {
                       const percent = elapsed > 0 ? Math.round((active / elapsed) * 100) : 0;
                       rowsT.push({ tarea, active, inactive, status, percent });
                     }
-
                     return (
                       <View style={{ marginTop: 8, padding: 8, backgroundColor: '#f7fbf9', borderRadius: 8 }}>
                         <Text style={{ fontWeight: '700', marginBottom: 6 }}>Tareas en pedido</Text>
@@ -1022,7 +1009,6 @@ export default function ControlTerminalesScreen() {
                           <Text style={{ width: 80, textAlign: 'right', fontWeight: '700' }}>Estado</Text>
                           <Text style={{ width: 72, textAlign: 'right', fontWeight: '700' }}>Valor</Text>
                         </View>
-
                         {rowsT.map(r => (
                           <View key={r.tarea} style={{ flexDirection: 'row', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' }}>
                             <Text style={{ flex: 2 }}>{r.tarea}</Text>
@@ -1032,7 +1018,6 @@ export default function ControlTerminalesScreen() {
                             <Text style={{ width: 72, textAlign: 'right' }}>{r.percent}%</Text>
                           </View>
                         ))}
-
                         <View style={{ flexDirection: 'row', paddingVertical: 8, marginTop: 6, borderTopWidth: 1, borderTopColor: '#e6eef6' }}>
                           <Text style={{ flex: 2, fontWeight: '800' }}>Total</Text>
                           <Text style={{ flex: 1, textAlign: 'right', fontWeight: '800' }}>{formatHoursMinutes(totalActiveT)}</Text>
