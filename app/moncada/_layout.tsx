@@ -22,7 +22,8 @@ export default function OptimaTabLayout() {
         tabBarActiveTintColor: '#2e78b7',
     tabBarStyle: { 
       backgroundColor: '#000000ff',     // <-- tu color deseado aquí
-      paddingBottom: 5 
+      paddingBottom: 5 ,
+          display: 'none', // Oculta la barra de pestañas
     },
         headerShown: false, // Oculta el header en todas las pestañas
       }}>
