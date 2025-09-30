@@ -27,9 +27,8 @@ const menuItems: MenuItem[] = [
   { id: 4, title: 'Control Pedidos', icon: 'cube-outline', route: '/moncada/control-pedidos' },
   { id: 5, title: 'Control de Incidencias', icon: 'alert-circle-outline', route: '/moncada/control-incidencias' },
   { id: 6, title: 'Entregas Diarias', icon: 'calendar-outline', route: '/moncada/control-entregas-diarias' },
-   { id: 7, title: 'Produccion version 1', icon: 'bar-chart-outline', route: '/moncada/control-produccion' },
-   { id: 8, title: 'Produccion version 2', icon: 'bar-chart-outline', route: '/moncada/control-produccion-sonnet' },
-    { id: 10, title: 'Produccion version 3', icon: 'bar-chart-outline', route: '/moncada/control-produccion.chatGPT' },
+   { id: 7, title: 'Control Fabrica', icon: 'cog-outline', route: '/moncada/control-fabrica' },
+   { id: 8, title: 'Anàlisis Produccion', icon: 'bar-chart-outline', route: '/moncada/control-produccion-sonnet' },
 
 
 ];

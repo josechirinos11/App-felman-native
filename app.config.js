@@ -38,7 +38,15 @@ module.exports = {
         apiKey: "AIzaSyAEWw8B6utUMKBNmeou8EAovnWRGLxldGs"
       }
     },
-    edgeToEdgeEnabled: true
+    edgeToEdgeEnabled: true,
+    navigationBar: {
+      visible: "immersive", // o "leanback" o "sticky-immersive" según preferencia
+      barStyle: "dark-content", // iconos oscuros en fondo claro
+      backgroundColor: "#ffffff", // blanco por defecto (modo claro)
+      // Expo usará backgroundColor en modo claro y navigationBar.backgroundColorDark en modo oscuro
+      backgroundColorDark: "#000000", // negro en modo oscuro
+      barStyleDark: "light-content" // iconos claros en fondo oscuro
+    }
   },
   
   web: {

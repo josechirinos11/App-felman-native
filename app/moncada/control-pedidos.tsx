@@ -303,7 +303,8 @@ export default function ControlComercialesScreen() {
           <Ionicons name="search-outline" size={20} color="#757575" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Buscar por NºPedido / Cliente / RefCliente..."
+            placeholder="Buscar..."
+            placeholderTextColor="#0f0f0fff"
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -361,17 +362,17 @@ export default function ControlComercialesScreen() {
         <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>
+              <Text style={[styles.modalTitle, styles.modalTitleColor]}>
                 {modalGroup?.[0]?.NoPedido ? `Pedido ${modalGroup[0].NoPedido}` : 'Detalle'}
               </Text>
               <ScrollView style={{ maxHeight: '70%' }}>
                 {modalGroup?.map((p, idx) => (
-                  <View key={idx} style={[styles.card, { marginVertical: 6 }]}>
-                    <Text style={{ fontWeight: 'bold' }}>{p.Material}</Text>
-                    <Text>Proveedor: {p.Proveedor}</Text>
-                    <Text>Fecha Prevista: {p.FechaPrevista || '-'}</Text>
-                    <Text>Recibido: {p.Recibido}</Text>
-                    <Text>Estado Pedido: {p.EstadoPedido || '-'}</Text>
+                  <View key={idx} style={[styles.card, { marginVertical: 6 }]}> 
+                    <Text style={[{ fontWeight: 'bold' }, styles.modalTextColor]}>{p.Material}</Text>
+                    <Text style={styles.modalTextColor}>Proveedor: {p.Proveedor}</Text>
+                    <Text style={styles.modalTextColor}>Fecha Prevista: {p.FechaPrevista || '-'}</Text>
+                    <Text style={styles.modalTextColor}>Recibido: {p.Recibido}</Text>
+                    <Text style={styles.modalTextColor}>Estado Pedido: {p.EstadoPedido || '-'}</Text>
                   </View>
                 ))}
               </ScrollView>
@@ -434,6 +435,8 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { backgroundColor: '#fff', borderRadius: 12, padding: 16, width: '86%', maxHeight: '80%' },
   modalTitle: { fontSize: 18, fontWeight: 'bold', color: '#2e78b7', marginBottom: 12 },
+  modalTitleColor: { color: '#1976d2' },
+  modalTextColor: { color: '#374151' },
   card: { padding: 12, borderRadius: 10, backgroundColor: '#f9fafb' },
   closeButton: { alignSelf: 'center', marginTop: 10, backgroundColor: '#e3eafc', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8 },
   closeText: { color: '#1976d2', fontWeight: '700' },

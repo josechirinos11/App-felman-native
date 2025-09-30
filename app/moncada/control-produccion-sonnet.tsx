@@ -2,18 +2,18 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as NavigationBar from 'expo-navigation-bar';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    Modal,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    useWindowDimensions,
-    View
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity, useColorScheme, useWindowDimensions,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -156,6 +156,16 @@ const operarioFirstNameKey = (val?: string | null) => {
 
 // ===================== Componente =====================
 export default function ControlTerminalesScreen() {
+  const colorScheme = useColorScheme();
+  useEffect(() => {
+    if (colorScheme === 'dark') {
+      NavigationBar.setBackgroundColorAsync('#000000');
+      NavigationBar.setButtonStyleAsync('light');
+    } else {
+      NavigationBar.setBackgroundColorAsync('#ffffff');
+      NavigationBar.setButtonStyleAsync('dark');
+    }
+  }, [colorScheme]);
   const { authenticated, loading: authLoading } = useAuth();
   const router = useRouter();
 
@@ -591,23 +601,25 @@ export default function ControlTerminalesScreen() {
             <View style={styles.dateInputContainer}>
               <Text style={styles.dateLabel}>Desde</Text>
               <TextInput
-                style={styles.dateInput}
+                style={[styles.dateInput, { color: COLORS.text }]}
                 value={formatDateOnly(fromDate.toISOString())}
                 onChangeText={(v) => {
                   if (v) setFromDate(new Date(`${v}T00:00:00`));
                 }}
                 placeholder="YYYY-MM-DD"
+                placeholderTextColor={COLORS.textSecondary}
               />
             </View>
             <View style={styles.dateInputContainer}>
               <Text style={styles.dateLabel}>Hasta</Text>
               <TextInput
-                style={styles.dateInput}
+                style={[styles.dateInput, { color: COLORS.text }]}
                 value={formatDateOnly(toDate.toISOString())}
                 onChangeText={(v) => {
                   if (v) setToDate(new Date(`${v}T00:00:00`));
                 }}
                 placeholder="YYYY-MM-DD"
+                placeholderTextColor={COLORS.textSecondary}
               />
             </View>
           </>
@@ -615,7 +627,7 @@ export default function ControlTerminalesScreen() {
           <>
             <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowFromPicker(true)}>
               <Text style={styles.dateLabel}>Desde</Text>
-              <View style={styles.dateInput}><Text>{formatDateOnly(fromDate.toISOString())}</Text></View>
+              <View style={styles.dateInput}><Text style={{ color: COLORS.text }}>{formatDateOnly(fromDate.toISOString())}</Text></View>
             </TouchableOpacity>
             {showFromPicker && (
               <DateTimePicker
@@ -630,7 +642,7 @@ export default function ControlTerminalesScreen() {
             )}
             <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowToPicker(true)}>
               <Text style={styles.dateLabel}>Hasta</Text>
-              <View style={styles.dateInput}><Text>{formatDateOnly(toDate.toISOString())}</Text></View>
+              <View style={styles.dateInput}><Text style={{ color: COLORS.text }}>{formatDateOnly(toDate.toISOString())}</Text></View>
             </TouchableOpacity>
             {showToPicker && (
               <DateTimePicker
@@ -820,6 +832,7 @@ const styles = StyleSheet.create({
   dateInput: {
     borderWidth: 1, borderColor: '#ddd', borderRadius: 8,
     paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#fff',
+    color: COLORS.text, // Asegura contraste en modo claro/oscuro
   },
   refreshButton: {
     padding: 8, borderRadius: 8, backgroundColor: COLORS.surface, elevation: 2,

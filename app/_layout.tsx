@@ -1,8 +1,9 @@
 import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import * as NavigationBar from 'expo-navigation-bar';
 import { SplashScreen, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, Text, useColorScheme, View } from 'react-native';
 
 export const unstable_settings = {
   // Inicializar siempre en login
@@ -13,6 +14,7 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
+  const colorScheme = useColorScheme();
 
   useEffect(() => {
     // Simulamos carga pero sin useAuth por ahora
@@ -20,9 +22,19 @@ export default function RootLayout() {
       setIsReady(true);
       SplashScreen.hideAsync();
     }, 1000);
-    
     return () => clearTimeout(timer);
   }, []);
+
+  // Cambia el color de la barra de navegación según el modo
+  useEffect(() => {
+    if (colorScheme === 'dark') {
+      NavigationBar.setBackgroundColorAsync('#000000');
+      NavigationBar.setButtonStyleAsync('light');
+    } else {
+      NavigationBar.setBackgroundColorAsync('#ffffff');
+      NavigationBar.setButtonStyleAsync('dark');
+    }
+  }, [colorScheme]);
 
   if (!isReady) {
     return (
