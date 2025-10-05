@@ -2,10 +2,12 @@
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">85.59.105.234</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">10.0.2.2</domain>
         <domain includeSubdomains="true">192.168.137.2</domain>
         <domain includeSubdomains="true">192.168.1.131</domain>
+        <domain includeSubdomains="true">192.168.1.146</domain>
         <!-- Dominios para Google Maps - CRÍTICO PARA RENDERIZADO -->
         <domain includeSubdomains="true">maps.googleapis.com</domain>
         <domain includeSubdomains="true">maps.google.com</domain>
