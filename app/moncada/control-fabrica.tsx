@@ -2,7 +2,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as NavigationBar from 'expo-navigation-bar';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -164,6 +164,10 @@ const normalizarPedido = (pedido: string): string => {
 // ===================== Componente =====================
 export default function ControlTerminalesScreen() {
   const colorScheme = useColorScheme();
+
+  const loadedRef = useRef(false);
+
+
   useEffect(() => {
     if (colorScheme === 'dark') {
       NavigationBar.setBackgroundColorAsync('#000000');
@@ -240,21 +244,26 @@ export default function ControlTerminalesScreen() {
 
   // Carga inicial
   useEffect(() => {
+    if (loadedRef.current) return;
+    loadedRef.current = true;
     fetchAllData(formatDateOnly(fromDate.toISOString()), formatDateOnly(toDate.toISOString()));
+
+
   }, [fromDate, toDate]);
 
   // Fetch Consulta 1: Tiempo Real (pedidos en fábrica)
   async function fetchTiempoReal() {
     try {
       setLoadingTiempo(true);
-      const res = await fetch(`${API_URL}/control-terminales/production-analytics-sin-fechas`);
+      // CAMBIAR ENDPOINT
+      const res = await fetch(`${API_URL}/control-terminales/pedidos-en-fabrica`);
       if (!res.ok) {
         setTiempoRecords([]);
         return [];
       }
       const json = await res.json();
       const records = Array.isArray(json) ? (json as TiempoRealRecord[]) : [];
-      console.log(`[fetchTiempoReal] Registros recibidos: ${records.length}`);
+      console.log(`[fetchTiempoReal] Registros EN FÁBRICA: ${records.length}`);
       setTiempoRecords(records);
       return records;
     } catch (err) {
@@ -293,7 +302,7 @@ export default function ControlTerminalesScreen() {
   async function fetchModulosInfo(modulos: { Serie: string; Numero: number; Linea: number }[]) {
     try {
       setLoadingModulos(true);
-      const res = await fetch(`${API_URL}/control-fabrica/modulos-info`, {
+      const res = await fetch(`${API_URL}/control-pedido/modulos-info`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ modulos })
@@ -313,48 +322,53 @@ export default function ControlTerminalesScreen() {
 
   // Integrar todas las consultas
   async function fetchAllData(from: string, to: string) {
-    // 1. Obtener tiempo real (fábrica)
     const tiempoData = await fetchTiempoReal();
-    console.log('[LOG] Consulta 1 - tiempoData:', tiempoData.filter(r => (r.NumeroManual || '') === '2025_40_834'));
+    console.log(`[LOG] Total registros en fábrica: ${tiempoData.length}`);
 
-    // 2. Obtener pedidos comerciales (dpto técnico)
     const pedidosData = await fetchPedidosComerciales();
-    console.log('[LOG] Consulta 2 - pedidosData:', pedidosData.filter(p => normalizarPedido(p.NoPedido) === '2025_40_834'));
 
-    // 3. Filtrar pedidos TERMINADOS de consulta 2
     const pedidosTerminados = new Set(
       pedidosData
         .filter(p => p.EstadoPedido === 'TERMINADO')
         .map(p => normalizarPedido(p.NoPedido))
     );
-    console.log('[LOG] Pedidos terminados:', Array.from(pedidosTerminados));
+    console.log(`[LOG] Pedidos terminados: ${Array.from(pedidosTerminados).join(', ')}`);
 
-    // 4. Agrupar por pedido y filtrar terminados
-    const pedidosMap = new Map<string, TiempoRealRecord[]>();
+    // Agrupar todos los registros por pedido
+    const todosLosPedidos = new Map<string, TiempoRealRecord[]>();
     tiempoData.forEach(record => {
       const pedido = record.NumeroManual || 'SIN_PEDIDO';
-      // Filtrar si está terminado
-      if (pedidosTerminados.has(pedido)) return;
-      if (!pedidosMap.has(pedido)) {
-        pedidosMap.set(pedido, []);
+      if (!todosLosPedidos.has(pedido)) {
+        todosLosPedidos.set(pedido, []);
       }
-      pedidosMap.get(pedido)!.push(record);
+      todosLosPedidos.get(pedido)!.push(record);
     });
-    if (pedidosMap.has('2025_40_834')) {
-      console.log('[LOG] Registros agrupados para 2025_40_834:', pedidosMap.get('2025_40_834'));
+
+    console.log(`[LOG] Total pedidos únicos: ${todosLosPedidos.size}`);
+
+    // Filtrar pedidos terminados
+    const pedidosActivos = new Map<string, TiempoRealRecord[]>();
+    for (const [pedido, records] of todosLosPedidos.entries()) {
+      if (pedidosTerminados.has(pedido)) {
+        console.log(`[SKIP] Pedido completo excluido: ${pedido} (${records.length} registros)`);
+        continue;
+      }
+      pedidosActivos.set(pedido, records);
     }
 
-    // 5. Para cada pedido, obtener módulos únicos y consultar info
-    const pedidosIntegradosTemp: PedidoIntegrado[] = [];
+    console.log(`[LOG] Pedidos activos después de filtrar: ${pedidosActivos.size}`);
 
-    for (const [pedido, records] of pedidosMap.entries()) {
-      // Extraer módulos únicos (Serie, Numero, Linea)
-      const modulosSet = new Map<string, ModuloInfo>();
+    // ========================================
+    // OPTIMIZACIÓN: Recopilar TODOS los módulos de TODOS los pedidos
+    // ========================================
+    const todosLosModulosMap = new Map<string, ModuloInfo>();
+
+    for (const [pedido, records] of pedidosActivos.entries()) {
       records.forEach(r => {
         if (r.FabricacionSerie && r.FabricacionNumero && r.FabricacionLinea) {
           const key = `${r.FabricacionSerie}-${r.FabricacionNumero}-${r.FabricacionLinea}`;
-          if (!modulosSet.has(key)) {
-            modulosSet.set(key, {
+          if (!todosLosModulosMap.has(key)) {
+            todosLosModulosMap.set(key, {
               Serie: r.FabricacionSerie,
               Numero: r.FabricacionNumero,
               Linea: r.FabricacionLinea
@@ -363,39 +377,105 @@ export default function ControlTerminalesScreen() {
         }
       });
 
-      const modulosArray = Array.from(modulosSet.values());
-      if (pedido === '2025_40_834') {
-        console.log('[LOG] Módulos detectados para 2025_40_834:', modulosArray);
+
+    }
+
+    const todosLosModulos = Array.from(todosLosModulosMap.values());
+    console.log(`[LOG] Total módulos únicos a consultar: ${todosLosModulos.length}`);
+
+    // UNA SOLA consulta para TODOS los módulos
+    let modulosInfoGlobal: ModuloInfo[] = [];
+    if (todosLosModulos.length > 0) {
+      // La API devuelve [{ id: "Serie-Numero-Linea", solape, guias, cristal }, ...]
+      // La API ahora devuelve: [{ id, alias: string[], solape, guias, cristal }, ...]
+      type BackendModuloInfo = { id: string; alias?: string[]; solape?: boolean; guias?: boolean; cristal?: boolean };
+      const modulosInfoData: BackendModuloInfo[] = await fetchModulosInfo(todosLosModulos);
+
+      // Construimos un índice por todas las claves posibles
+      const byId = new Map<string, BackendModuloInfo>();
+      for (const mi of modulosInfoData) {
+        byId.set(mi.id, mi);
+        (mi.alias ?? []).forEach(a => byId.set(a, mi));
       }
 
-      // Consultar info de módulos (Consulta 3)
-      let modulosInfo: ModuloInfo[] = modulosArray;
-      if (modulosArray.length > 0) {
-        const modulosInfoData = await fetchModulosInfo(modulosArray);
-        // Fusionar info
-        modulosInfo = modulosArray.map(m => {
-          const info = modulosInfoData.find(
-            (mi: any) => mi.Serie === m.Serie && mi.Numero === m.Numero && mi.Linea === m.Linea
-          );
-          return {
-            ...m,
-            solape: info?.solape || false,
-            guias: info?.guias || false,
-            cristal: info?.cristal || false
-          };
-        });
-        if (pedido === '2025_40_834') {
-          console.log('[LOG] Módulos info final para 2025_40_834:', modulosInfo);
+      // y tras recibir `modulosInfoData` del backend:
+      console.log('[DEBUG] IDs devueltos por backend:',
+        modulosInfoData.map(x => x.id));
+
+      // …y aquí ya no cambia nada: seguimos buscando por lo que trae TiempoReal
+      modulosInfoGlobal = todosLosModulos.map(m => {
+        const key = `${m.Serie}-${m.Numero}-${m.Linea}`; // puede ser PRE o FAB
+        const info = byId.get(key);
+        return {
+          ...m,
+          solape: !!info?.solape,
+          guias: !!info?.guias,
+          cristal: !!info?.cristal,
+        };
+      });
+    }
+
+    // justo después de calcular `todosLosModulos`
+    console.log('[DEBUG] FAB módulos a consultar:',
+      todosLosModulos.map(m => `${m.Serie}-${m.Numero}-${m.Linea}`));
+
+
+    // ========================================
+    // Procesar cada pedido usando la info global de módulos
+    // ========================================
+    const pedidosIntegradosTemp: PedidoIntegrado[] = [];
+
+    for (const [pedido, records] of pedidosActivos.entries()) {
+      // Extraer módulos de ESTE pedido
+      const modulosDelPedido = new Map<string, ModuloInfo>();
+      records.forEach(r => {
+        if (r.FabricacionSerie && r.FabricacionNumero && r.FabricacionLinea) {
+          const key = `${r.FabricacionSerie}-${r.FabricacionNumero}-${r.FabricacionLinea}`;
+          if (!modulosDelPedido.has(key)) {
+            // Buscar en la info global
+            const infoModulo = modulosInfoGlobal.find(
+              m => m.Serie === r.FabricacionSerie &&
+                m.Numero === r.FabricacionNumero &&
+                m.Linea === r.FabricacionLinea
+            );
+
+            modulosDelPedido.set(key, infoModulo || {
+              Serie: r.FabricacionSerie,
+              Numero: r.FabricacionNumero,
+              Linea: r.FabricacionLinea,
+              solape: false,
+              guias: false,
+              cristal: false
+            });
+          }
         }
-      }
 
-      // Buscar info del pedido en consulta 2
+        const modulosInfo = Array.from(modulosDelPedido.values());
+        // LOG ESPECÍFICO para pedidos con módulos
+        if (modulosInfo.length > 0) {
+          const conInfoEspecial = modulosInfo.filter(m => m.solape || m.guias || m.cristal);
+          if (conInfoEspecial.length > 0) {
+            //   console.log(`[PEDIDO] ${pedido}: ${conInfoEspecial.length}/${modulosInfo.length} módulos con info especial`,
+            //     conInfoEspecial.map(m => `${m.Serie}-${m.Numero}-${m.Linea}`));
+          }
+        }
+
+
+      });
+
+      const modulosInfo = Array.from(modulosDelPedido.values());
+
+      // Buscar info comercial
       const pedidoInfo = pedidosData.find(p => normalizarPedido(p.NoPedido) === pedido);
 
       // Calcular métricas
       const totalTiempo = records.reduce((sum, r) => sum + (r.TiempoDedicado || 0), 0);
-      const operarios = new Set(records.map(r => operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario)));
-      const fechas = new Set(records.map(r => formatDateOnly(r.FechaInicio || r.Fecha)).filter(f => f !== '-'));
+      const operarios = new Set(
+        records.map(r => operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario))
+      );
+      const fechas = new Set(
+        records.map(r => formatDateOnly(r.FechaInicio || r.Fecha)).filter(f => f !== '-')
+      );
 
       pedidosIntegradosTemp.push({
         NumeroManual: pedido,
@@ -408,10 +488,30 @@ export default function ControlTerminalesScreen() {
       });
     }
 
-    // Ordenar por tiempo total descendente
+    console.log(`[LOG] ✅ Procesamiento completo: ${pedidosIntegradosTemp.length} pedidos`);
+
     pedidosIntegradosTemp.sort((a, b) => b.totalTiempo - a.totalTiempo);
     setPedidosIntegrados(pedidosIntegradosTemp);
+
+    // PRUEBA: Verificar un pedido específico
+    const pedidoPrueba = pedidosIntegradosTemp.find(p => p.NumeroManual === '2025_40_834');
+    if (pedidoPrueba) {
+      console.log(`[TEST] 🔍 Pedido 2025_40_834:`, {
+        totalRegistros: pedidoPrueba.tiempoRecords.length,
+        modulos: pedidoPrueba.modulosInfo.map(m => ({
+          id: `${m.Serie}-${m.Numero}-${m.Linea}`,
+          solape: m.solape,
+          guias: m.guias,
+          cristal: m.cristal
+        }))
+      });
+    }
+
+
+
   }
+
+
 
   // Filtrar por búsqueda
   const filteredPedidos = useMemo(() => {
@@ -642,29 +742,40 @@ export default function ControlTerminalesScreen() {
           </View>
 
           {selectedPedido && (
-            <FlatList
-              data={selectedPedido.modulosInfo}
-              keyExtractor={(m) => `${m.Serie}-${m.Numero}-${m.Linea}`}
-              contentContainerStyle={{ padding: 12 }}
-              renderItem={({ item: modulo }) => (
-                <View style={styles.moduloDetailCard}>
-                  <Text style={styles.moduloDetailTitle}>
-                    📦 Módulo: {modulo.Serie} - {modulo.Numero} - Línea {modulo.Linea}
-                  </Text>
-                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
-                    <View style={[styles.badge, modulo.solape && styles.badgeSuccess]}>
-                      <Text style={styles.badgeText}>Solape: {modulo.solape ? '✓' : '✗'}</Text>
-                    </View>
-                    <View style={[styles.badge, modulo.guias && styles.badgeSuccess]}>
-                      <Text style={styles.badgeText}>Guías: {modulo.guias ? '✓' : '✗'}</Text>
-                    </View>
-                    <View style={[styles.badge, modulo.cristal && styles.badgeSuccess]}>
-                      <Text style={styles.badgeText}>Cristal: {modulo.cristal ? '✓' : '✗'}</Text>
+            selectedPedido.modulosInfo.length > 0 ? (
+              <FlatList
+                data={selectedPedido.modulosInfo}
+                keyExtractor={(m) => `${m.Serie}-${m.Numero}-${m.Linea}`}
+                contentContainerStyle={{ padding: 12 }}
+                renderItem={({ item: modulo }) => (
+                  <View style={styles.moduloDetailCard}>
+                    <Text style={styles.moduloDetailTitle}>
+                      📦 Módulo: {modulo.Serie} - {modulo.Numero} - Línea {modulo.Linea}
+                    </Text>
+                    <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+                      <View style={[styles.badge, modulo.solape && styles.badgeSuccess]}>
+                        <Text style={styles.badgeText}>Solape: {modulo.solape ? '✓' : '✗'}</Text>
+                      </View>
+                      <View style={[styles.badge, modulo.guias && styles.badgeSuccess]}>
+                        <Text style={styles.badgeText}>Guías: {modulo.guias ? '✓' : '✗'}</Text>
+                      </View>
+                      <View style={[styles.badge, modulo.cristal && styles.badgeSuccess]}>
+                        <Text style={styles.badgeText}>Cristal: {modulo.cristal ? '✓' : '✗'}</Text>
+                      </View>
                     </View>
                   </View>
-                </View>
-              )}
-            />
+                )}
+              />
+            ) : (
+              <View style={{ padding: 16 }}>
+                <Text style={{ color: '#888', fontSize: 14 }}>
+                  Este pedido no tiene módulos asociados.
+                </Text>
+                <Text style={{ marginTop: 8, fontWeight: 'bold' }}>
+                  Registros asociados: {selectedPedido.tiempoRecords.length}
+                </Text>
+              </View>
+            )
           )}
         </SafeAreaView>
       </Modal>
@@ -729,23 +840,23 @@ const styles = StyleSheet.create({
     elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1, shadowRadius: 4,
   },
-  cardHeader: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'flex-start', 
-    marginBottom: 12 
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12
   },
-  cardTitle: { 
-    fontSize: 18, 
-    fontWeight: 'bold', 
-    color: COLORS.primary, 
-    flex: 1, 
-    marginRight: 8 
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    flex: 1,
+    marginRight: 8
   },
   cardStats: { alignItems: 'flex-end' },
   cardTime: { fontSize: 16, fontWeight: 'bold', color: '#2d3748' },
   cardCount: { fontSize: 12, color: '#718096', marginTop: 2 },
-  
+
   pedidoInfoText: {
     fontSize: 13,
     color: '#4a5568',
@@ -753,66 +864,66 @@ const styles = StyleSheet.create({
   },
 
   cardMetrics: {
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    marginBottom: 12, 
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
     paddingTop: 12,
-    borderTopWidth: 1, 
+    borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
     flexWrap: 'wrap',
     gap: 8,
   },
-  metricItem: { 
-    alignItems: 'center', 
+  metricItem: {
+    alignItems: 'center',
     minWidth: 60,
   },
-  metricLabel: { 
-    fontSize: 11, 
-    color: '#718096', 
-    fontWeight: '600', 
-    marginBottom: 2 
+  metricLabel: {
+    fontSize: 11,
+    color: '#718096',
+    fontWeight: '600',
+    marginBottom: 2
   },
-  metricValue: { 
-    fontSize: 14, 
-    fontWeight: 'bold', 
-    color: '#2d3748' 
+  metricValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#2d3748'
   },
   statsButton: {
-    flexDirection: 'row', 
-    alignItems: 'center', 
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8, 
-    borderTopWidth: 1, 
-    borderTopColor: '#f0f0f0', 
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
     marginTop: 8,
   },
-  statsButtonText: { 
-    color: COLORS.primary, 
-    fontWeight: '600', 
-    marginRight: 4 
+  statsButtonText: {
+    color: COLORS.primary,
+    fontWeight: '600',
+    marginRight: 4
   },
 
-  modalContainer: { 
-    flex: 1, 
-    backgroundColor: COLORS.background 
+  modalContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background
   },
   modalHeader: {
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16, 
-    paddingVertical: 12, 
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0', 
+    borderBottomColor: '#e0e0e0',
     backgroundColor: COLORS.surface,
   },
-  modalTitle: { 
-    fontSize: 18, 
-    fontWeight: 'bold', 
-    color: COLORS.primary 
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: COLORS.primary
   },
-  closeButton: { 
-    padding: 8 
+  closeButton: {
+    padding: 8
   },
 
   moduloDetailCard: {

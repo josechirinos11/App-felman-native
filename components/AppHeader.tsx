@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
   },
-  leftCol: { minWidth: 90, alignItems: 'center', justifyContent: 'center' },
+  leftCol: { minWidth: 90, alignItems: 'flex-start', justifyContent: 'center' },
   leftColSmall: { minWidth: 60, alignItems: 'flex-start', justifyContent: 'center' },
   centerCol: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   rightCol: { minWidth: 90, alignItems: 'flex-end', justifyContent: 'center' },
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
   logoMenuContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     gap: 16,
     width: '100%',
   },
@@ -143,6 +143,7 @@ const styles = StyleSheet.create({
   },
   menuIconLarge: {
     marginLeft: 0,
+    marginRight: 16, // separa el icono del logo
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'flex-start' },
   logo: { width: 28, height: 20, marginRight: 6 },
