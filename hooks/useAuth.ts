@@ -26,10 +26,10 @@ export function useAuth() {
     const checkAuth = async () => {
         try {
             console.log('🔐 Verificando autenticación...');
-            
+
             // Temporalmente simplificar para diagnosticar
             await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar 1 segundo
-            
+
             const token = await AsyncStorage.getItem('token');
             const userDataStr = await AsyncStorage.getItem('userData');
 
@@ -58,13 +58,13 @@ export function useAuth() {
             console.error('🔐 Error en checkAuth:', error);
             setState(prev => ({ ...prev, loading: false }));
         }
-    }; 
+    };
 
 
 
 
 
-       const login = async (nombre: string, password: string) => {
+    const login = async (nombre: string, password: string) => {
         try {
             console.log('📡 Intentando login...');
             const url = `${API_URL}/auth/login`;
@@ -94,19 +94,52 @@ export function useAuth() {
 
             return { success: true };
         } catch (error: any) {
-            console.error('❌ Error en login:', error);
-            
+            console.error('❌ Error en login local:', error);
+
+            // Si el error es 401 o 404, intenta login en Lambda
             let errorMessage = 'Error al iniciar sesión';
-            
-            if (error.response) {
-                const status = error.response.status;
-                if (status === 401) {
-                    errorMessage = 'Nombre de usuario o contraseña incorrectos';
-                } else if (status === 404) {
-                    errorMessage = 'Usuario no encontrado';
-                } else if (status === 403) {
-                    errorMessage = 'Acceso denegado';
+            let status = error.response?.status;
+            if (status === 404 || status === 401) {
+                try {
+                    // Endpoint Lambda
+                    const lambdaUrl = 'https://ba2oohujh5.execute-api.eu-north-1.amazonaws.com/login';
+                    const lambdaBody = {
+                        email: nombre,
+                        password: password
+                    };
+                    const lambdaRes = await axios.post(lambdaUrl, lambdaBody);
+                    const lambdaData = lambdaRes.data;
+                    if (lambdaData.success && lambdaData.usuario) {
+                        // Normalizar usuario igual que login local
+                        const usuarioPlano = lambdaData.usuario;
+                        const usuarioNormalizado = {
+                            id: usuarioPlano.id || usuarioPlano._id || 0,
+                            nombre: usuarioPlano.nombre || usuarioPlano.name || '',
+                            rol: usuarioPlano.rol || usuarioPlano.role || '',
+                            email: usuarioPlano.email || ''
+                        };
+                        await AsyncStorage.setItem('token', 'lambda'); // Usar un token identificador
+                        await AsyncStorage.setItem('userData', JSON.stringify(usuarioNormalizado));
+                        setState({
+                            token: 'lambda',
+                            usuario: usuarioNormalizado,
+                            authenticated: true,
+                            loading: false
+                        });
+                        return { success: true };
+                    } else {
+                        errorMessage = lambdaData.error || 'Usuario no encontrado en Lambda';
+                        return { success: false, error: errorMessage };
+                    }
+                } catch (lambdaError: any) {
+                    console.error('❌ Error en login Lambda:', lambdaError);
+                    errorMessage = lambdaError.response?.data?.error || 'Error al conectar con Lambda';
+                    return { success: false, error: errorMessage };
                 }
+            }
+
+            if (status === 403) {
+                errorMessage = 'Acceso denegado';
             } else if (error.request) {
                 errorMessage = 'No se pudo conectar con el servidor';
             } else {
