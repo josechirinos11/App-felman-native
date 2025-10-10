@@ -144,6 +144,14 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
 
+        {/* Botón de configuraciones fijo abajo a la derecha */}
+        <TouchableOpacity
+          style={styles.configButton}
+          onPress={() => router.push('/(tabs)/configuracion')}
+        >
+          <Ionicons name="settings-outline" size={24} color="#1976d2" />
+        </TouchableOpacity>
+
       </SafeAreaView>
     </View>
   );
@@ -231,5 +239,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginVertical: 12,
     fontWeight: '500',
+  },
+  configButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#e3eafc',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
 });

@@ -21,8 +21,8 @@ interface MenuItem {
 }
 const menuItems: MenuItem[] = [
   { id: 1, title: 'Atras', icon: 'arrow-back-outline', route: '/' },
-  { id: 2, title: 'Terminales', icon: 'location-outline', route: '/moncada/control-terminales' },
-    { id: 3, title: 'Tiempo real', icon: 'time-outline', route: '/moncada/control-tiempo-real' },
+  { id: 2, title: 'Terminales', icon: 'location-outline', route: '/moncada/control-terminalesMod' },
+    { id: 3, title: 'Tiempo real', icon: 'time-outline', route: '/moncada/control-tiempo-realMod' },
 
   { id: 4, title: 'Control Pedidos', icon: 'cube-outline', route: '/moncada/control-pedidos' },
   { id: 5, title: 'Control de Incidencias', icon: 'alert-circle-outline', route: '/moncada/control-incidencias' },
@@ -30,8 +30,8 @@ const menuItems: MenuItem[] = [
    { id: 7, title: 'Control Fabrica', icon: 'cog-outline', route: '/moncada/control-fabrica' },
    { id: 8, title: 'Anàlisis Produccion', icon: 'bar-chart-outline', route: '/moncada/control-produccion-sonnet' },
     
-   { id: 9, title: 'Tiempo real Modificado', icon: 'time-outline', route: '/moncada/control-tiempo-realMod' },
-  { id: 10, title: 'Terminales Modificado', icon: 'location-outline', route: '/moncada/control-terminalesMod' },
+  // { id: 9, title: 'Tiempo real Modificado', icon: 'time-outline', route: '/moncada/control-tiempo-realMod' },
+//  { id: 10, title: 'Terminales Modificado', icon: 'location-outline', route: '/moncada/control-terminalesMod' },
   
 
 

@@ -188,6 +188,18 @@ export default function ModalHeader({ visible, onClose, userName, role }: ModalH
           }}
         >
           <View style={[styles.headerRowLogo, isMobile && styles.headerRowLogoMobile]}>
+            <Pressable 
+              onPress={() => {
+                if (router.canGoBack()) {
+                  handleCloseWithAnimation();
+                  setTimeout(() => router.back(), 300);
+                }
+              }} 
+              style={styles.backNavBtn}
+              accessibilityLabel="Volver atrás"
+            >
+              <Ionicons name="arrow-back" size={24} color={COLORS.primary} />
+            </Pressable>
             <Image source={require('../assets/images/logo.png')} style={[styles.logoImg, isMobile && styles.logoImgMobile]} resizeMode="contain" />
             <View style={[styles.userInfoContainer, isMobile && styles.userInfoContainerMobile]}>
               <Text style={styles.modalUser}>{userName}</Text>
@@ -323,6 +335,21 @@ const styles = StyleSheet.create({
     padding: 6,
     marginRight: 2,
   },
+  backNavBtn: {
+    padding: 8,
+    marginRight: 8,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
   headerRowLogo: {
     width: '100%',
     flexDirection: 'row',
@@ -404,7 +431,20 @@ const styles = StyleSheet.create({
   modalUser: { fontSize: 16, fontWeight: '700', marginBottom: 2, color: COLORS.text },
   modalRole: { fontSize: 13, color: COLORS.textSecondary, marginBottom: 12 },
   headerRow: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 6 },
-  iconBtn: { padding: 6 },
+  iconBtn: { 
+    padding: 8,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: COLORS.primary,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
   configBtn: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#e3eafc', borderRadius: 8,

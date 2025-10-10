@@ -130,6 +130,7 @@ export default function ControlTerminalesScreen() {
         return res.json();
       })
       .then((json: any) => {
+        console.log('📦 [BACKEND LOTES]:', json);
         log('Datos recibidos de lotes:', json);
         const data = Array.isArray(json) ? json as Lote[] : [];
         setLotes(data);
@@ -189,6 +190,7 @@ export default function ControlTerminalesScreen() {
         return res.json();
       })
       .then((rows: Linea[]) => {
+        console.log('📦 [BACKEND MÓDULOS]:', rows);
         log('Módulos recibidos:', rows);
         setModules(rows);
         log('Módulos actualizados:', rows);
@@ -211,6 +213,7 @@ export default function ControlTerminalesScreen() {
         return res.json();
       })
       .then((json: any[]) => {
+        console.log('📦 [BACKEND TIEMPOS]:', json);
         log('Tiempos recibidos:', json);
         const tiemposProcesados = json
           .map(item => ({

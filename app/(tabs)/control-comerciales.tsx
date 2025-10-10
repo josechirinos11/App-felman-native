@@ -87,6 +87,7 @@ export default function ControlComercialesScreen() {
   const fetchPedidosRapido = async () => {
     try {
       console.log('🚀 Iniciando carga rápida de pedidos comerciales (40 registros)...');
+      
       // Intentar primero con parámetro limit, si falla usar carga completa y filtrar
       let res = await fetch(`${API_URL}/control-access/pedidosComerciales?limit=40`);
       
@@ -98,6 +99,8 @@ export default function ControlComercialesScreen() {
       
       if (res.ok) {
         const result = await res.json();
+        console.log('📦 [BACKEND PEDIDOS RÁPIDO]:', result);
+        
         let pedidosRapidos = Array.isArray(result) ? result : [];
         
         // Si obtuvimos más de 40 registros, tomar solo los primeros 40
@@ -137,11 +140,15 @@ export default function ControlComercialesScreen() {
   const fetchPedidosCompleto = async () => {
     try {
       console.log('📊 Iniciando carga completa de pedidos comerciales (todos los registros)...');
+      
       const res = await fetch(`${API_URL}/control-access/pedidosComerciales`);
       
       if (res.ok) {
         const result = await res.json();
+        console.log('📦 [BACKEND PEDIDOS COMPLETO]:', result);
+        
         const pedidosCompletos = Array.isArray(result) ? result : [];
+        
         console.log('✅ Carga completa terminada:', pedidosCompletos.length, 'registros');
         setData(pedidosCompletos);
         setLoadingComplete(true);
@@ -164,6 +171,7 @@ export default function ControlComercialesScreen() {
         const result = await tryAction(async () => {
           const res = await fetch(`${API_URL}/control-access/pedidosComerciales`);
           const data = await res.json();
+          console.log('📦 [BACKEND REFRESH CON ALERTA]:', data);
           return Array.isArray(data) ? data : [];
         }, true, "No se pudieron cargar los pedidos comerciales. Verifique su conexión.");
         
@@ -177,13 +185,16 @@ export default function ControlComercialesScreen() {
       } else {
         // Para refresh manual, usar carga completa directa
         const res = await fetch(`${API_URL}/control-access/pedidosComerciales`);
+        
         if (res.ok) {
           const result = await res.json();
+          console.log('📦 [BACKEND REFRESH MANUAL]:', result);
+          
           setData(Array.isArray(result) ? result : []);
           setCurrentPage(1);
           setLoadingComplete(true);
         } else {
-          console.log('Error en la respuesta del servidor:', res.status);
+          console.log('❌ Error en refresh manual:', res.status);
         }
       }
     } catch (error) {

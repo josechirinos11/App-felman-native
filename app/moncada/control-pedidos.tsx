@@ -80,6 +80,7 @@ export default function ControlComercialesScreen() {
       const res = await fetch(`${API_URL}/control-access/pedidosComerciales`);
       if (res.ok) {
         const result = await res.json();
+        console.log('📦 [BACKEND PEDIDOS COMPLETO - MONCADA]:', result);
         setData(Array.isArray(result) ? result : []);
         setLoadingComplete(true);
       } else {
@@ -96,6 +97,7 @@ export default function ControlComercialesScreen() {
       if (!res.ok) res = await fetch(`${API_URL}/control-access/pedidosComerciales`);
       if (res.ok) {
         const result = await res.json();
+        console.log('📦 [BACKEND PEDIDOS RÁPIDO - MONCADA]:', result);
         let pedidosRapidos = Array.isArray(result) ? result : [];
         if (pedidosRapidos.length > 40) {
           const todos = pedidosRapidos;
@@ -124,6 +126,7 @@ export default function ControlComercialesScreen() {
         const result = await tryAction(async () => {
           const res = await fetch(`${API_URL}/control-access/pedidosComerciales`);
           const data = await res.json();
+          console.log('📦 [BACKEND REFRESH CON ALERTA - MONCADA]:', data);
           return Array.isArray(data) ? data : [];
         }, true, 'No se pudieron cargar los pedidos comerciales. Verifique su conexión.');
         if (result !== null) {
@@ -137,6 +140,7 @@ export default function ControlComercialesScreen() {
         const res = await fetch(`${API_URL}/control-access/pedidosComerciales`);
         if (res.ok) {
           const result = await res.json();
+          console.log('📦 [BACKEND REFRESH MANUAL - MONCADA]:', result);
           setData(Array.isArray(result) ? result : []);
           setCurrentPage(1);
           setLoadingComplete(true);

@@ -256,6 +256,35 @@ interface OperarioAnalysis {
   tiempoPromedioPorTarea: number;
 }
 
+// ✅ Interface para modal de detalle de item clickeado
+interface ItemDetail {
+  tipo: 'pedido' | 'modulo' | 'tarea' | 'operario';
+  nombre: string;
+  contextoPrincipal: string; // Ej: "Análisis de Operario: JOSE"
+  registros: TiempoRealRecord[];
+  // Métricas
+  totalRegistros: number;
+  tiempoTotal: number;
+  tiempoValido: number;
+  tiempoFueraTurno: number;
+  fichajesAbiertos: number;
+  // Desgloses
+  detallesPorCategoria: Array<{
+    categoria: string; // Ej: "Módulos", "Tareas", "Operarios"
+    items: Array<{
+      nombre: string;
+      registros: number;
+      tiempo: number;
+    }>;
+  }>;
+  // Anomalías
+  anomalias: Array<{
+    tipo: 'fuera_turno' | 'fichaje_abierto';
+    descripcion: string;
+    registrosAfectados: number;
+  }>;
+}
+
 // ===================== Utilidades =====================
 // ✅ Función getLastMonday eliminada - ya no se usa
 
@@ -1231,6 +1260,280 @@ const analyzeOperarioDetailed = (records: TiempoRealRecord[]): OperarioAnalysis 
   };
 };
 
+// ✅ Función para analizar detalles de un item específico
+const analyzeItemDetail = (
+  tipo: 'pedido' | 'modulo' | 'tarea' | 'operario',
+  nombre: string,
+  contextoPrincipal: string,
+  records: TiempoRealRecord[]
+): ItemDetail => {
+  console.log(`[analyzeItemDetail] 🔍 Analizando ${tipo}: ${nombre} con ${records.length} registros`);
+
+  const parseTime = (timeStr: string): number => {
+    const parts = timeStr.trim().split(':');
+    if (parts.length < 2) return 0;
+    const h = parseInt(parts[0]);
+    const m = parseInt(parts[1]);
+    return isNaN(h) || isNaN(m) ? 0 : h * 60 + m;
+  };
+
+  // Calcular métricas básicas
+  let tiempoTotal = 0;
+  let tiempoValido = 0;
+  let tiempoFueraTurno = 0;
+  let fichajesAbiertos = 0;
+
+  for (const r of records) {
+    const t = calculateAdjustedTime(r);
+    const tv = calculateValidWorkTime(r);
+    const tf = calculateOutsideWorkTime(r);
+    
+    tiempoTotal += t;
+    tiempoValido += tv;
+    tiempoFueraTurno += tf;
+
+    // Detectar fichajes abiertos
+    if (r.HoraInicio && r.HoraFin) {
+      const inicioMin = parseTime(r.HoraInicio);
+      const finMin = parseTime(r.HoraFin);
+      if (inicioMin > 0 && finMin > 0 && finMin < inicioMin) {
+        fichajesAbiertos++;
+      }
+    }
+  }
+
+  // Crear desgloses según el tipo
+  const detallesPorCategoria: Array<{
+    categoria: string;
+    items: Array<{ nombre: string; registros: number; tiempo: number }>;
+  }> = [];
+
+  // Agrupar por diferentes categorías según el tipo
+  if (tipo === 'pedido') {
+    // Desglose por módulos
+    const modulosMap = new Map<string, TiempoRealRecord[]>();
+    const tareasMap = new Map<string, TiempoRealRecord[]>();
+    const operariosMap = new Map<string, TiempoRealRecord[]>();
+
+    for (const r of records) {
+      const mod = r.Modulo?.trim() || 'SIN_MODULO';
+      const tarea = normalizeTareaKey(r.CodigoTarea);
+      const op = operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario);
+
+      if (!modulosMap.has(mod)) modulosMap.set(mod, []);
+      if (!tareasMap.has(tarea)) tareasMap.set(tarea, []);
+      if (!operariosMap.has(op)) operariosMap.set(op, []);
+
+      modulosMap.get(mod)!.push(r);
+      tareasMap.get(tarea)!.push(r);
+      operariosMap.get(op)!.push(r);
+    }
+
+    detallesPorCategoria.push({
+      categoria: 'Módulos',
+      items: Array.from(modulosMap.entries()).map(([nombre, recs]) => ({
+        nombre,
+        registros: recs.length,
+        tiempo: recs.reduce((sum, r) => sum + calculateValidWorkTime(r), 0)
+      })).sort((a, b) => b.tiempo - a.tiempo)
+    });
+
+    detallesPorCategoria.push({
+      categoria: 'Tareas',
+      items: Array.from(tareasMap.entries()).map(([nombre, recs]) => ({
+        nombre,
+        registros: recs.length,
+        tiempo: recs.reduce((sum, r) => sum + calculateValidWorkTime(r), 0)
+      })).sort((a, b) => b.tiempo - a.tiempo)
+    });
+
+    detallesPorCategoria.push({
+      categoria: 'Operarios',
+      items: Array.from(operariosMap.entries()).map(([nombre, recs]) => ({
+        nombre,
+        registros: recs.length,
+        tiempo: recs.reduce((sum, r) => sum + calculateValidWorkTime(r), 0)
+      })).sort((a, b) => b.tiempo - a.tiempo)
+    });
+  } else if (tipo === 'modulo') {
+    // Desglose por pedidos, tareas y operarios
+    const pedidosMap = new Map<string, TiempoRealRecord[]>();
+    const tareasMap = new Map<string, TiempoRealRecord[]>();
+    const operariosMap = new Map<string, TiempoRealRecord[]>();
+
+    for (const r of records) {
+      const ped = normalizePedidoKey(r.NumeroManual);
+      const tarea = normalizeTareaKey(r.CodigoTarea);
+      const op = operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario);
+
+      if (!pedidosMap.has(ped)) pedidosMap.set(ped, []);
+      if (!tareasMap.has(tarea)) tareasMap.set(tarea, []);
+      if (!operariosMap.has(op)) operariosMap.set(op, []);
+
+      pedidosMap.get(ped)!.push(r);
+      tareasMap.get(tarea)!.push(r);
+      operariosMap.get(op)!.push(r);
+    }
+
+    detallesPorCategoria.push({
+      categoria: 'Pedidos',
+      items: Array.from(pedidosMap.entries()).map(([nombre, recs]) => ({
+        nombre,
+        registros: recs.length,
+        tiempo: recs.reduce((sum, r) => sum + calculateValidWorkTime(r), 0)
+      })).sort((a, b) => b.tiempo - a.tiempo)
+    });
+
+    detallesPorCategoria.push({
+      categoria: 'Tareas',
+      items: Array.from(tareasMap.entries()).map(([nombre, recs]) => ({
+        nombre,
+        registros: recs.length,
+        tiempo: recs.reduce((sum, r) => sum + calculateValidWorkTime(r), 0)
+      })).sort((a, b) => b.tiempo - a.tiempo)
+    });
+
+    detallesPorCategoria.push({
+      categoria: 'Operarios',
+      items: Array.from(operariosMap.entries()).map(([nombre, recs]) => ({
+        nombre,
+        registros: recs.length,
+        tiempo: recs.reduce((sum, r) => sum + calculateValidWorkTime(r), 0)
+      })).sort((a, b) => b.tiempo - a.tiempo)
+    });
+  } else if (tipo === 'tarea') {
+    // Desglose por pedidos, módulos y operarios
+    const pedidosMap = new Map<string, TiempoRealRecord[]>();
+    const modulosMap = new Map<string, TiempoRealRecord[]>();
+    const operariosMap = new Map<string, TiempoRealRecord[]>();
+
+    for (const r of records) {
+      const ped = normalizePedidoKey(r.NumeroManual);
+      const mod = r.Modulo?.trim() || 'SIN_MODULO';
+      const op = operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario);
+
+      if (!pedidosMap.has(ped)) pedidosMap.set(ped, []);
+      if (!modulosMap.has(mod)) modulosMap.set(mod, []);
+      if (!operariosMap.has(op)) operariosMap.set(op, []);
+
+      pedidosMap.get(ped)!.push(r);
+      modulosMap.get(mod)!.push(r);
+      operariosMap.get(op)!.push(r);
+    }
+
+    detallesPorCategoria.push({
+      categoria: 'Pedidos',
+      items: Array.from(pedidosMap.entries()).map(([nombre, recs]) => ({
+        nombre,
+        registros: recs.length,
+        tiempo: recs.reduce((sum, r) => sum + calculateValidWorkTime(r), 0)
+      })).sort((a, b) => b.tiempo - a.tiempo)
+    });
+
+    detallesPorCategoria.push({
+      categoria: 'Módulos',
+      items: Array.from(modulosMap.entries()).map(([nombre, recs]) => ({
+        nombre,
+        registros: recs.length,
+        tiempo: recs.reduce((sum, r) => sum + calculateValidWorkTime(r), 0)
+      })).sort((a, b) => b.tiempo - a.tiempo)
+    });
+
+    detallesPorCategoria.push({
+      categoria: 'Operarios',
+      items: Array.from(operariosMap.entries()).map(([nombre, recs]) => ({
+        nombre,
+        registros: recs.length,
+        tiempo: recs.reduce((sum, r) => sum + calculateValidWorkTime(r), 0)
+      })).sort((a, b) => b.tiempo - a.tiempo)
+    });
+  } else if (tipo === 'operario') {
+    // Desglose por pedidos, módulos y tareas
+    const pedidosMap = new Map<string, TiempoRealRecord[]>();
+    const modulosMap = new Map<string, TiempoRealRecord[]>();
+    const tareasMap = new Map<string, TiempoRealRecord[]>();
+
+    for (const r of records) {
+      const ped = normalizePedidoKey(r.NumeroManual);
+      const mod = r.Modulo?.trim() || 'SIN_MODULO';
+      const tarea = normalizeTareaKey(r.CodigoTarea);
+
+      if (!pedidosMap.has(ped)) pedidosMap.set(ped, []);
+      if (!modulosMap.has(mod)) modulosMap.set(mod, []);
+      if (!tareasMap.has(tarea)) tareasMap.set(tarea, []);
+
+      pedidosMap.get(ped)!.push(r);
+      modulosMap.get(mod)!.push(r);
+      tareasMap.get(tarea)!.push(r);
+    }
+
+    detallesPorCategoria.push({
+      categoria: 'Pedidos',
+      items: Array.from(pedidosMap.entries()).map(([nombre, recs]) => ({
+        nombre,
+        registros: recs.length,
+        tiempo: recs.reduce((sum, r) => sum + calculateValidWorkTime(r), 0)
+      })).sort((a, b) => b.tiempo - a.tiempo)
+    });
+
+    detallesPorCategoria.push({
+      categoria: 'Módulos',
+      items: Array.from(modulosMap.entries()).map(([nombre, recs]) => ({
+        nombre,
+        registros: recs.length,
+        tiempo: recs.reduce((sum, r) => sum + calculateValidWorkTime(r), 0)
+      })).sort((a, b) => b.tiempo - a.tiempo)
+    });
+
+    detallesPorCategoria.push({
+      categoria: 'Tareas',
+      items: Array.from(tareasMap.entries()).map(([nombre, recs]) => ({
+        nombre,
+        registros: recs.length,
+        tiempo: recs.reduce((sum, r) => sum + calculateValidWorkTime(r), 0)
+      })).sort((a, b) => b.tiempo - a.tiempo)
+    });
+  }
+
+  // Detectar anomalías
+  const anomalias: Array<{
+    tipo: 'fuera_turno' | 'fichaje_abierto';
+    descripcion: string;
+    registrosAfectados: number;
+  }> = [];
+
+  if (tiempoFueraTurno > 0) {
+    const regsAfectados = records.filter(r => calculateOutsideWorkTime(r) > 0).length;
+    anomalias.push({
+      tipo: 'fuera_turno',
+      descripcion: `${formatHM(tiempoFueraTurno)} trabajado fuera de horario laboral`,
+      registrosAfectados: regsAfectados
+    });
+  }
+
+  if (fichajesAbiertos > 0) {
+    anomalias.push({
+      tipo: 'fichaje_abierto',
+      descripcion: `${fichajesAbiertos} fichaje${fichajesAbiertos > 1 ? 's' : ''} quedó abierto${fichajesAbiertos > 1 ? 's' : ''} (tiempo ajustado)`,
+      registrosAfectados: fichajesAbiertos
+    });
+  }
+
+  return {
+    tipo,
+    nombre,
+    contextoPrincipal,
+    registros: records,
+    totalRegistros: records.length,
+    tiempoTotal,
+    tiempoValido,
+    tiempoFueraTurno,
+    fichajesAbiertos,
+    detallesPorCategoria,
+    anomalias
+  };
+};
+
 // ===================== Componente =====================
 export default function ControlTerminalesScreen() {
   const colorScheme = useColorScheme();
@@ -1266,6 +1569,10 @@ export default function ControlTerminalesScreen() {
   // ✅ Estado para modal de análisis de operario
   const [operarioAnalysisVisible, setOperarioAnalysisVisible] = useState(false);
   const [operarioAnalysisData, setOperarioAnalysisData] = useState<OperarioAnalysis | null>(null);
+
+  // ✅ Estado para modal de detalle de item clickeado
+  const [itemDetailVisible, setItemDetailVisible] = useState(false);
+  const [itemDetailData, setItemDetailData] = useState<ItemDetail | null>(null);
 
   const [userData, setUserData] = useState<UserData | null>(null);
   const [userModalVisible, setUserModalVisible] = useState(false);
@@ -1633,21 +1940,40 @@ export default function ControlTerminalesScreen() {
                 <Text style={styles.sectionTitle}>Desglose por Módulos ({analysis.totalModulos})</Text>
               </View>
               {analysis.modulosDetalle.map((mod, idx) => (
-                <View key={idx} style={styles.detailRow}>
-                  <View style={styles.detailLeft}>
-                    <Text style={styles.detailName}>{mod.nombre}</Text>
-                    <Text style={styles.detailSubtext}>
-                      {mod.operarios} operario{mod.operarios !== 1 ? 's' : ''} · {mod.tareas} tarea{mod.tareas !== 1 ? 's' : ''} · {mod.registros} reg.
-                    </Text>
-                  </View>
-                  <View style={styles.detailRight}>
-                    <Text style={styles.detailTime}>{formatHM(mod.tiempoValido)}</Text>
-                    <View style={styles.progressBarContainer}>
-                      <View style={[styles.progressBar, { width: `${mod.porcentaje}%` }]} />
+                <TouchableOpacity
+                  key={idx}
+                  onPress={() => {
+                    // Filtrar registros para este módulo en el pedido
+                    const moduloRecords = tiempoRecords.filter(r => 
+                      normalizePedidoKey(r.NumeroManual) === analysis.pedido &&
+                      (r.Modulo?.trim() || 'SIN_MODULO') === mod.nombre
+                    );
+                    const detail = analyzeItemDetail(
+                      'modulo',
+                      mod.nombre,
+                      `En Pedido: ${analysis.pedido}`,
+                      moduloRecords
+                    );
+                    setItemDetailData(detail);
+                    setItemDetailVisible(true);
+                  }}
+                >
+                  <View style={styles.detailRow}>
+                    <View style={styles.detailLeft}>
+                      <Text style={styles.detailName}>{mod.nombre}</Text>
+                      <Text style={styles.detailSubtext}>
+                        {mod.operarios} operario{mod.operarios !== 1 ? 's' : ''} · {mod.tareas} tarea{mod.tareas !== 1 ? 's' : ''} · {mod.registros} reg.
+                      </Text>
                     </View>
-                    <Text style={styles.detailPercentage}>{mod.porcentaje.toFixed(1)}%</Text>
+                    <View style={styles.detailRight}>
+                      <Text style={styles.detailTime}>{formatHM(mod.tiempoValido)}</Text>
+                      <View style={styles.progressBarContainer}>
+                        <View style={[styles.progressBar, { width: `${mod.porcentaje}%` }]} />
+                      </View>
+                      <Text style={styles.detailPercentage}>{mod.porcentaje.toFixed(1)}%</Text>
+                    </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
 
@@ -1658,28 +1984,47 @@ export default function ControlTerminalesScreen() {
                 <Text style={styles.sectionTitle}>Desglose por Operarios ({analysis.totalOperarios})</Text>
               </View>
               {analysis.operariosDetalle.map((op, idx) => (
-                <View key={idx} style={styles.detailRow}>
-                  <View style={styles.detailLeft}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Text style={styles.detailName}>{op.nombre}</Text>
-                      {op.tieneAnomalias && (
-                        <View style={styles.anomalyBadge}>
-                          <Ionicons name="warning" size={12} color="#dc2626" />
-                        </View>
-                      )}
+                <TouchableOpacity
+                  key={idx}
+                  onPress={() => {
+                    // Filtrar registros para este operario en el pedido
+                    const operarioRecords = tiempoRecords.filter(r => 
+                      normalizePedidoKey(r.NumeroManual) === analysis.pedido &&
+                      operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario) === op.nombre
+                    );
+                    const detail = analyzeItemDetail(
+                      'operario',
+                      op.nombre,
+                      `En Pedido: ${analysis.pedido}`,
+                      operarioRecords
+                    );
+                    setItemDetailData(detail);
+                    setItemDetailVisible(true);
+                  }}
+                >
+                  <View style={styles.detailRow}>
+                    <View style={styles.detailLeft}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={styles.detailName}>{op.nombre}</Text>
+                        {op.tieneAnomalias && (
+                          <View style={styles.anomalyBadge}>
+                            <Ionicons name="warning" size={12} color="#dc2626" />
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.detailSubtext}>
+                        {op.modulos} módulo{op.modulos !== 1 ? 's' : ''} · {op.tareas} tarea{op.tareas !== 1 ? 's' : ''} · {op.registros} reg.
+                      </Text>
                     </View>
-                    <Text style={styles.detailSubtext}>
-                      {op.modulos} módulo{op.modulos !== 1 ? 's' : ''} · {op.tareas} tarea{op.tareas !== 1 ? 's' : ''} · {op.registros} reg.
-                    </Text>
-                  </View>
-                  <View style={styles.detailRight}>
-                    <Text style={styles.detailTime}>{formatHM(op.tiempoValido)}</Text>
-                    <View style={styles.progressBarContainer}>
-                      <View style={[styles.progressBar, { width: `${op.porcentaje}%`, backgroundColor: '#10b981' }]} />
+                    <View style={styles.detailRight}>
+                      <Text style={styles.detailTime}>{formatHM(op.tiempoValido)}</Text>
+                      <View style={styles.progressBarContainer}>
+                        <View style={[styles.progressBar, { width: `${op.porcentaje}%`, backgroundColor: '#10b981' }]} />
+                      </View>
+                      <Text style={styles.detailPercentage}>{op.porcentaje.toFixed(1)}%</Text>
                     </View>
-                    <Text style={styles.detailPercentage}>{op.porcentaje.toFixed(1)}%</Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
 
@@ -1690,21 +2035,40 @@ export default function ControlTerminalesScreen() {
                 <Text style={styles.sectionTitle}>Desglose por Tareas ({analysis.totalTareas})</Text>
               </View>
               {analysis.tareasDetalle.map((tarea, idx) => (
-                <View key={idx} style={styles.detailRow}>
-                  <View style={styles.detailLeft}>
-                    <Text style={styles.detailName}>{tarea.codigo}</Text>
-                    <Text style={styles.detailSubtext}>
-                      {tarea.operarios} operario{tarea.operarios !== 1 ? 's' : ''} · {tarea.modulos} módulo{tarea.modulos !== 1 ? 's' : ''} · {tarea.registros} reg.
-                    </Text>
-                  </View>
-                  <View style={styles.detailRight}>
-                    <Text style={styles.detailTime}>{formatHM(tarea.tiempoValido)}</Text>
-                    <View style={styles.progressBarContainer}>
-                      <View style={[styles.progressBar, { width: `${tarea.porcentaje}%`, backgroundColor: '#8b5cf6' }]} />
+                <TouchableOpacity
+                  key={idx}
+                  onPress={() => {
+                    // Filtrar registros para esta tarea en el pedido
+                    const tareaRecords = tiempoRecords.filter(r => 
+                      normalizePedidoKey(r.NumeroManual) === analysis.pedido &&
+                      normalizeTareaKey(r.CodigoTarea) === tarea.codigo
+                    );
+                    const detail = analyzeItemDetail(
+                      'tarea',
+                      tarea.codigo,
+                      `En Pedido: ${analysis.pedido}`,
+                      tareaRecords
+                    );
+                    setItemDetailData(detail);
+                    setItemDetailVisible(true);
+                  }}
+                >
+                  <View style={styles.detailRow}>
+                    <View style={styles.detailLeft}>
+                      <Text style={styles.detailName}>{tarea.codigo}</Text>
+                      <Text style={styles.detailSubtext}>
+                        {tarea.operarios} operario{tarea.operarios !== 1 ? 's' : ''} · {tarea.modulos} módulo{tarea.modulos !== 1 ? 's' : ''} · {tarea.registros} reg.
+                      </Text>
                     </View>
-                    <Text style={styles.detailPercentage}>{tarea.porcentaje.toFixed(1)}%</Text>
+                    <View style={styles.detailRight}>
+                      <Text style={styles.detailTime}>{formatHM(tarea.tiempoValido)}</Text>
+                      <View style={styles.progressBarContainer}>
+                        <View style={[styles.progressBar, { width: `${tarea.porcentaje}%`, backgroundColor: '#8b5cf6' }]} />
+                      </View>
+                      <Text style={styles.detailPercentage}>{tarea.porcentaje.toFixed(1)}%</Text>
+                    </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
 
@@ -1839,21 +2203,40 @@ export default function ControlTerminalesScreen() {
                 <Text style={styles.sectionTitle}>Desglose por Pedidos ({analysis.totalPedidos})</Text>
               </View>
               {analysis.pedidosDetalle.map((ped, idx) => (
-                <View key={idx} style={styles.detailRow}>
-                  <View style={styles.detailLeft}>
-                    <Text style={styles.detailName}>{ped.nombre}</Text>
-                    <Text style={styles.detailSubtext}>
-                      {ped.operarios} operario{ped.operarios !== 1 ? 's' : ''} · {ped.modulos} módulo{ped.modulos !== 1 ? 's' : ''} · {ped.registros} reg.
-                    </Text>
-                  </View>
-                  <View style={styles.detailRight}>
-                    <Text style={styles.detailTime}>{formatHM(ped.tiempoValido)}</Text>
-                    <View style={styles.progressBarContainer}>
-                      <View style={[styles.progressBar, { width: `${ped.porcentaje}%`, backgroundColor: '#ef4444' }]} />
+                <TouchableOpacity
+                  key={idx}
+                  onPress={() => {
+                    // Filtrar registros para este pedido en la tarea
+                    const pedidoRecords = tiempoRecords.filter(r => 
+                      normalizeTareaKey(r.CodigoTarea) === analysis.tarea &&
+                      normalizePedidoKey(r.NumeroManual) === ped.nombre
+                    );
+                    const detail = analyzeItemDetail(
+                      'pedido',
+                      ped.nombre,
+                      `En Tarea: ${analysis.tarea}`,
+                      pedidoRecords
+                    );
+                    setItemDetailData(detail);
+                    setItemDetailVisible(true);
+                  }}
+                >
+                  <View style={styles.detailRow}>
+                    <View style={styles.detailLeft}>
+                      <Text style={styles.detailName}>{ped.nombre}</Text>
+                      <Text style={styles.detailSubtext}>
+                        {ped.operarios} operario{ped.operarios !== 1 ? 's' : ''} · {ped.modulos} módulo{ped.modulos !== 1 ? 's' : ''} · {ped.registros} reg.
+                      </Text>
                     </View>
-                    <Text style={styles.detailPercentage}>{ped.porcentaje.toFixed(1)}%</Text>
+                    <View style={styles.detailRight}>
+                      <Text style={styles.detailTime}>{formatHM(ped.tiempoValido)}</Text>
+                      <View style={styles.progressBarContainer}>
+                        <View style={[styles.progressBar, { width: `${ped.porcentaje}%`, backgroundColor: '#ef4444' }]} />
+                      </View>
+                      <Text style={styles.detailPercentage}>{ped.porcentaje.toFixed(1)}%</Text>
+                    </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
 
@@ -1864,28 +2247,47 @@ export default function ControlTerminalesScreen() {
                 <Text style={styles.sectionTitle}>Desglose por Operarios ({analysis.totalOperarios})</Text>
               </View>
               {analysis.operariosDetalle.map((op, idx) => (
-                <View key={idx} style={styles.detailRow}>
-                  <View style={styles.detailLeft}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Text style={styles.detailName}>{op.nombre}</Text>
-                      {op.tieneAnomalias && (
-                        <View style={styles.anomalyBadge}>
-                          <Ionicons name="warning" size={12} color="#dc2626" />
-                        </View>
-                      )}
+                <TouchableOpacity
+                  key={idx}
+                  onPress={() => {
+                    // Filtrar registros para este operario en la tarea
+                    const operarioRecords = tiempoRecords.filter(r => 
+                      normalizeTareaKey(r.CodigoTarea) === analysis.tarea &&
+                      operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario) === op.nombre
+                    );
+                    const detail = analyzeItemDetail(
+                      'operario',
+                      op.nombre,
+                      `En Tarea: ${analysis.tarea}`,
+                      operarioRecords
+                    );
+                    setItemDetailData(detail);
+                    setItemDetailVisible(true);
+                  }}
+                >
+                  <View style={styles.detailRow}>
+                    <View style={styles.detailLeft}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={styles.detailName}>{op.nombre}</Text>
+                        {op.tieneAnomalias && (
+                          <View style={styles.anomalyBadge}>
+                            <Ionicons name="warning" size={12} color="#dc2626" />
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.detailSubtext}>
+                        {op.modulos} módulo{op.modulos !== 1 ? 's' : ''} · {op.pedidos} pedido{op.pedidos !== 1 ? 's' : ''} · {op.registros} reg.
+                      </Text>
                     </View>
-                    <Text style={styles.detailSubtext}>
-                      {op.modulos} módulo{op.modulos !== 1 ? 's' : ''} · {op.pedidos} pedido{op.pedidos !== 1 ? 's' : ''} · {op.registros} reg.
-                    </Text>
-                  </View>
-                  <View style={styles.detailRight}>
-                    <Text style={styles.detailTime}>{formatHM(op.tiempoValido)}</Text>
-                    <View style={styles.progressBarContainer}>
-                      <View style={[styles.progressBar, { width: `${op.porcentaje}%`, backgroundColor: '#10b981' }]} />
+                    <View style={styles.detailRight}>
+                      <Text style={styles.detailTime}>{formatHM(op.tiempoValido)}</Text>
+                      <View style={styles.progressBarContainer}>
+                        <View style={[styles.progressBar, { width: `${op.porcentaje}%`, backgroundColor: '#10b981' }]} />
+                      </View>
+                      <Text style={styles.detailPercentage}>{op.porcentaje.toFixed(1)}%</Text>
                     </View>
-                    <Text style={styles.detailPercentage}>{op.porcentaje.toFixed(1)}%</Text>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
 
@@ -2020,21 +2422,40 @@ export default function ControlTerminalesScreen() {
                 <Text style={styles.sectionTitle}>Desglose por Pedidos ({analysis.totalPedidos})</Text>
               </View>
               {analysis.pedidosDetalle.map((ped, idx) => (
-                <View key={idx} style={styles.detailRow}>
-                  <View style={styles.detailLeft}>
-                    <Text style={styles.detailName}>{ped.nombre}</Text>
-                    <Text style={styles.detailSubtext}>
-                      {ped.modulos} módulo{ped.modulos !== 1 ? 's' : ''} · {ped.tareas} tarea{ped.tareas !== 1 ? 's' : ''} · {ped.registros} reg.
-                    </Text>
-                  </View>
-                  <View style={styles.detailRight}>
-                    <Text style={styles.detailTime}>{formatHM(ped.tiempoValido)}</Text>
-                    <View style={styles.progressBarContainer}>
-                      <View style={[styles.progressBar, { width: `${ped.porcentaje}%`, backgroundColor: '#ef4444' }]} />
+                <TouchableOpacity
+                  key={idx}
+                  onPress={() => {
+                    // Filtrar registros para este pedido del operario
+                    const pedidoRecords = tiempoRecords.filter(r => 
+                      operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario) === analysis.operario &&
+                      normalizePedidoKey(r.NumeroManual) === ped.nombre
+                    );
+                    const detail = analyzeItemDetail(
+                      'pedido',
+                      ped.nombre,
+                      `Operario: ${analysis.operario}`,
+                      pedidoRecords
+                    );
+                    setItemDetailData(detail);
+                    setItemDetailVisible(true);
+                  }}
+                >
+                  <View style={styles.detailRow}>
+                    <View style={styles.detailLeft}>
+                      <Text style={styles.detailName}>{ped.nombre}</Text>
+                      <Text style={styles.detailSubtext}>
+                        {ped.modulos} módulo{ped.modulos !== 1 ? 's' : ''} · {ped.tareas} tarea{ped.tareas !== 1 ? 's' : ''} · {ped.registros} reg.
+                      </Text>
                     </View>
-                    <Text style={styles.detailPercentage}>{ped.porcentaje.toFixed(1)}%</Text>
+                    <View style={styles.detailRight}>
+                      <Text style={styles.detailTime}>{formatHM(ped.tiempoValido)}</Text>
+                      <View style={styles.progressBarContainer}>
+                        <View style={[styles.progressBar, { width: `${ped.porcentaje}%`, backgroundColor: '#ef4444' }]} />
+                      </View>
+                      <Text style={styles.detailPercentage}>{ped.porcentaje.toFixed(1)}%</Text>
+                    </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
 
@@ -2045,21 +2466,40 @@ export default function ControlTerminalesScreen() {
                 <Text style={styles.sectionTitle}>Desglose por Tareas ({analysis.totalTareas})</Text>
               </View>
               {analysis.tareasDetalle.map((tarea, idx) => (
-                <View key={idx} style={styles.detailRow}>
-                  <View style={styles.detailLeft}>
-                    <Text style={styles.detailName}>{tarea.codigo}</Text>
-                    <Text style={styles.detailSubtext}>
-                      {tarea.pedidos} pedido{tarea.pedidos !== 1 ? 's' : ''} · {tarea.modulos} módulo{tarea.modulos !== 1 ? 's' : ''} · {tarea.registros} reg.
-                    </Text>
-                  </View>
-                  <View style={styles.detailRight}>
-                    <Text style={styles.detailTime}>{formatHM(tarea.tiempoValido)}</Text>
-                    <View style={styles.progressBarContainer}>
-                      <View style={[styles.progressBar, { width: `${tarea.porcentaje}%`, backgroundColor: '#8b5cf6' }]} />
+                <TouchableOpacity
+                  key={idx}
+                  onPress={() => {
+                    // Filtrar registros para esta tarea del operario
+                    const tareaRecords = tiempoRecords.filter(r => 
+                      operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario) === analysis.operario &&
+                      normalizeTareaKey(r.CodigoTarea) === tarea.codigo
+                    );
+                    const detail = analyzeItemDetail(
+                      'tarea',
+                      tarea.codigo,
+                      `Operario: ${analysis.operario}`,
+                      tareaRecords
+                    );
+                    setItemDetailData(detail);
+                    setItemDetailVisible(true);
+                  }}
+                >
+                  <View style={styles.detailRow}>
+                    <View style={styles.detailLeft}>
+                      <Text style={styles.detailName}>{tarea.codigo}</Text>
+                      <Text style={styles.detailSubtext}>
+                        {tarea.pedidos} pedido{tarea.pedidos !== 1 ? 's' : ''} · {tarea.modulos} módulo{tarea.modulos !== 1 ? 's' : ''} · {tarea.registros} reg.
+                      </Text>
                     </View>
-                    <Text style={styles.detailPercentage}>{tarea.porcentaje.toFixed(1)}%</Text>
+                    <View style={styles.detailRight}>
+                      <Text style={styles.detailTime}>{formatHM(tarea.tiempoValido)}</Text>
+                      <View style={styles.progressBarContainer}>
+                        <View style={[styles.progressBar, { width: `${tarea.porcentaje}%`, backgroundColor: '#8b5cf6' }]} />
+                      </View>
+                      <Text style={styles.detailPercentage}>{tarea.porcentaje.toFixed(1)}%</Text>
+                    </View>
                   </View>
-                </View>
+                </TouchableOpacity>
               ))}
             </View>
 
@@ -2068,6 +2508,168 @@ export default function ControlTerminalesScreen() {
               <Ionicons name="checkmark-circle" size={24} color="#10b981" />
               <Text style={styles.summaryFinalText}>
                 Análisis completado: {analysis.totalRegistros} registros procesados con {analysis.eficienciaPromedio.toFixed(1)}% de eficiencia
+              </Text>
+            </View>
+          </View>
+        )}
+      />
+    );
+  };
+
+  // ✅ Renderizar modal de detalle de item clickeado
+  const renderItemDetail = (detail: ItemDetail) => {
+    const getIconForType = () => {
+      switch (detail.tipo) {
+        case 'pedido': return { name: 'document-text' as const, color: '#ef4444' };
+        case 'modulo': return { name: 'cube' as const, color: '#f59e0b' };
+        case 'tarea': return { name: 'construct' as const, color: '#8b5cf6' };
+        case 'operario': return { name: 'person' as const, color: '#10b981' };
+      }
+    };
+
+    const icon = getIconForType();
+
+    return (
+      <FlatList
+        data={[detail]}
+        keyExtractor={() => 'detail'}
+        contentContainerStyle={{ paddingBottom: 24 }}
+        showsVerticalScrollIndicator={true}
+        nestedScrollEnabled={true}
+        renderItem={() => (
+          <View style={styles.analysisContainer}>
+            {/* Header */}
+            <View style={styles.analysisHeaderCard}>
+              <View style={styles.analysisHeaderTitle}>
+                <Ionicons name={icon.name} size={32} color={icon.color} />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.analysisMainTitle}>Detalle de {detail.tipo.charAt(0).toUpperCase() + detail.tipo.slice(1)}</Text>
+                  <Text style={styles.analysisPedidoNumber}>{detail.nombre}</Text>
+                  <Text style={styles.analysisContextText}>{detail.contextoPrincipal}</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Métricas Principales */}
+            <View style={styles.metricsGrid}>
+              <View style={styles.metricCard}>
+                <View style={styles.metricIconContainer}>
+                  <Ionicons name="document" size={24} color="#3b82f6" />
+                </View>
+                <Text style={styles.analysisMetricValue}>{detail.totalRegistros}</Text>
+                <Text style={styles.analysisMetricLabel}>Registros</Text>
+              </View>
+
+              <View style={styles.metricCard}>
+                <View style={[styles.metricIconContainer, { backgroundColor: '#dbeafe' }]}>
+                  <Ionicons name="time" size={24} color="#3b82f6" />
+                </View>
+                <Text style={styles.analysisMetricValue}>{formatHM(detail.tiempoValido)}</Text>
+                <Text style={styles.analysisMetricLabel}>Tiempo Válido</Text>
+              </View>
+
+              <View style={styles.metricCard}>
+                <View style={[styles.metricIconContainer, { backgroundColor: '#fee2e2' }]}>
+                  <Ionicons name="warning" size={24} color="#ef4444" />
+                </View>
+                <Text style={styles.analysisMetricValue}>{detail.anomalias.length}</Text>
+                <Text style={styles.analysisMetricLabel}>Anomalías</Text>
+              </View>
+
+              <View style={styles.metricCard}>
+                <View style={[styles.metricIconContainer, { backgroundColor: '#dcfce7' }]}>
+                  <Ionicons name="speedometer" size={24} color="#10b981" />
+                </View>
+                <Text style={styles.analysisMetricValue}>
+                  {detail.tiempoTotal > 0 ? ((detail.tiempoValido / detail.tiempoTotal) * 100).toFixed(1) : 0}%
+                </Text>
+                <Text style={styles.analysisMetricLabel}>Eficiencia</Text>
+              </View>
+            </View>
+
+            {/* Alertas de Anomalías */}
+            {detail.anomalias.length > 0 && (
+              <View style={styles.alertCard}>
+                <View style={styles.alertHeader}>
+                  <Ionicons name="warning" size={20} color="#dc2626" />
+                  <Text style={styles.alertTitle}>Anomalías Detectadas</Text>
+                </View>
+                {detail.anomalias.map((anomalia, idx) => (
+                  <View key={idx} style={{ marginBottom: 8 }}>
+                    <Text style={styles.alertText}>
+                      {anomalia.tipo === 'fuera_turno' ? '⚠️' : '🔴'} {anomalia.descripcion}
+                    </Text>
+                    <Text style={styles.alertSubtext}>
+                      {anomalia.registrosAfectados} registro{anomalia.registrosAfectados > 1 ? 's' : ''} afectado{anomalia.registrosAfectados > 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Desgloses por Categoría */}
+            {detail.detallesPorCategoria.map((categoria, catIdx) => (
+              <View key={catIdx} style={styles.sectionCard}>
+                <View style={styles.sectionHeader}>
+                  <Ionicons 
+                    name={
+                      categoria.categoria === 'Pedidos' ? 'document-text' :
+                      categoria.categoria === 'Módulos' ? 'cube' :
+                      categoria.categoria === 'Tareas' ? 'construct' :
+                      'people'
+                    } 
+                    size={20} 
+                    color={
+                      categoria.categoria === 'Pedidos' ? '#ef4444' :
+                      categoria.categoria === 'Módulos' ? '#f59e0b' :
+                      categoria.categoria === 'Tareas' ? '#8b5cf6' :
+                      '#10b981'
+                    } 
+                  />
+                  <Text style={styles.sectionTitle}>
+                    {categoria.categoria} ({categoria.items.length})
+                  </Text>
+                </View>
+                {categoria.items.map((item, itemIdx) => (
+                  <View key={itemIdx} style={styles.detailRow}>
+                    <View style={styles.detailLeft}>
+                      <Text style={styles.detailName}>{item.nombre}</Text>
+                      <Text style={styles.detailSubtext}>
+                        {item.registros} registro{item.registros > 1 ? 's' : ''}
+                      </Text>
+                    </View>
+                    <View style={styles.detailRight}>
+                      <Text style={styles.detailTime}>{formatHM(item.tiempo)}</Text>
+                      <View style={styles.progressBarContainer}>
+                        <View 
+                          style={[
+                            styles.progressBar, 
+                            { 
+                              width: `${detail.tiempoValido > 0 ? (item.tiempo / detail.tiempoValido) * 100 : 0}%`,
+                              backgroundColor: 
+                                categoria.categoria === 'Pedidos' ? '#ef4444' :
+                                categoria.categoria === 'Módulos' ? '#f59e0b' :
+                                categoria.categoria === 'Tareas' ? '#8b5cf6' :
+                                '#10b981'
+                            }
+                          ]} 
+                        />
+                      </View>
+                      <Text style={styles.detailPercentage}>
+                        {detail.tiempoValido > 0 ? ((item.tiempo / detail.tiempoValido) * 100).toFixed(1) : 0}%
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ))}
+
+            {/* Resumen */}
+            <View style={styles.summaryFinalCard}>
+              <Ionicons name="information-circle" size={24} color="#3b82f6" />
+              <Text style={styles.summaryFinalText}>
+                Total: {detail.totalRegistros} registros con {formatHM(detail.tiempoValido)} de tiempo válido
+                {detail.tiempoFueraTurno > 0 && ` (${formatHM(detail.tiempoFueraTurno)} descontado)`}
               </Text>
             </View>
           </View>
@@ -3013,6 +3615,24 @@ export default function ControlTerminalesScreen() {
         </SafeAreaView>
       </Modal>
 
+      {/* ✅ Modal de Detalle de Item Clickeado */}
+      <Modal
+        visible={itemDetailVisible}
+        animationType="slide"
+        onRequestClose={() => setItemDetailVisible(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Información del Item</Text>
+            <TouchableOpacity onPress={() => setItemDetailVisible(false)} style={styles.closeButton}>
+              <Ionicons name="close" size={24} color={COLORS.primary} />
+            </TouchableOpacity>
+          </View>
+
+          {itemDetailData && renderItemDetail(itemDetailData)}
+        </SafeAreaView>
+      </Modal>
+
       {/* SQL Debug (opcional) */}
       {sqlVisible && <SQLModal visible={sqlVisible} onClose={() => setSqlVisible(false)} />}
     </SafeAreaView>
@@ -3321,6 +3941,12 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     marginTop: 2,
   },
+  analysisContextText: {
+    fontSize: 13,
+    color: '#9ca3af',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
   analysisDateRange: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3392,6 +4018,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#991b1b',
     marginBottom: 4,
+  },
+  alertSubtext: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginLeft: 16,
+    fontStyle: 'italic',
   },
   sectionCard: {
     backgroundColor: '#fff',
