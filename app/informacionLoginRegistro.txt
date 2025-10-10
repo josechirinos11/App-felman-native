@@ -1,0 +1,14 @@
+Invoke-WebRequest -Uri "https://ba2oohujh5.execute-api.eu-north-1.amazonaws.com/register" `
+  -Method POST `
+  -Headers @{ "Content-Type" = "application/json" } `
+  -Body '{"email":"copilot6@felman.com","password":"felman2025","nombre":"Copilot Felman 6"}'
+
+
+
+
+
+
+Invoke-WebRequest -Uri "https://ba2oohujh5.execute-api.eu-north-1.amazonaws.com/login" `
+  -Method POST `
+  -Headers @{ "Content-Type" = "application/json" } `
+  -Body '{"email":"copilot@felman.com","password":"felman2025"}'

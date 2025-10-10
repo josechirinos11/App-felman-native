@@ -29,6 +29,11 @@ const menuItems: MenuItem[] = [
   { id: 6, title: 'Entregas Diarias', icon: 'calendar-outline', route: '/moncada/control-entregas-diarias' },
    { id: 7, title: 'Control Fabrica', icon: 'cog-outline', route: '/moncada/control-fabrica' },
    { id: 8, title: 'Anàlisis Produccion', icon: 'bar-chart-outline', route: '/moncada/control-produccion-sonnet' },
+    
+   { id: 9, title: 'Tiempo real Modificado', icon: 'time-outline', route: '/moncada/control-tiempo-realMod' },
+  { id: 10, title: 'Terminales Modificado', icon: 'location-outline', route: '/moncada/control-terminalesMod' },
+  
+
 
 
 ];

@@ -589,77 +589,6 @@ const calculateAdjustedTime = (record: TiempoRealRecord): number => {
   }
 };
 
-// ✅ NUEVA FUNCIÓN: Calcular tiempo válido dentro del horario laboral
-// Esta función calcula SOLO el tiempo trabajado dentro de los turnos laborales
-const calculateValidWorkTime = (record: TiempoRealRecord): number => {
-  const horaInicio = record.HoraInicio;
-  const horaFin = record.HoraFin;
-
-  if (!horaInicio || !horaFin) return 0;
-
-  try {
-    const parseTime = (timeStr: string): number => {
-      const parts = timeStr.trim().split(':');
-      if (parts.length < 2) return 0;
-      const h = parseInt(parts[0]);
-      const m = parseInt(parts[1]);
-      return isNaN(h) || isNaN(m) ? 0 : h * 60 + m;
-    };
-
-    const inicioMin = parseTime(horaInicio);
-    let finMin = parseTime(horaFin);
-
-    if (inicioMin === 0 || finMin === 0) return 0;
-
-    // Determinar si es viernes
-    let esViernes = false;
-    if (record.FechaInicio || record.Fecha) {
-      try {
-        const fecha = new Date(record.FechaInicio || record.Fecha || '');
-        esViernes = fecha.getDay() === 5;
-      } catch {
-        esViernes = false;
-      }
-    }
-
-    // ✅ DETECTAR FICHAJE ABIERTO: Si finMin < inicioMin, ajustar a hora de cierre
-    if (finMin < inicioMin) {
-      const horaCierre = esViernes ? 13 * 60 + 30 : 14 * 60 + 30;
-      finMin = horaCierre;
-    }
-
-    if (finMin <= inicioMin) return 0;
-
-    // Definir turnos
-    const turno1Inicio = 6 * 60 + 30;  // 6:30 = 390
-    const turno1Fin = 9 * 60 + 30;     // 9:30 = 570
-    const turno2Inicio = 10 * 60;      // 10:00 = 600
-    const turno2Fin = esViernes ? 13 * 60 + 30 : 14 * 60 + 30; // 13:30 viernes, 14:30 resto
-
-    let tiempoValido = 0;
-
-    // Calcular tiempo DENTRO de los turnos laborales
-    // Turno 1: 6:30 - 9:30
-    const inicioTurno1 = Math.max(inicioMin, turno1Inicio);
-    const finTurno1 = Math.min(finMin, turno1Fin);
-    if (finTurno1 > inicioTurno1) {
-      tiempoValido += finTurno1 - inicioTurno1;
-    }
-
-    // Turno 2: 10:00 - 14:30 (o 13:30 viernes)
-    const inicioTurno2 = Math.max(inicioMin, turno2Inicio);
-    const finTurno2 = Math.min(finMin, turno2Fin);
-    if (finTurno2 > inicioTurno2) {
-      tiempoValido += finTurno2 - inicioTurno2;
-    }
-
-    // Convertir minutos a segundos
-    return tiempoValido * 60;
-  } catch {
-    return 0;
-  }
-};
-
 // ✅ Analizar tiempos fuera de turno para un operario (incluye fichajes abiertos)
 const analyzeOperarioOutsideTime = (records: TiempoRealRecord[]): {
   totalOutsideTime: number;
@@ -748,10 +677,9 @@ const analyzePedidoDetailed = (records: TiempoRealRecord[]): PedidoAnalysis => {
     // Calcular tiempos
     const tiempoAjustado = calculateAdjustedTime(record);
     const tiempoFuera = calculateOutsideWorkTime(record);
-    const tiempoValido = calculateValidWorkTime(record); // ✅ Usar función correcta
 
     tiempoTotalReal += tiempoAjustado;
-    tiempoTotalValido += tiempoValido; // ✅ Usar tiempo válido calculado correctamente
+    tiempoTotalValido += Math.max(0, tiempoAjustado - tiempoFuera);
     tiempoFueraTurno += tiempoFuera;
 
     // Detectar fichajes abiertos
@@ -775,9 +703,9 @@ const analyzePedidoDetailed = (records: TiempoRealRecord[]): PedidoAnalysis => {
       operariosSet.add(operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario));
       tareasSet.add(normalizeTareaKey(r.CodigoTarea));
       const t = calculateAdjustedTime(r);
-      const tv = calculateValidWorkTime(r); // ✅ Usar función correcta
+      const tf = calculateOutsideWorkTime(r);
       tiempo += t;
-      tiempoValido += tv; // ✅ Usar tiempo válido calculado correctamente
+      tiempoValido += Math.max(0, t - tf);
     }
 
     return {
@@ -802,9 +730,9 @@ const analyzePedidoDetailed = (records: TiempoRealRecord[]): PedidoAnalysis => {
       modulosSet.add(r.Modulo?.trim() || 'SIN_MODULO');
       tareasSet.add(normalizeTareaKey(r.CodigoTarea));
       const t = calculateAdjustedTime(r);
-      const tv = calculateValidWorkTime(r); // ✅ Usar función correcta
+      const tf = calculateOutsideWorkTime(r);
       tiempo += t;
-      tiempoValido += tv; // ✅ Usar tiempo válido calculado correctamente
+      tiempoValido += Math.max(0, t - tf);
     }
 
     const analysis = analyzeOperarioOutsideTime(recs);
@@ -832,9 +760,9 @@ const analyzePedidoDetailed = (records: TiempoRealRecord[]): PedidoAnalysis => {
       operariosSet.add(operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario));
       modulosSet.add(r.Modulo?.trim() || 'SIN_MODULO');
       const t = calculateAdjustedTime(r);
-      const tv = calculateValidWorkTime(r); // ✅ Usar función correcta
+      const tf = calculateOutsideWorkTime(r);
       tiempo += t;
-      tiempoValido += tv; // ✅ Usar tiempo válido calculado correctamente
+      tiempoValido += Math.max(0, t - tf);
     }
 
     return {
@@ -924,10 +852,9 @@ const analyzeTareaDetailed = (records: TiempoRealRecord[]): TareaAnalysis => {
     // Calcular tiempos
     const tiempoAjustado = calculateAdjustedTime(record);
     const tiempoFuera = calculateOutsideWorkTime(record);
-    const tiempoValido = calculateValidWorkTime(record); // ✅ Usar función correcta
 
     tiempoTotalReal += tiempoAjustado;
-    tiempoTotalValido += tiempoValido; // ✅ Usar tiempo válido calculado correctamente
+    tiempoTotalValido += Math.max(0, tiempoAjustado - tiempoFuera);
     tiempoFueraTurno += tiempoFuera;
 
     // Detectar fichajes abiertos
@@ -951,9 +878,9 @@ const analyzeTareaDetailed = (records: TiempoRealRecord[]): TareaAnalysis => {
       operariosSet.add(operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario));
       modulosSet.add(r.Modulo?.trim() || 'SIN_MODULO');
       const t = calculateAdjustedTime(r);
-      const tv = calculateValidWorkTime(r); // ✅ Usar función correcta
+      const tf = calculateOutsideWorkTime(r);
       tiempo += t;
-      tiempoValido += tv; // ✅ Usar tiempo válido calculado correctamente
+      tiempoValido += Math.max(0, t - tf);
     }
 
     return {
@@ -978,9 +905,9 @@ const analyzeTareaDetailed = (records: TiempoRealRecord[]): TareaAnalysis => {
       operariosSet.add(operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario));
       pedidosSet.add(normalizePedidoKey(r.NumeroManual));
       const t = calculateAdjustedTime(r);
-      const tv = calculateValidWorkTime(r); // ✅ Usar función correcta
+      const tf = calculateOutsideWorkTime(r);
       tiempo += t;
-      tiempoValido += tv; // ✅ Usar tiempo válido calculado correctamente
+      tiempoValido += Math.max(0, t - tf);
     }
 
     return {
@@ -1005,9 +932,9 @@ const analyzeTareaDetailed = (records: TiempoRealRecord[]): TareaAnalysis => {
       modulosSet.add(r.Modulo?.trim() || 'SIN_MODULO');
       pedidosSet.add(normalizePedidoKey(r.NumeroManual));
       const t = calculateAdjustedTime(r);
-      const tv = calculateValidWorkTime(r); // ✅ Usar función correcta
+      const tf = calculateOutsideWorkTime(r);
       tiempo += t;
-      tiempoValido += tv; // ✅ Usar tiempo válido calculado correctamente
+      tiempoValido += Math.max(0, t - tf);
     }
 
     const analysis = analyzeOperarioOutsideTime(recs);
@@ -1100,10 +1027,9 @@ const analyzeOperarioDetailed = (records: TiempoRealRecord[]): OperarioAnalysis 
     // Calcular tiempos
     const tiempoAjustado = calculateAdjustedTime(record);
     const tiempoFuera = calculateOutsideWorkTime(record);
-    const tiempoValido = calculateValidWorkTime(record); // ✅ Usar función nueva que calcula correctamente
 
     tiempoTotalReal += tiempoAjustado;
-    tiempoTotalValido += tiempoValido; // ✅ Usar tiempo válido calculado correctamente (solo tiempo dentro de turnos)
+    tiempoTotalValido += Math.max(0, tiempoAjustado - tiempoFuera);
     tiempoFueraTurno += tiempoFuera;
 
     // Detectar fichajes abiertos
@@ -1127,9 +1053,9 @@ const analyzeOperarioDetailed = (records: TiempoRealRecord[]): OperarioAnalysis 
       modulosSet.add(r.Modulo?.trim() || 'SIN_MODULO');
       tareasSet.add(normalizeTareaKey(r.CodigoTarea));
       const t = calculateAdjustedTime(r);
-      const tv = calculateValidWorkTime(r); // ✅ Usar función correcta
+      const tf = calculateOutsideWorkTime(r);
       tiempo += t;
-      tiempoValido += tv; // ✅ Usar tiempo válido calculado correctamente
+      tiempoValido += Math.max(0, t - tf);
     }
 
     return {
@@ -1154,9 +1080,9 @@ const analyzeOperarioDetailed = (records: TiempoRealRecord[]): OperarioAnalysis 
       pedidosSet.add(normalizePedidoKey(r.NumeroManual));
       tareasSet.add(normalizeTareaKey(r.CodigoTarea));
       const t = calculateAdjustedTime(r);
-      const tv = calculateValidWorkTime(r); // ✅ Usar función correcta
+      const tf = calculateOutsideWorkTime(r);
       tiempo += t;
-      tiempoValido += tv; // ✅ Usar tiempo válido calculado correctamente
+      tiempoValido += Math.max(0, t - tf);
     }
 
     return {
@@ -1181,9 +1107,9 @@ const analyzeOperarioDetailed = (records: TiempoRealRecord[]): OperarioAnalysis 
       pedidosSet.add(normalizePedidoKey(r.NumeroManual));
       modulosSet.add(r.Modulo?.trim() || 'SIN_MODULO');
       const t = calculateAdjustedTime(r);
-      const tv = calculateValidWorkTime(r); // ✅ Usar función correcta
+      const tf = calculateOutsideWorkTime(r);
       tiempo += t;
-      tiempoValido += tv; // ✅ Usar tiempo válido calculado correctamente
+      tiempoValido += Math.max(0, t - tf);
     }
 
     return {
@@ -1410,20 +1336,15 @@ export default function ControlTerminalesScreen() {
 
     const groups: any[] = [];
     for (const [k, arr] of map) {
-      // ✅ Usar tiempo válido calculado correctamente
+      // ✅ Usar tiempo ajustado (sin fichajes abiertos)
       let totalTiempo = 0;
-      let totalValidTime = 0; // ✅ Calcular directamente el tiempo válido
       let totalOutsideTime = 0;
       let hasOpenShift = false;
 
       for (const r of arr) {
         const tiempoAjustado = calculateAdjustedTime(r);
-        const tiempoValido = calculateValidWorkTime(r); // ✅ Usar función correcta
-        const tiempoFuera = calculateOutsideWorkTime(r);
-        
         totalTiempo += tiempoAjustado;
-        totalValidTime += tiempoValido; // ✅ Sumar tiempo válido calculado correctamente
-        totalOutsideTime += tiempoFuera;
+        totalOutsideTime += calculateOutsideWorkTime(r);
 
         // ✅ Detectar fichajes abiertos
         if (r.HoraInicio && r.HoraFin) {
@@ -1434,6 +1355,8 @@ export default function ControlTerminalesScreen() {
           }
         }
       }
+
+      const totalValidTime = Math.max(0, totalTiempo - totalOutsideTime);
 
       // Obtener fechas de FechaInicio o Fecha
       const fechas = arr
@@ -2087,10 +2010,10 @@ export default function ControlTerminalesScreen() {
       const modulo = record.Modulo?.trim() || 'SIN_MODULO';
       const tarea = normalizeTareaKey(record.CodigoTarea);
       const operario = operarioFirstNameKey(record.OperarioNombre || record.CodigoOperario);
-      // ✅ Usar tiempo válido calculado correctamente
+      // ✅ Usar tiempo ajustado (detecta fichajes abiertos)
       const tiempo = calculateAdjustedTime(record);
       const tiempoFuera = calculateOutsideWorkTime(record);
-      const tiempoValido = calculateValidWorkTime(record); // ✅ Usar función correcta que calcula solo tiempo dentro de turnos
+      const tiempoValido = Math.max(0, tiempo - tiempoFuera);
       const fecha = formatDateOnly(record.FechaInicio || record.Fecha);
 
       // Crear pedido si no existe

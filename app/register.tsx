@@ -27,7 +27,10 @@ export default function RegisterScreen() {
     setError('');
 
     try {
-      await clienteAxios.post('/usuarios', { nombre, email, password });
+      await clienteAxios.post(
+        'https://ba2oohujh5.execute-api.eu-north-1.amazonaws.com/register',
+        { nombre, email, password }
+      );
       Alert.alert(
         'Registro Exitoso',
         'Usuario creado correctamente. Serás redirigido al login.',
@@ -37,7 +40,11 @@ export default function RegisterScreen() {
       if (!error.response) {
         setError('No se puede conectar al servidor. Por favor, intenta más tarde.');
       } else {
-        setError(error.response.data.msg || 'Error al registrar usuario');
+        setError(
+          error.response.data.msg ||
+          error.response.data.error ||
+          'Error al registrar usuario'
+        );
       }
     } finally {
       setLoading(false);

@@ -26,49 +26,47 @@ export function useNetworkStatus() {
   // Comprobar si el servidor está disponible
   const checkServerConnection = async (): Promise<boolean> => {
     try {
-      console.log(`Verificando conexión al servidor: ${apiUrl}`);
+      console.log(`🔍 Verificando conexión al servidor: ${apiUrl}`);
       
-      // Lista de rutas a probar en orden
-      const endpointsToTry = [
-        '/test/test-connection',    // Endpoint de test específico
-        '/',                        // Ruta principal
-        '/auth/check',              // Ruta de verificación de autenticación
-        '/auth',                    // Ruta de autenticación
-        '/control-access',          // Ruta de control de acceso
-        '/control-access/pedidos',  // Ruta de pedidos
-      ];
+      // Usar un endpoint simple para health check con timeout más largo
+      const endpoint = '/';
       
-      // Intentar cada endpoint hasta encontrar uno que responda
-      for (const endpoint of endpointsToTry) {
-        try {
-          console.log(`Intentando conectar a: ${apiUrl}${endpoint}`);
-          
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 3000);
-          
-          const response = await fetch(`${apiUrl}${endpoint}`, {
-            method: 'HEAD',
-            headers: { 'Cache-Control': 'no-cache' },
-            signal: controller.signal
-          });
-          
-          clearTimeout(timeoutId);
-          
-          if (response.status < 400) {
-            console.log(`✅ Conectado exitosamente a ${endpoint}`);
-            return true;
-          }
-          
-          console.log(`❌ Endpoint ${endpoint} respondió con código ${response.status}`);
-        } catch (endpointError) {
-          console.log(`⚠️ Error al intentar endpoint ${endpoint}:`, endpointError);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000); // ✅ 12 segundos
+      
+      try {
+        const response = await fetch(`${apiUrl}${endpoint}`, {
+          method: 'GET',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache' 
+          },
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        // ✅ Considerar exitoso si el status es < 500 (incluye 200, 401, 403, 404, etc.)
+        // Esto significa que el servidor está respondiendo, aunque requiera auth
+        if (response.status < 500) {
+          console.log(`✅ Servidor disponible (status: ${response.status})`);
+          return true;
         }
+        
+        console.log(`⚠️ Servidor respondió con error ${response.status}`);
+        return false;
+      } catch (endpointError: any) {
+        clearTimeout(timeoutId);
+        
+        if (endpointError.name === 'AbortError') {
+          console.log(`⚠️ Timeout al conectar con el servidor (>12s)`);
+        } else {
+          console.log(`⚠️ Error de conexión: ${endpointError.message}`);
+        }
+        return false;
       }
-      
-      console.error('❌ Ningún endpoint respondió correctamente');
-      return false;
     } catch (fallbackError) {
-      console.error('Error en verificación alternativa del servidor:', fallbackError);
+      console.error('❌ Error inesperado al verificar servidor:', fallbackError);
       return false;
     }
   };
