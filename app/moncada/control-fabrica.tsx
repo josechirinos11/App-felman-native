@@ -11,7 +11,9 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity, useColorScheme, useWindowDimensions,
+  TouchableOpacity,
+  useColorScheme,
+  useWindowDimensions,
   View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,7 +23,6 @@ import AppHeader from '../../components/AppHeader';
 import ModalHeader from '../../components/ModalHeader';
 import SQLModal from '../../components/SQLModal';
 import { API_URL } from '../../config/constants';
-import COLORS from '../../constants/Colors';
 import { useAuth } from '../../hooks/useAuth';
 
 // ===================== Tipos =====================
@@ -84,6 +85,28 @@ interface ModuloInfo {
   cristal?: boolean;
 }
 
+interface LoteLineaAPI {
+  Codigo: string;
+  NumeroManual: string;
+  FechaRealInicio: string;
+  Descripcion: string;
+  OrigenSerie: string;
+  OrigenNumero: number;
+  Linea: number;
+  DatosFabricacion?: string;
+  FabricacionNumeroManual: string;
+  Cliente: string;
+  Modulo: string;
+  LineaDescripcion: string;
+}
+
+interface PaginationInfo {
+  total: number;
+  limit: number;
+  offset: number;
+  hasMore: boolean;
+}
+
 interface PedidoIntegrado {
   NumeroManual: string;
   tiempoRecords: TiempoRealRecord[];
@@ -92,6 +115,9 @@ interface PedidoIntegrado {
   totalTiempo: number;
   operarios: Set<string>;
   fechas: Set<string>;
+  cliente?: string;
+  descripcion?: string;
+  fechaInicio?: string;
 }
 
 interface UserData {
@@ -103,15 +129,6 @@ interface UserData {
 }
 
 // ===================== Utilidades =====================
-function getLastMonday(date = new Date()) {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = day === 0 ? 6 : day - 1;
-  d.setDate(d.getDate() - diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
 const formatDateOnly = (dateStr?: string | null) => {
   if (!dateStr) return '-';
   const s = String(dateStr).trim();
@@ -120,19 +137,6 @@ const formatDateOnly = (dateStr?: string | null) => {
   const d = new Date(s);
   if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
   return s.slice(0, 10);
-};
-
-const formatDurationLong = (value?: number | null) => {
-  if (value == null) return '-';
-  const n = Math.floor(Number(value));
-  if (!isFinite(n)) return '-';
-  const days = Math.floor(n / 86400);
-  const hours = Math.floor((n % 86400) / 3600);
-  const minutes = Math.floor((n % 3600) / 60);
-  const seconds = n % 60;
-  if (days > 0) return `${days} día${days > 1 ? 's' : ''} - ${hours}h - ${minutes}m`;
-  if (hours > 0) return `${hours}h - ${minutes}m`;
-  return `${minutes}m - ${seconds}s`;
 };
 
 const formatHM = (seconds?: number | null) => {
@@ -149,13 +153,11 @@ const operarioFirstNameKey = (val?: string | null) => {
   return first ? first.toUpperCase() : 'SIN_OPERARIO';
 };
 
-// Convertir formato de pedido: 2025-42-0422 -> 2025_42_422
 const normalizarPedido = (pedido: string): string => {
   if (!pedido) return '';
-  // Eliminar ceros a la izquierda del último segmento y reemplazar - por _
   const partes = pedido.split('-');
   if (partes.length === 3) {
-    const ultimaParte = parseInt(partes[2], 10).toString(); // Elimina ceros a la izquierda
+    const ultimaParte = parseInt(partes[2], 10).toString();
     return `${partes[0]}_${partes[1]}_${ultimaParte}`;
   }
   return pedido.replace(/-/g, '_');
@@ -164,9 +166,7 @@ const normalizarPedido = (pedido: string): string => {
 // ===================== Componente =====================
 export default function ControlTerminalesScreen() {
   const colorScheme = useColorScheme();
-
   const loadedRef = useRef(false);
-
 
   useEffect(() => {
     if (colorScheme === 'dark') {
@@ -177,6 +177,7 @@ export default function ControlTerminalesScreen() {
       NavigationBar.setButtonStyleAsync('dark');
     }
   }, [colorScheme]);
+
   const { authenticated, loading: authLoading } = useAuth();
   const router = useRouter();
 
@@ -188,6 +189,7 @@ export default function ControlTerminalesScreen() {
   const [loadingModulos, setLoadingModulos] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
 
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [selectedPedido, setSelectedPedido] = useState<PedidoIntegrado | null>(null);
@@ -199,12 +201,21 @@ export default function ControlTerminalesScreen() {
 
   const [sqlVisible, setSqlVisible] = useState(false);
 
+  // Paginación
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    total: 0,
+    limit: 100,
+    offset: 0,
+    hasMore: false
+  });
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
   // Layout
   const isWeb = Platform.OS === 'web';
   const { width: windowWidth } = useWindowDimensions();
   const isMobile = !isWeb && windowWidth < 600;
 
-  // Autenticación / rol
+  // Autenticación
   useEffect(() => {
     if (!authLoading && !authenticated) {
       router.replace('/login');
@@ -234,36 +245,25 @@ export default function ControlTerminalesScreen() {
     .toString().trim().toLowerCase();
   const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole);
 
-  // Fechas (último lunes → hoy)
-  const today = new Date();
-  const lastMonday = getLastMonday(today);
-  const [fromDate, setFromDate] = useState<Date>(lastMonday);
-  const [toDate, setToDate] = useState<Date>(today);
-  const [showFromPicker, setShowFromPicker] = useState(false);
-  const [showToPicker, setShowToPicker] = useState(false);
-
   // Carga inicial
   useEffect(() => {
     if (loadedRef.current) return;
     loadedRef.current = true;
-    fetchAllData(formatDateOnly(fromDate.toISOString()), formatDateOnly(toDate.toISOString()));
+    fetchAllData(false);
+  }, []);
 
-
-  }, [fromDate, toDate]);
-
-  // Fetch Consulta 1: Tiempo Real (pedidos en fábrica)
+  // Fetch Tiempo Real (todos los registros)
   async function fetchTiempoReal() {
     try {
       setLoadingTiempo(true);
-      // CAMBIAR ENDPOINT
-      const res = await fetch(`${API_URL}/control-terminales/pedidos-en-fabrica`);
+      const res = await fetch(`${API_URL}/control-terminales/tiempo-real-nueva`);
       if (!res.ok) {
         setTiempoRecords([]);
         return [];
       }
       const json = await res.json();
       const records = Array.isArray(json) ? (json as TiempoRealRecord[]) : [];
-      console.log(`[fetchTiempoReal] Registros EN FÁBRICA: ${records.length}`);
+      console.log(`[fetchTiempoReal] Registros: ${records.length}`);
       setTiempoRecords(records);
       return records;
     } catch (err) {
@@ -275,7 +275,7 @@ export default function ControlTerminalesScreen() {
     }
   }
 
-  // Fetch Consulta 2: Pedidos Comerciales (departamento técnico)
+  // Fetch Pedidos Comerciales
   async function fetchPedidosComerciales() {
     try {
       setLoadingPedidos(true);
@@ -286,7 +286,7 @@ export default function ControlTerminalesScreen() {
       }
       const json = await res.json();
       const pedidos = Array.isArray(json) ? (json as Pedido[]) : [];
-      console.log(`[fetchPedidosComerciales] Registros recibidos: ${pedidos.length}`);
+      console.log(`[fetchPedidosComerciales] Registros: ${pedidos.length}`);
       setPedidosComerciales(pedidos);
       return pedidos;
     } catch (err) {
@@ -298,7 +298,7 @@ export default function ControlTerminalesScreen() {
     }
   }
 
-  // Fetch Consulta 3: Información de módulos (solape, guías, cristal)
+  // Fetch Módulos Info
   async function fetchModulosInfo(modulos: { Serie: string; Numero: number; Linea: number }[]) {
     try {
       setLoadingModulos(true);
@@ -310,7 +310,7 @@ export default function ControlTerminalesScreen() {
       if (!res.ok) return [];
       const json = await res.json();
       const modulosInfo = Array.isArray(json) ? json : [];
-      console.log(`[fetchModulosInfo] Consulta de ${modulos.length} módulos, respuesta: ${modulosInfo.length}`);
+      console.log(`[fetchModulosInfo] Consulta: ${modulos.length} módulos, respuesta: ${modulosInfo.length}`);
       return modulosInfo;
     } catch (err) {
       console.error('[modulos-info] error', err);
@@ -320,91 +320,142 @@ export default function ControlTerminalesScreen() {
     }
   }
 
+  // Fetch Pedidos en Fábrica (con paginación y búsqueda)
+  async function fetchPedidosEnFabrica(loadMore = false) {
+    try {
+      if (loadMore) {
+        setIsLoadingMore(true);
+      }
+
+      const currentOffset = loadMore ? pagination.offset + pagination.limit : 0;
+      const params = new URLSearchParams({
+        limit: String(pagination.limit),
+        offset: String(currentOffset),
+        search: searchQuery
+      });
+
+      const res = await fetch(`${API_URL}/control-terminales/pedidos-en-fabrica?${params}`);
+      if (!res.ok) throw new Error('Error al cargar pedidos');
+
+      const json = await res.json();
+      console.log('[fetchPedidosEnFabrica] Respuesta recibida:', {
+        tieneData: 'data' in json,
+        tienePagination: 'pagination' in json,
+        esArray: Array.isArray(json),
+        tipo: typeof json
+      });
+      
+      // Verificar si la respuesta tiene la estructura esperada
+      if (json && typeof json === 'object' && 'data' in json && 'pagination' in json) {
+        const { data, pagination: paginationInfo } = json;
+        setPagination(paginationInfo || {
+          total: 0,
+          limit: pagination.limit,
+          offset: currentOffset,
+          hasMore: false
+        });
+        return { data: data || [], isLoadMore: loadMore };
+      } else {
+        // Si no tiene la estructura esperada, tratar como array directo
+        console.warn('[pedidos-en-fabrica] Respuesta sin estructura de paginación, usando array directo');
+        const dataArray = Array.isArray(json) ? json : [];
+        setPagination({
+          total: dataArray.length,
+          limit: pagination.limit,
+          offset: 0,
+          hasMore: false
+        });
+        return { data: dataArray, isLoadMore: loadMore };
+      }
+    } catch (err) {
+      console.error('[pedidos-en-fabrica] error', err);
+      setPagination({
+        total: 0,
+        limit: pagination.limit,
+        offset: 0,
+        hasMore: false
+      });
+      return { data: [], isLoadMore: loadMore };
+    } finally {
+      if (loadMore) {
+        setIsLoadingMore(false);
+      }
+    }
+  }
+
   // Integrar todas las consultas
-  async function fetchAllData(from: string, to: string) {
+  async function fetchAllData(loadMore = false) {
     const tiempoData = await fetchTiempoReal();
-    console.log(`[LOG] Total registros en fábrica: ${tiempoData.length}`);
-
     const pedidosData = await fetchPedidosComerciales();
+    const { data: lotesLineas, isLoadMore } = await fetchPedidosEnFabrica(loadMore);
 
+    // Pedidos terminados
     const pedidosTerminados = new Set(
       pedidosData
         .filter(p => p.EstadoPedido === 'TERMINADO')
         .map(p => normalizarPedido(p.NoPedido))
     );
-    console.log(`[LOG] Pedidos terminados: ${Array.from(pedidosTerminados).join(', ')}`);
 
-    // Agrupar todos los registros por pedido
-    const todosLosPedidos = new Map<string, TiempoRealRecord[]>();
-    tiempoData.forEach(record => {
-      const pedido = record.NumeroManual || 'SIN_PEDIDO';
-      if (!todosLosPedidos.has(pedido)) {
-        todosLosPedidos.set(pedido, []);
+    // Agrupar lotes/líneas por NumeroManual
+    const lotesMap = new Map<string, LoteLineaAPI[]>();
+    (lotesLineas as LoteLineaAPI[]).forEach(linea => {
+      const numManual = linea.FabricacionNumeroManual || linea.NumeroManual;
+      if (!lotesMap.has(numManual)) {
+        lotesMap.set(numManual, []);
       }
-      todosLosPedidos.get(pedido)!.push(record);
+      lotesMap.get(numManual)!.push(linea);
     });
 
-    console.log(`[LOG] Total pedidos únicos: ${todosLosPedidos.size}`);
-
     // Filtrar pedidos terminados
-    const pedidosActivos = new Map<string, TiempoRealRecord[]>();
-    for (const [pedido, records] of todosLosPedidos.entries()) {
-      if (pedidosTerminados.has(pedido)) {
-        console.log(`[SKIP] Pedido completo excluido: ${pedido} (${records.length} registros)`);
-        continue;
+    const pedidosActivos = new Map<string, LoteLineaAPI[]>();
+    for (const [pedido, lineas] of lotesMap.entries()) {
+      if (!pedidosTerminados.has(pedido)) {
+        pedidosActivos.set(pedido, lineas);
       }
-      pedidosActivos.set(pedido, records);
     }
 
-    console.log(`[LOG] Pedidos activos después de filtrar: ${pedidosActivos.size}`);
+    console.log(`[LOG] Pedidos activos: ${pedidosActivos.size}`);
 
-    // ========================================
-    // OPTIMIZACIÓN: Recopilar TODOS los módulos de TODOS los pedidos
-    // ========================================
+    // Recopilar todos los módulos únicos
     const todosLosModulosMap = new Map<string, ModuloInfo>();
-
-    for (const [pedido, records] of pedidosActivos.entries()) {
-      records.forEach(r => {
-        if (r.FabricacionSerie && r.FabricacionNumero && r.FabricacionLinea) {
-          const key = `${r.FabricacionSerie}-${r.FabricacionNumero}-${r.FabricacionLinea}`;
+    for (const [pedido, lineas] of pedidosActivos.entries()) {
+      lineas.forEach(linea => {
+        if (linea.OrigenSerie && linea.OrigenNumero && linea.Linea) {
+          const key = `${linea.OrigenSerie}-${linea.OrigenNumero}-${linea.Linea}`;
           if (!todosLosModulosMap.has(key)) {
             todosLosModulosMap.set(key, {
-              Serie: r.FabricacionSerie,
-              Numero: r.FabricacionNumero,
-              Linea: r.FabricacionLinea
+              Serie: linea.OrigenSerie,
+              Numero: linea.OrigenNumero,
+              Linea: linea.Linea
             });
           }
         }
       });
-
-
     }
 
     const todosLosModulos = Array.from(todosLosModulosMap.values());
-    console.log(`[LOG] Total módulos únicos a consultar: ${todosLosModulos.length}`);
+    console.log(`[LOG] Total módulos únicos: ${todosLosModulos.length}`);
 
-    // UNA SOLA consulta para TODOS los módulos
+    // Consultar info de módulos
     let modulosInfoGlobal: ModuloInfo[] = [];
     if (todosLosModulos.length > 0) {
-      // La API devuelve [{ id: "Serie-Numero-Linea", solape, guias, cristal }, ...]
-      // La API ahora devuelve: [{ id, alias: string[], solape, guias, cristal }, ...]
-      type BackendModuloInfo = { id: string; alias?: string[]; solape?: boolean; guias?: boolean; cristal?: boolean };
+      type BackendModuloInfo = { 
+        id: string; 
+        alias?: string[]; 
+        solape?: boolean; 
+        guias?: boolean; 
+        cristal?: boolean 
+      };
       const modulosInfoData: BackendModuloInfo[] = await fetchModulosInfo(todosLosModulos);
 
-      // Construimos un índice por todas las claves posibles
       const byId = new Map<string, BackendModuloInfo>();
       for (const mi of modulosInfoData) {
         byId.set(mi.id, mi);
         (mi.alias ?? []).forEach(a => byId.set(a, mi));
       }
 
-      // y tras recibir `modulosInfoData` del backend:
-      console.log('[DEBUG] IDs devueltos por backend:',
-        modulosInfoData.map(x => x.id));
-
-      // …y aquí ya no cambia nada: seguimos buscando por lo que trae TiempoReal
       modulosInfoGlobal = todosLosModulos.map(m => {
-        const key = `${m.Serie}-${m.Numero}-${m.Linea}`; // puede ser PRE o FAB
+        const key = `${m.Serie}-${m.Numero}-${m.Linea}`;
         const info = byId.get(key);
         return {
           ...m,
@@ -415,52 +466,35 @@ export default function ControlTerminalesScreen() {
       });
     }
 
-    // justo después de calcular `todosLosModulos`
-    console.log('[DEBUG] FAB módulos a consultar:',
-      todosLosModulos.map(m => `${m.Serie}-${m.Numero}-${m.Linea}`));
-
-
-    // ========================================
-    // Procesar cada pedido usando la info global de módulos
-    // ========================================
+    // Procesar cada pedido
     const pedidosIntegradosTemp: PedidoIntegrado[] = [];
 
-    for (const [pedido, records] of pedidosActivos.entries()) {
-      // Extraer módulos de ESTE pedido
+    for (const [pedido, lineas] of pedidosActivos.entries()) {
+      // Filtrar registros de tiempo para este pedido
+      const recordsPedido = tiempoData.filter(r => r.NumeroManual === pedido);
+
+      // Extraer módulos del pedido
       const modulosDelPedido = new Map<string, ModuloInfo>();
-      records.forEach(r => {
-        if (r.FabricacionSerie && r.FabricacionNumero && r.FabricacionLinea) {
-          const key = `${r.FabricacionSerie}-${r.FabricacionNumero}-${r.FabricacionLinea}`;
+      lineas.forEach(linea => {
+        if (linea.OrigenSerie && linea.OrigenNumero && linea.Linea) {
+          const key = `${linea.OrigenSerie}-${linea.OrigenNumero}-${linea.Linea}`;
           if (!modulosDelPedido.has(key)) {
-            // Buscar en la info global
             const infoModulo = modulosInfoGlobal.find(
-              m => m.Serie === r.FabricacionSerie &&
-                m.Numero === r.FabricacionNumero &&
-                m.Linea === r.FabricacionLinea
+              m => m.Serie === linea.OrigenSerie &&
+                m.Numero === linea.OrigenNumero &&
+                m.Linea === linea.Linea
             );
 
             modulosDelPedido.set(key, infoModulo || {
-              Serie: r.FabricacionSerie,
-              Numero: r.FabricacionNumero,
-              Linea: r.FabricacionLinea,
+              Serie: linea.OrigenSerie,
+              Numero: linea.OrigenNumero,
+              Linea: linea.Linea,
               solape: false,
               guias: false,
               cristal: false
             });
           }
         }
-
-        const modulosInfo = Array.from(modulosDelPedido.values());
-        // LOG ESPECÍFICO para pedidos con módulos
-        if (modulosInfo.length > 0) {
-          const conInfoEspecial = modulosInfo.filter(m => m.solape || m.guias || m.cristal);
-          if (conInfoEspecial.length > 0) {
-            //   console.log(`[PEDIDO] ${pedido}: ${conInfoEspecial.length}/${modulosInfo.length} módulos con info especial`,
-            //     conInfoEspecial.map(m => `${m.Serie}-${m.Numero}-${m.Linea}`));
-          }
-        }
-
-
       });
 
       const modulosInfo = Array.from(modulosDelPedido.values());
@@ -469,74 +503,103 @@ export default function ControlTerminalesScreen() {
       const pedidoInfo = pedidosData.find(p => normalizarPedido(p.NoPedido) === pedido);
 
       // Calcular métricas
-      const totalTiempo = records.reduce((sum, r) => sum + (r.TiempoDedicado || 0), 0);
+      const totalTiempo = recordsPedido.reduce((sum, r) => sum + (r.TiempoDedicado || 0), 0);
       const operarios = new Set(
-        records.map(r => operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario))
+        recordsPedido.map(r => operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario))
       );
       const fechas = new Set(
-        records.map(r => formatDateOnly(r.FechaInicio || r.Fecha)).filter(f => f !== '-')
+        recordsPedido.map(r => formatDateOnly(r.FechaInicio || r.Fecha)).filter(f => f !== '-')
       );
+
+      // Info adicional del lote
+      const primeraLinea = lineas[0];
 
       pedidosIntegradosTemp.push({
         NumeroManual: pedido,
-        tiempoRecords: records,
+        tiempoRecords: recordsPedido,
         pedidoInfo,
         modulosInfo,
         totalTiempo,
         operarios,
-        fechas
+        fechas,
+        cliente: primeraLinea?.Cliente,
+        descripcion: primeraLinea?.Descripcion,
+        fechaInicio: primeraLinea?.FechaRealInicio
       });
     }
 
     console.log(`[LOG] ✅ Procesamiento completo: ${pedidosIntegradosTemp.length} pedidos`);
 
     pedidosIntegradosTemp.sort((a, b) => b.totalTiempo - a.totalTiempo);
-    setPedidosIntegrados(pedidosIntegradosTemp);
 
-    // PRUEBA: Verificar un pedido específico
-    const pedidoPrueba = pedidosIntegradosTemp.find(p => p.NumeroManual === '2025_40_834');
-    if (pedidoPrueba) {
-      console.log(`[TEST] 🔍 Pedido 2025_40_834:`, {
-        totalRegistros: pedidoPrueba.tiempoRecords.length,
-        modulos: pedidoPrueba.modulosInfo.map(m => ({
-          id: `${m.Serie}-${m.Numero}-${m.Linea}`,
-          solape: m.solape,
-          guias: m.guias,
-          cristal: m.cristal
-        }))
-      });
+    if (isLoadMore) {
+      setPedidosIntegrados(prev => [...prev, ...pedidosIntegradosTemp]);
+    } else {
+      setPedidosIntegrados(pedidosIntegradosTemp);
     }
-
-
-
   }
 
+  // Búsqueda con debounce
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleSearch = (text: string) => {
+    setSearchInput(text);
+    
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
 
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchQuery(text);
+      setPagination(prev => ({ ...prev, offset: 0 }));
+      fetchAllData(false);
+    }, 500);
+  };
 
-  // Filtrar por búsqueda
+  // Cargar más pedidos
+  const handleLoadMore = () => {
+    if (!isLoadingMore && pagination.hasMore) {
+      fetchAllData(true);
+    }
+  };
+
+  // Render Footer
+  const renderFooter = () => {
+    if (!isLoadingMore) return null;
+    return (
+      <View style={styles.footerLoader}>
+        <ActivityIndicator size="small" color="#1976D2" />
+        <Text style={styles.footerText}>Cargando más pedidos...</Text>
+      </View>
+    );
+  };
+
+  // Filtrar por búsqueda local (adicional)
   const filteredPedidos = useMemo(() => {
-    const q = (searchQuery || '').toLowerCase();
-    if (!q) return pedidosIntegrados;
+    if (!searchInput) return pedidosIntegrados;
+    const q = searchInput.toLowerCase();
     return pedidosIntegrados.filter(p =>
       p.NumeroManual.toLowerCase().includes(q) ||
       p.pedidoInfo?.Cliente?.toLowerCase().includes(q) ||
+      p.cliente?.toLowerCase().includes(q) ||
       p.pedidoInfo?.RefCliente?.toLowerCase().includes(q) ||
       Array.from(p.operarios).some(op => op.toLowerCase().includes(q))
     );
-  }, [pedidosIntegrados, searchQuery]);
+  }, [pedidosIntegrados, searchInput]);
 
   // ===================== Render principal =====================
   if (authLoading || loadingTiempo || loadingPedidos) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
-        <Text style={{ marginTop: 10, color: COLORS.text }}>
+        <ActivityIndicator size="large" color="#1976D2" />
+        <Text style={styles.loadingText}>
           Cargando datos integrados...
         </Text>
       </View>
     );
   }
+
   if (!authenticated) return null;
+
   if (!allowed) {
     return (
       <View style={styles.center}>
@@ -553,7 +616,10 @@ export default function ControlTerminalesScreen() {
         userNameProp={userData?.nombre || userData?.name || '—'}
         roleProp={userData?.rol || userData?.role || '—'}
         serverReachableOverride={!!authenticated}
-        onRefresh={() => fetchAllData(formatDateOnly(fromDate.toISOString()), formatDateOnly(toDate.toISOString()))}
+        onRefresh={() => {
+          setPagination(prev => ({ ...prev, offset: 0 }));
+          fetchAllData(false);
+        }}
         onUserPress={({ userName, role }) => {
           setModalUser({ userName, role });
           setUserModalVisible(true);
@@ -567,103 +633,48 @@ export default function ControlTerminalesScreen() {
         role={userData?.rol || userData?.role || '—'}
       />
 
-      {/* Filtros de fecha
-      <View style={styles.dateFilterContainer}>
-        {Platform.OS === 'web' ? (
-          <>
-            <View style={styles.dateInputContainer}>
-              <Text style={styles.dateLabel}>Desde</Text>
-              <TextInput
-                style={[styles.dateInput, { color: COLORS.text }]}
-                value={formatDateOnly(fromDate.toISOString())}
-                onChangeText={(v) => {
-                  if (v) setFromDate(new Date(`${v}T00:00:00`));
-                }}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={COLORS.textSecondary}
-              />
-            </View>
-            <View style={styles.dateInputContainer}>
-              <Text style={styles.dateLabel}>Hasta</Text>
-              <TextInput
-                style={[styles.dateInput, { color: COLORS.text }]}
-                value={formatDateOnly(toDate.toISOString())}
-                onChangeText={(v) => {
-                  if (v) setToDate(new Date(`${v}T00:00:00`));
-                }}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={COLORS.textSecondary}
-              />
-            </View>
-          </>
-        ) : (
-          <>
-            <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowFromPicker(true)}>
-              <Text style={styles.dateLabel}>Desde</Text>
-              <View style={styles.dateInput}><Text style={{ color: COLORS.text }}>{formatDateOnly(fromDate.toISOString())}</Text></View>
-            </TouchableOpacity>
-            {showFromPicker && (
-              <DateTimePicker
-                value={fromDate}
-                mode="date"
-                display="calendar"
-                onChange={(event, selectedDate) => {
-                  setShowFromPicker(false);
-                  if (selectedDate) setFromDate(selectedDate);
-                }}
-              />
-            )}
-            <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowToPicker(true)}>
-              <Text style={styles.dateLabel}>Hasta</Text>
-              <View style={styles.dateInput}><Text style={{ color: COLORS.text }}>{formatDateOnly(toDate.toISOString())}</Text></View>
-            </TouchableOpacity>
-            {showToPicker && (
-              <DateTimePicker
-                value={toDate}
-                mode="date"
-                display="calendar"
-                onChange={(event, selectedDate) => {
-                  setShowToPicker(false);
-                  if (selectedDate) setToDate(selectedDate);
-                }}
-              />
-            )}
-          </>
-        )}
-        <TouchableOpacity
-          style={styles.refreshButton}
-          onPress={() => fetchAllData(formatDateOnly(fromDate.toISOString()), formatDateOnly(toDate.toISOString()))}
-        >
-          <Ionicons name="refresh-outline" size={22} color={COLORS.primary} />
-        </TouchableOpacity>
-      </View>
-
-       */}
-
       {/* Búsqueda */}
       <View style={styles.searchContainer}>
         <Ionicons name="search-outline" size={20} color="#757575" />
         <TextInput
           style={styles.searchInput}
           placeholder="Buscar pedido / cliente / operario..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
+          placeholderTextColor="#999999"
+          value={searchInput}
+          onChangeText={handleSearch}
         />
+        {searchInput.length > 0 && (
+          <TouchableOpacity onPress={() => handleSearch('')}>
+            <Ionicons name="close-circle" size={20} color="#757575" />
+          </TouchableOpacity>
+        )}
       </View>
 
-      {loadingModulos && (
-        <View style={{ padding: 10, alignItems: 'center' }}>
-          <ActivityIndicator size="small" color={COLORS.primary} />
-          <Text style={{ color: COLORS.textSecondary, fontSize: 12 }}>Cargando información de módulos...</Text>
+      {/* Info de paginación */}
+      {pagination && pagination.total > 0 && (
+        <View style={styles.paginationInfo}>
+          <Text style={styles.paginationText}>
+            Mostrando {filteredPedidos.length} de {pagination.total} pedidos
+          </Text>
         </View>
       )}
 
-      {/* Lista de pedidos integrados */}
+      {loadingModulos && (
+        <View style={styles.loadingModulosContainer}>
+          <ActivityIndicator size="small" color="#1976D2" />
+          <Text style={styles.loadingModulosText}>Cargando información de módulos...</Text>
+        </View>
+      )}
+
+      {/* Lista de pedidos */}
       <FlatList
         data={filteredPedidos}
         keyExtractor={(item) => item.NumeroManual}
         style={styles.flatList}
         contentContainerStyle={{ paddingBottom: 24 }}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={renderFooter}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.card}
@@ -680,14 +691,28 @@ export default function ControlTerminalesScreen() {
               </View>
             </View>
 
-            {item.pedidoInfo && (
-              <View style={{ marginBottom: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#f0f0f0' }}>
-                <Text style={styles.pedidoInfoText}>Cliente: {item.pedidoInfo.Cliente}</Text>
+            {/* Info del pedido */}
+            <View style={styles.pedidoInfoContainer}>
+              <Text style={styles.pedidoInfoText}>
+                Cliente: {item.pedidoInfo?.Cliente || item.cliente || 'N/A'}
+              </Text>
+              {item.pedidoInfo?.RefCliente && (
                 <Text style={styles.pedidoInfoText}>Ref: {item.pedidoInfo.RefCliente}</Text>
-                <Text style={styles.pedidoInfoText}>Estado: {item.pedidoInfo.EstadoPedido || 'N/A'}</Text>
-              </View>
-            )}
+              )}
+              {item.descripcion && (
+                <Text style={styles.pedidoInfoText}>Desc: {item.descripcion}</Text>
+              )}
+              {item.fechaInicio && (
+                <Text style={styles.pedidoInfoText}>
+                  Inicio: {formatDateOnly(item.fechaInicio)}
+                </Text>
+              )}
+              {item.pedidoInfo?.EstadoPedido && (
+                <Text style={styles.pedidoInfoText}>Estado: {item.pedidoInfo.EstadoPedido}</Text>
+              )}
+            </View>
 
+            {/* Métricas */}
             <View style={styles.cardMetrics}>
               <View style={styles.metricItem}>
                 <Text style={styles.metricLabel}>Módulos</Text>
@@ -719,7 +744,7 @@ export default function ControlTerminalesScreen() {
 
             <View style={styles.statsButton}>
               <Text style={styles.statsButtonText}>Ver detalle completo</Text>
-              <Ionicons name="chevron-forward-outline" size={16} color={COLORS.primary} />
+              <Ionicons name="chevron-forward-outline" size={16} color="#1976D2" />
             </View>
           </TouchableOpacity>
         )}
@@ -737,7 +762,7 @@ export default function ControlTerminalesScreen() {
               Pedido: {selectedPedido?.NumeroManual}
             </Text>
             <TouchableOpacity onPress={() => setDetailModalVisible(false)} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color={COLORS.primary} />
+              <Ionicons name="close" size={24} color="#1976D2" />
             </TouchableOpacity>
           </View>
 
@@ -752,7 +777,7 @@ export default function ControlTerminalesScreen() {
                     <Text style={styles.moduloDetailTitle}>
                       📦 Módulo: {modulo.Serie} - {modulo.Numero} - Línea {modulo.Linea}
                     </Text>
-                    <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+                    <View style={{ flexDirection: 'row', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
                       <View style={[styles.badge, modulo.solape && styles.badgeSuccess]}>
                         <Text style={styles.badgeText}>Solape: {modulo.solape ? '✓' : '✗'}</Text>
                       </View>
@@ -767,12 +792,12 @@ export default function ControlTerminalesScreen() {
                 )}
               />
             ) : (
-              <View style={{ padding: 16 }}>
-                <Text style={{ color: '#888', fontSize: 14 }}>
+              <View style={styles.noModulosContainer}>
+                <Text style={styles.noModulosText}>
                   Este pedido no tiene módulos asociados.
                 </Text>
-                <Text style={{ marginTop: 8, fontWeight: 'bold' }}>
-                  Registros asociados: {selectedPedido.tiempoRecords.length}
+                <Text style={styles.noModulosDetails}>
+                  Registros de tiempo: {selectedPedido.tiempoRecords.length}
                 </Text>
               </View>
             )
@@ -789,74 +814,133 @@ export default function ControlTerminalesScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: '#f5f5f5',
   },
   center: {
-    flex: 1, justifyContent: 'center', alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
   },
   errorText: {
-    color: 'red', fontSize: 16, textAlign: 'center',
+    color: '#d32f2f',
+    fontSize: 16,
+    textAlign: 'center',
+    fontWeight: '600',
   },
-
-  dateFilterContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: COLORS.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    gap: 12,
-  },
-  dateInputContainer: { flex: 1 },
-  dateLabel: {
-    fontSize: 12, color: COLORS.textSecondary, marginBottom: 4, fontWeight: '600',
-  },
-  dateInput: {
-    borderWidth: 1, borderColor: '#ddd', borderRadius: 8,
-    paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#fff',
-    color: COLORS.text,
-  },
-  refreshButton: {
-    padding: 8, borderRadius: 8, backgroundColor: COLORS.surface, elevation: 2,
+  loadingText: {
+    marginTop: 10,
+    color: '#333333',
+    fontSize: 14,
   },
 
   searchContainer: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.surface,
-    marginHorizontal: 12, marginVertical: 8,
-    paddingHorizontal: 12, borderRadius: 8,
-    elevation: 2, shadowColor: '#000',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    marginHorizontal: 12,
+    marginVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    elevation: 2,
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1, shadowRadius: 2,
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   searchInput: {
-    flex: 1, height: 40, marginLeft: 8, color: '#333', fontSize: 14,
+    flex: 1,
+    height: 40,
+    marginLeft: 8,
+    color: '#333333',
+    fontSize: 14,
   },
 
-  flatList: { flex: 1, paddingHorizontal: 12 },
+  paginationInfo: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  paginationText: {
+    fontSize: 12,
+    color: '#666666',
+    fontWeight: '500',
+  },
+
+  loadingModulosContainer: {
+    padding: 10,
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+  },
+  loadingModulosText: {
+    color: '#666666',
+    fontSize: 12,
+    marginTop: 4,
+  },
+
+  footerLoader: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  footerText: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#666666',
+  },
+
+  flatList: {
+    flex: 1,
+    paddingHorizontal: 12,
+  },
+
   card: {
-    backgroundColor: '#fff', marginVertical: 6, padding: 16, borderRadius: 12,
-    elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1, shadowRadius: 4,
+    backgroundColor: '#ffffff',
+    marginVertical: 6,
+    padding: 16,
+    borderRadius: 12,
+    elevation: 3,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12
+    marginBottom: 12,
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: '#1976D2',
     flex: 1,
-    marginRight: 8
+    marginRight: 8,
   },
-  cardStats: { alignItems: 'flex-end' },
-  cardTime: { fontSize: 16, fontWeight: 'bold', color: '#2d3748' },
-  cardCount: { fontSize: 12, color: '#718096', marginTop: 2 },
+  cardStats: {
+    alignItems: 'flex-end',
+  },
+  cardTime: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2d3748',
+  },
+  cardCount: {
+    fontSize: 12,
+    color: '#718096',
+    marginTop: 2,
+  },
 
+  pedidoInfoContainer: {
+    marginBottom: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
   pedidoInfoText: {
     fontSize: 13,
     color: '#4a5568',
@@ -881,13 +965,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#718096',
     fontWeight: '600',
-    marginBottom: 2
+    marginBottom: 2,
   },
   metricValue: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#2d3748'
+    color: '#2d3748',
   },
+
   statsButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -898,14 +983,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   statsButtonText: {
-    color: COLORS.primary,
+    color: '#1976D2',
     fontWeight: '600',
-    marginRight: 4
+    marginRight: 4,
   },
 
   modalContainer: {
     flex: 1,
-    backgroundColor: COLORS.background
+    backgroundColor: '#f5f5f5',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -915,35 +1000,36 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
-    backgroundColor: COLORS.surface,
+    backgroundColor: '#ffffff',
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.primary
+    color: '#1976D2',
   },
   closeButton: {
-    padding: 8
+    padding: 8,
   },
 
   moduloDetailCard: {
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     elevation: 2,
-    shadowColor: '#000',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
     borderLeftWidth: 4,
-    borderLeftColor: COLORS.primary,
+    borderLeftColor: '#1976D2',
   },
   moduloDetailTitle: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#2d3748',
   },
+
   badge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -957,5 +1043,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#374151',
+  },
+
+  noModulosContainer: {
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  noModulosText: {
+    color: '#888888',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  noModulosDetails: {
+    marginTop: 8,
+    fontWeight: 'bold',
+    color: '#333333',
+    fontSize: 14,
   },
 });
