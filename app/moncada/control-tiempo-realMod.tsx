@@ -61,6 +61,23 @@ type TiempoRealRecord = {
   TiempoDedicado?: number | null;
   Abierta?: number | null;
   TipoTarea?: number | null;
+  // ✨ Nuevos campos de info-para-terminales
+  Serie1Desc?: string | null;
+  ClienteNombre?: string | null;
+  Fabricacion?: string | null; // CodigoSerie-CodigoNumero
+};
+
+// Tipo para la respuesta de info-para-terminales
+type InfoParaTerminalesResponse = {
+  status: string;
+  codigoPresupuesto: string;
+  clienteNombre: string;
+  modulos: Array<{
+    Serie1Desc: string;
+    CodigoSerie: string;
+    CodigoNumero: number;
+    Modulo: string;
+  }>;
 };
 
 interface UserData {
@@ -154,11 +171,13 @@ const { authenticated, loading: authLoading } = useAuth();
   // tiempo real
   const [tiempoRecords, setTiempoRecords] = useState<TiempoRealRecord[]>([]);
   const [loadingTiempo, setLoadingTiempo] = useState(false);
-  const [filterMode, setFilterMode] = useState<'operador' | 'tarea' | 'pedido'>('operador');
+  const [filterMode, setFilterMode] = useState<'operador' | 'tarea' | 'pedido' | 'serie'>('operador');
   const [groupedList, setGroupedList] = useState<any[]>([]);
-  const [counts, setCounts] = useState<{ operador: number; tarea: number; pedido: number }>({ operador: 0, tarea: 0, pedido: 0 });
+  const [counts, setCounts] = useState<{ operador: number; tarea: number; pedido: number; serie: number }>({ operador: 0, tarea: 0, pedido: 0, serie: 0 });
   // ✅ OPTIMIZACIÓN: Estado para estadísticas del backend
-  const [backendStats, setBackendStats] = useState<{ total?: number; abiertas?: number; operadoresUnicos?: number; tareasUnicas?: number; pedidosUnicos?: number } | null>(null);
+  const [backendStats, setBackendStats] = useState<{ total?: number; abiertas?: number; operadoresUnicos?: number; tareasUnicas?: number; pedidosUnicos?: number; seriesUnicas?: number } | null>(null);
+  // ✨ Estado para información adicional de terminales (ClienteNombre, Serie1Desc, etc.)
+  const [infoTerminalesMap, setInfoTerminalesMap] = useState<Map<string, { clienteNombre: string; serie1Desc: string; fabricacion: string }>>(new Map());
   // cache para polling incremental: key -> record
   const cacheRef = React.useRef<Map<string, TiempoRealRecord>>(new Map());
   // contador de consultas
@@ -192,34 +211,38 @@ const { authenticated, loading: authLoading } = useAuth();
     const operadorSet = new Set<string>();
     const tareaSet = new Set<string>();
     const pedidoSet = new Set<string>();
+    const serieSet = new Set<string>();
     for (const r of m.values()) {
       operadorSet.add(operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario));
       tareaSet.add(String(r.CodigoTarea ?? 'SIN_TAREA'));
       pedidoSet.add(String(r.NumeroManual ?? 'SIN_PEDIDO'));
+      serieSet.add(String(r.Serie1Desc ?? 'SIN_SERIE'));
     }
-    setCounts({ operador: operadorSet.size, tarea: tareaSet.size, pedido: pedidoSet.size });
+    setCounts({ operador: operadorSet.size, tarea: tareaSet.size, pedido: pedidoSet.size, serie: serieSet.size });
   }, [fetchCount, backendStats]);
   // highlight groups that changed recently
   const [highlightedGroups, setHighlightedGroups] = useState<Record<string, boolean>>({});
   const highlightTimeoutsRef = React.useRef<number[]>([]);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [detailList, setDetailList] = useState<TiempoRealRecord[]>([]);
-  const [modalCounts, setModalCounts] = useState<{ operador: number; tarea: number; pedido: number }>({ operador: 0, tarea: 0, pedido: 0 });
+  const [modalCounts, setModalCounts] = useState<{ operador: number; tarea: number; pedido: number; serie: number }>({ operador: 0, tarea: 0, pedido: 0, serie: 0 });
   // compute modal counts whenever detailList changes
   useEffect(() => {
     const op = new Set<string>();
     const ta = new Set<string>();
     const pe = new Set<string>();
+    const se = new Set<string>();
     for (const r of detailList) {
       op.add(operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario));
       ta.add(String(r.CodigoTarea ?? 'SIN_TAREA'));
       pe.add(String(r.NumeroManual ?? 'SIN_PEDIDO'));
+      se.add(String(r.Serie1Desc ?? 'SIN_SERIE'));
     }
-    setModalCounts({ operador: op.size, tarea: ta.size, pedido: pe.size });
+    setModalCounts({ operador: op.size, tarea: ta.size, pedido: pe.size, serie: se.size });
   }, [detailList]);
   const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
-  const [modalContext, setModalContext] = useState<'operador' | 'tarea' | 'pedido' | null>(null);
-  const [modalGroupBy, setModalGroupBy] = useState<'none' | 'operador' | 'tarea' | 'pedido'>('none');
+  const [modalContext, setModalContext] = useState<'operador' | 'tarea' | 'pedido' | 'serie' | null>(null);
+  const [modalGroupBy, setModalGroupBy] = useState<'none' | 'operador' | 'tarea' | 'pedido' | 'serie'>('none');
   const [searchQuery, setSearchQuery] = useState('');
 const [userData, setUserData] = useState<UserData | null>(null);
   
@@ -244,14 +267,15 @@ const [userData, setUserData] = useState<UserData | null>(null);
   const [pollingEnabled, setPollingEnabled] = useState<boolean>(true);
   const pollingEnabledRef = React.useRef<boolean>(true);
   const intervalIdRef = React.useRef<any>(null);
+  const isMountedRef = React.useRef<boolean>(true); // ✅ Track if component is mounted
   useEffect(()=>{ pollingEnabledRef.current = pollingEnabled; }, [pollingEnabled]);
 
   // 🧪 MODO DE PRUEBA: Cambiar fecha para testing (null = hoy, string = fecha específica)
   // Ejemplo: '2025-10-08' para traer datos de ese día
   const [testDate, setTestDate] = useState<string | null>(null);
-  const [testDateInput, setTestDateInput] = useState<string>('2025-10-08');
+  const [testDateInput, setTestDateInput] = useState<string>(new Date().toISOString().split('T')[0]);
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date('2025-10-08'));
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
   // nowTick fuerza rerender en intervalos para actualizar estadisticas en tiempo real
   const [nowTick, setNowTick] = useState<number>(Date.now());
@@ -348,6 +372,105 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
     fetchTiempoReal();
   }, [testDate]);
 
+  // ✨ Función para enriquecer registros con info de info-para-terminales
+  async function enrichRecordsWithTerminalesInfo(records: TiempoRealRecord[]): Promise<TiempoRealRecord[]> {
+    try {
+      console.log(`🚀 [enrichRecords] INICIO - Procesando ${records.length} registros`);
+      
+      // Agrupar registros por NumeroManual
+      const pedidosMap = new Map<string, TiempoRealRecord[]>();
+      let registrosSinPedido = 0;
+      
+      for (const r of records) {
+        const pedido = r.NumeroManual || 'SIN_PEDIDO';
+        if (pedido === 'SIN_PEDIDO') {
+          registrosSinPedido++;
+          continue;
+        }
+        
+        const arr = pedidosMap.get(pedido) || [];
+        arr.push(r);
+        pedidosMap.set(pedido, arr);
+      }
+      
+      console.log(`🔍 [enrichRecords] Agrupación:`, {
+        totalRegistros: records.length,
+        registrosSinPedido,
+        pedidosUnicos: pedidosMap.size,
+        pedidos: Array.from(pedidosMap.keys()).slice(0, 5) // Primeros 5
+      });
+      
+      // Hacer consultas para cada pedido (solo enviando codigoPresupuesto)
+      const enrichPromises = Array.from(pedidosMap.entries()).map(async ([pedido, pedidoRecords]) => {
+        try {
+          // 📤 Solo enviamos codigoPresupuesto, el backend devuelve TODOS los módulos
+          const requestBody = { codigoPresupuesto: pedido };
+          
+          console.log(`📤 [info-terminales] Request pedido ${pedido}`);
+          
+          const response = await fetch(`${API_URL}/control-pedido/info-para-terminales`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+          });
+          
+          if (!response.ok) {
+            console.error(`❌ [info-terminales] Error ${response.status} para pedido ${pedido}`);
+            return;
+          }
+          
+          const data: InfoParaTerminalesResponse = await response.json();
+          
+          if (data.status !== 'ok' || !data.modulos || data.modulos.length === 0) {
+            console.warn(`⚠️ [info-terminales] Sin datos para pedido ${pedido}`);
+            return;
+          }
+          
+          console.log(`📦 [info-terminales] Pedido ${pedido}: ${data.modulos.length} módulos recibidos`);
+          
+          // Crear mapa módulo -> info
+          const moduloInfoMap = new Map<string, { serie1Desc: string; fabricacion: string }>();
+          for (const mod of data.modulos) {
+            const fabricacion = `${mod.CodigoSerie}-${mod.CodigoNumero}`;
+            moduloInfoMap.set(mod.Modulo, {
+              serie1Desc: mod.Serie1Desc,
+              fabricacion
+            });
+          }
+          
+          // Enriquecer registros
+          let enriquecidos = 0;
+          for (const record of pedidoRecords) {
+            const modInfo = moduloInfoMap.get(record.Modulo || '');
+            if (modInfo) {
+              record.ClienteNombre = data.clienteNombre;
+              record.Serie1Desc = modInfo.serie1Desc;
+              record.Fabricacion = modInfo.fabricacion;
+              enriquecidos++;
+            }
+          }
+          
+          console.log(`✅ [info-terminales] Pedido ${pedido}: ${enriquecidos}/${pedidoRecords.length} enriquecidos`);
+          
+        } catch (error) {
+          console.error(`❌ [info-terminales] Error pedido ${pedido}:`, error);
+        }
+      });
+      
+      await Promise.all(enrichPromises);
+      
+      // Resumen final
+      const recordsConCliente = records.filter(r => r.ClienteNombre).length;
+      console.log(`🎯 [enrichRecords] FINAL: ${recordsConCliente}/${records.length} enriquecidos (${Math.round((recordsConCliente / records.length) * 100)}%)`);
+      
+      return records;
+      
+    } catch (error) {
+      console.error('❌ [enrichRecords] Error general:', error);
+      return records;
+    }
+  }
+
   // Fetch de tiempo-real desde backend - OPTIMIZADO: Acepta filtros del backend
   async function fetchTiempoReal() {
     try {
@@ -376,10 +499,13 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
       const json = await res.json();
       
       // ✅ OPTIMIZACIÓN: Usar stats del backend
-      const records = json.data || (Array.isArray(json) ? json : []);
+      let records = json.data || (Array.isArray(json) ? json : []);
       const stats = json.stats || null;
       
       console.log(`🔄 [fetchTiempoReal] Recibidos ${records.length} registros`);
+      
+      // ✨ ENRIQUECER REGISTROS con info-para-terminales
+      records = await enrichRecordsWithTerminalesInfo(records);
       
       setTiempoRecords(records as TiempoRealRecord[]);
       
@@ -400,9 +526,10 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
         // Si el backend envía conteos pre-calculados, usarlos
         if (stats.operadoresUnicos !== undefined || stats.tareasUnicas !== undefined || stats.pedidosUnicos !== undefined) {
           setCounts({
-            operador: stats.operadoresUnicos ?? stats.operador,
-            tarea: stats.tareasUnicas ?? stats.tarea,
-            pedido: stats.pedidosUnicos ?? stats.pedido
+            operador: stats.operadoresUnicos ?? stats.operador ?? 0,
+            tarea: stats.tareasUnicas ?? stats.tarea ?? 0,
+            pedido: stats.pedidosUnicos ?? stats.pedido ?? 0,
+            serie: stats.seriesUnicas ?? 0
           });
         }
       }
@@ -450,51 +577,65 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
     return first.toUpperCase();
   };
 
+  // 🍽️ Helper para calcular solapamiento con pausa de comida (09:30-10:00)
+  // Retorna los segundos que deben restarse del TiempoDedicado
+  const calculateBreakOverlap = (record: TiempoRealRecord): number => {
+    try {
+      const fecha = record.FechaInicio || record.Fecha || record.FechaFin;
+      if (!fecha || !record.HoraInicio) return 0;
+
+      const horaInicio = String(record.HoraInicio).trim();
+      const horaFin = record.HoraFin ? String(record.HoraFin).trim() : null;
+
+      // Parsear fechas
+      const inicio = new Date(`${fecha}T${horaInicio.length === 5 ? horaInicio + ':00' : horaInicio}`);
+      const breakStart = new Date(fecha + 'T09:30:00');
+      const breakEnd = new Date(fecha + 'T10:00:00');
+
+      if (isNaN(inicio.getTime())) return 0;
+
+      // Determinar hora de fin del fichaje
+      let fin: Date;
+      if (horaFin && horaFin !== '-' && horaFin !== '') {
+        fin = new Date(`${fecha}T${horaFin.length === 5 ? horaFin + ':00' : horaFin}`);
+      } else {
+        // Si está abierto, usar hora actual o máximo 14:00 (fin jornada)
+        const now = new Date();
+        const maxEnd = new Date(fecha + 'T14:00:00');
+        fin = now < maxEnd ? now : maxEnd;
+      }
+
+      if (isNaN(fin.getTime())) return 0;
+
+      // Calcular solapamiento: max(0, min(fin, breakEnd) - max(inicio, breakStart))
+      const overlapStart = Math.max(inicio.getTime(), breakStart.getTime());
+      const overlapEnd = Math.min(fin.getTime(), breakEnd.getTime());
+
+      if (overlapEnd > overlapStart) {
+        const overlapSeconds = Math.floor((overlapEnd - overlapStart) / 1000);
+        return overlapSeconds;
+      }
+
+      return 0;
+    } catch (e) {
+      return 0;
+    }
+  };
+
   // 🚨 Helper para detectar problemas en un registro de tiempo
-  const detectTimeIssues = (record: TiempoRealRecord): { hasOpenTime: boolean; overlapsBreak: boolean } => {
+  const detectTimeIssues = (record: TiempoRealRecord): { hasOpenTime: boolean; overlapsBreak: boolean; breakOverlapSeconds: number } => {
     let hasOpenTime = false;
-    let overlapsBreak = false;
 
     // 1️⃣ Detectar tiempo abierto (sin HoraFin)
     if (!record.HoraFin || String(record.HoraFin).trim() === '' || String(record.HoraFin).trim() === '-') {
       hasOpenTime = true;
     }
 
-    // 2️⃣ Detectar solapamiento con pausa de comida (09:30-10:00)
-    try {
-      const fecha = record.FechaInicio || record.Fecha || record.FechaFin;
-      if (fecha && record.HoraInicio) {
-        const horaInicio = String(record.HoraInicio).trim();
-        const horaFin = record.HoraFin ? String(record.HoraFin).trim() : null;
+    // 2️⃣ Calcular solapamiento con pausa de comida (09:30-10:00)
+    const breakOverlapSeconds = calculateBreakOverlap(record);
+    const overlapsBreak = breakOverlapSeconds > 0;
 
-        // Parsear fechas
-        const inicio = new Date(`${fecha}T${horaInicio.length === 5 ? horaInicio + ':00' : horaInicio}`);
-        const breakStart = new Date(fecha + 'T09:30:00');
-        const breakEnd = new Date(fecha + 'T10:00:00');
-
-        if (!isNaN(inicio.getTime())) {
-          // Si no hay hora fin, considerar hasta "ahora" o fin de jornada
-          let fin: Date;
-          if (horaFin && horaFin !== '-') {
-            fin = new Date(`${fecha}T${horaFin.length === 5 ? horaFin + ':00' : horaFin}`);
-          } else {
-            // Si está abierto, usar hora actual o máximo 14:00 (fin jornada)
-            const now = new Date();
-            const maxEnd = new Date(fecha + 'T14:00:00');
-            fin = now < maxEnd ? now : maxEnd;
-          }
-
-          // Verificar solapamiento: (inicio < breakEnd) AND (fin > breakStart)
-          if (!isNaN(fin.getTime()) && inicio < breakEnd && fin > breakStart) {
-            overlapsBreak = true;
-          }
-        }
-      }
-    } catch (e) {
-      // Silenciar errores de parsing
-    }
-
-    return { hasOpenTime, overlapsBreak };
+    return { hasOpenTime, overlapsBreak, breakOverlapSeconds };
   };
 
   // 🚨 Helper para detectar si un grupo tiene algún problema
@@ -513,25 +654,104 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
   // NOTA: Esta función se ejecuta en cada render. Para mejor performance, se debería:
   // 1. Usar useMemo para cachear resultados por grupo
   // 2. O mejor aún, que el backend envíe estas estadísticas pre-calculadas
-  const computeEstadisticaForArray = (arr: TiempoRealRecord[]) => {
+  // ⚙️ IMPORTANTE: El parámetro 'mode' determina si se aplica el límite de jornada
+  //    - 'operador': Aplica límite de 7.5h (un operario no puede superar su jornada)
+  //    - 'tarea'|'pedido'|'serie': NO aplica límite (múltiples operarios pueden trabajar)
+  const computeEstadisticaForArray = (arr: TiempoRealRecord[], mode?: 'operador'|'tarea'|'pedido'|'serie') => {
     // Devuelve lo acumulado (activo/status/remaining). El cálculo dependiente del tiempo
     // transcurrido se hará en render usando `nowTick` para evitar recalcular en helper.
     let active = 0;
     let hasOpen = false;
+    let totalBreakTimeDeducted = 0; // 🍽️ Tiempo total de pausa descontado
+    
+    // 🔍 DEBUG: Array para rastrear cada suma
+    const detallesSuma: Array<{operario?: string, tarea?: string, tiempo: number, breakOverlap: number, tiempoAjustado: number, valido: boolean}> = [];
+    
     for (const it of arr) {
       const v = it.TiempoDedicado ?? 0;
-      if (typeof v === 'number' && !isNaN(v)) active += v;
+      const esValido = typeof v === 'number' && !isNaN(v) && v >= 0;
+      
+      // 🍽️ IMPORTANTE: Calcular solapamiento con pausa de comida y restar
+      const issues = detectTimeIssues(it);
+      const breakOverlap = issues.breakOverlapSeconds;
+      
+      // 🍽️ Ajustar el tiempo: restar el solapamiento con la pausa
+      const tiempoAjustado = esValido ? Math.max(0, v - breakOverlap) : 0;
+      
+      // 🔍 DEBUG: Guardar detalle de cada registro
+      detallesSuma.push({
+        operario: it.OperarioNombre || it.CodigoOperario,
+        tarea: String(it.CodigoTarea ?? '-'),
+        tiempo: v,
+        breakOverlap,
+        tiempoAjustado,
+        valido: esValido
+      });
+      
+      if (esValido) {
+        active += tiempoAjustado; // ✅ Sumar el tiempo ajustado (sin pausa)
+        totalBreakTimeDeducted += breakOverlap;
+      }
+      
       if ((it as any).Abierta === 1 || !it.HoraFin || !it.FechaFin) {
         hasOpen = true;
       }
     }
-    const jornadaSeconds = JORNADA_SECONDS || 7.5 * 3600;
-    const remaining = Math.max(0, jornadaSeconds - active);
+    
+    const jornadaSeconds = JORNADA_SECONDS || 7.5 * 3600; // 27000 segundos = 7.5 horas
+    
+    // ⚠️ VALIDACIÓN: Verificar si el tiempo activo supera la jornada
+    // 🔑 CLAVE: Solo validar límite si es agrupación por OPERADOR
+    const excedeLimite = mode === 'operador' ? active > jornadaSeconds : false;
+    
+    // 🔍 DEBUG: Log detallado de la suma
+    if (debugLogs && arr.length > 0) {
+      const primeraKey = arr[0]?.OperarioNombre || arr[0]?.CodigoOperario || arr[0]?.CodigoTarea || 'GRUPO';
+      const registrosConPausa = detallesSuma.filter(d => d.breakOverlap > 0).length;
+      
+      console.log(`[DEBUG computeEstadisticaForArray] ${mode || 'unknown'} - ${primeraKey}:`, {
+        registros: arr.length,
+        sumaTotal: active,
+        sumaTotalHoras: (active / 3600).toFixed(2) + 'h',
+        jornadaMaxima: mode === 'operador' ? jornadaSeconds : 'sin límite',
+        jornadaMaximaHoras: mode === 'operador' ? (jornadaSeconds / 3600).toFixed(2) + 'h' : 'sin límite',
+        excedeLimite: mode === 'operador' ? excedeLimite : 'no aplica',
+        aplicaLimiteJornada: mode === 'operador',
+        // 🍽️ Información de pausa de comida
+        pausaDescontada: totalBreakTimeDeducted,
+        pausaDescontadaMinutos: Math.floor(totalBreakTimeDeducted / 60) + 'min',
+        fichajosConPausa: registrosConPausa,
+        tiemposIndividuales: detallesSuma.slice(0, 3).map(d => ({
+          ...d,
+          breakOverlapMin: d.breakOverlap > 0 ? Math.floor(d.breakOverlap / 60) + 'min' : '0min'
+        })),
+        totalRegistrosValidos: detallesSuma.filter(d => d.valido).length
+      });
+      
+      // 🍽️ INFO: Si se descontó tiempo de pausa
+      if (totalBreakTimeDeducted > 0) {
+        console.log(`🍽️ [INFO] ${primeraKey} - Descontados ${Math.floor(totalBreakTimeDeducted / 60)} minutos de pausa de comida en ${registrosConPausa} fichaje(s)`);
+      }
+      
+      // ⚠️ ALERTA: Si excede el límite (solo para operadores)
+      if (excedeLimite && mode === 'operador') {
+        console.warn(`⚠️ [ALERTA] ${primeraKey} EXCEDE LA JORNADA: ${(active / 3600).toFixed(2)}h > 7.5h`);
+      }
+    }
+    
+    // 🔑 CLAVE: Solo calcular "tiempo restante" si es agrupación por OPERADOR
+    // Para tarea/pedido/serie, el "restante" no tiene sentido (múltiples operarios)
+    const remaining = mode === 'operador' ? Math.max(0, jornadaSeconds - active) : 0;
     const status: 'parcial' | 'total' = hasOpen ? 'parcial' : 'total';
+    
     return {
       activeSeconds: Math.floor(active),
       status,
       remainingSeconds: Math.floor(remaining),
+      excedeLimite, // ⚠️ Campo para detectar excesos (solo relevante en modo operador)
+      breakTimeDeducted: Math.floor(totalBreakTimeDeducted), // 🍽️ Tiempo de pausa descontado
+      recordsWithBreak: detallesSuma.filter(d => d.breakOverlap > 0).length, // 🍽️ Registros con pausa
+      mode, // 🔑 Guardar el modo para referencia posterior
     };
   };
 
@@ -545,15 +765,50 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
   };
 
   // Calcular elapsed desde 06:30 hasta `now`, capear por jornada y excluir solapamiento con la pausa de comida 09:30-10:00 (30 minutos)
+  // 🔧 CORREGIDO: Si estamos viendo datos históricos (testDate), usar la jornada completa
   const computeEffectiveElapsed = (nowDate?: Date) => {
     const now = nowDate ? new Date(nowDate) : new Date();
+    
+    // 🔧 Si estamos viendo una fecha de prueba diferente a hoy, asumir jornada completa
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const isHistoricalData = testDate && testDate !== todayStr;
+    
+    // 🔍 DEBUG: Log para verificar si es histórico
+    if (debugLogs && testDate) {
+      console.log('[DEBUG computeEffectiveElapsed] Verificando fecha:', {
+        testDate,
+        todayStr,
+        isHistoricalData
+      });
+    }
+    
+    if (isHistoricalData) {
+      // Para datos históricos, retornar la jornada completa (ya finalizó)
+      const jornadaCompleta = JORNADA_SECONDS || 7.5 * 3600;
+      const breakDuration = 30 * 60; // 30 minutos de pausa
+      if (debugLogs) {
+        console.log('[DEBUG computeEffectiveElapsed] Usando jornada histórica completa:', {
+          jornadaCompleta,
+          breakDuration,
+          effective: jornadaCompleta - breakDuration
+        });
+      }
+      return { 
+        total: jornadaCompleta, 
+        breakOverlap: breakDuration, 
+        effective: jornadaCompleta - breakDuration 
+      };
+    }
+    
+    // Para datos del día actual, calcular normalmente
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 30, 0);
     let total = Math.floor((now.getTime() - start.getTime()) / 1000);
     if (total < 0) total = 0;
     if (total > (JORNADA_SECONDS || 7.5 * 3600)) total = JORNADA_SECONDS || 7.5 * 3600;
 
     const breakStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 30, 0);
-  const breakEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 0, 0);
+    const breakEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 0, 0);
     const overlapStart = Math.max(start.getTime(), breakStart.getTime());
     const overlapEnd = Math.min(now.getTime(), breakEnd.getTime());
     let breakOverlap = 0;
@@ -561,15 +816,28 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
     if (breakOverlap > total) breakOverlap = total;
 
     const effective = Math.max(0, total - breakOverlap);
+    
+    // 🔍 DEBUG: Log para verificar cálculos de elapsed
+    if (debugLogs) {
+      console.log('[DEBUG computeEffectiveElapsed] Cálculo normal (hoy):', {
+        nowTime: now.toLocaleTimeString(),
+        startTime: start.toLocaleTimeString(),
+        total,
+        breakOverlap,
+        effective
+      });
+    }
+    
     return { total, breakOverlap, effective };
   };
 
-  const computeGroupsFromMap = (m: Map<string, TiempoRealRecord>, mode: 'operador'|'tarea'|'pedido') => {
+  const computeGroupsFromMap = (m: Map<string, TiempoRealRecord>, mode: 'operador'|'tarea'|'pedido'|'serie') => {
     const map = new Map<string, TiempoRealRecord[]>();
     for (const r of m.values()) {
       let key = 'SIN';
       if (mode === 'operador') key = operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario);
       else if (mode === 'tarea') key = (r.CodigoTarea || 'SIN_TAREA').toString();
+      else if (mode === 'serie') key = (r.Serie1Desc || 'SIN_SERIE').toString();
       else key = (r.NumeroManual || 'SIN_PEDIDO').toString();
 
       const arr = map.get(key) || [];
@@ -580,7 +848,8 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
     const groups: any[] = [];
     for (const [k, arr] of map.entries()) {
       const last = arr.reduce((a, b) => (recordTimestamp(a) > recordTimestamp(b) ? a : b));
-      const estadistica = computeEstadisticaForArray(arr);
+      // 🔑 CLAVE: Pasar el modo para aplicar correctamente el límite de jornada
+      const estadistica = computeEstadisticaForArray(arr, mode);
       const hasIssues = groupHasIssues(arr); // 🚨 Detectar problemas
       groups.push({ key: k, last, count: arr.length, estadistica, hasIssues, items: arr });
     }
@@ -631,6 +900,12 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
   // Polling tick: fetch rows, diff against cacheRef, update cacheRef and groupedList incrementally
   // OPTIMIZADO: Backend ahora retorna { data, stats }
   async function tick() {
+    // ✅ GUARD: No ejecutar si polling está deshabilitado o componente desmontado
+    if (!pollingEnabledRef.current) {
+      console.log('[tiempo-real] ⏸️ tick cancelado - polling deshabilitado');
+      return;
+    }
+    
     try {
       fetchCountRef.current += 1;
       setFetchCount(fetchCountRef.current);
@@ -657,13 +932,16 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
       const json = await res.json();
       
       // ✅ OPTIMIZACIÓN: Extraer y usar stats del backend
-      const rows = json.data || (Array.isArray(json) ? json : []);
+      let rows = json.data || (Array.isArray(json) ? json : []);
       const stats = json.stats || null;
       
       if (!Array.isArray(rows)) {
         console.warn('[tiempo-real] payload no es array');
         return;
       }
+
+      // ✨ ENRIQUECER REGISTROS con info-para-terminales (en polling)
+      rows = await enrichRecordsWithTerminalesInfo(rows);
 
       const next = new Map<string, TiempoRealRecord>();
       // track whether any change ocurred
@@ -705,7 +983,8 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
             setCounts({
               operador: stats.operadoresUnicos ?? counts.operador,
               tarea: stats.tareasUnicas ?? counts.tarea,
-              pedido: stats.pedidosUnicos ?? counts.pedido
+              pedido: stats.pedidosUnicos ?? counts.pedido,
+              serie: stats.seriesUnicas ?? counts.serie
             });
           }
         }
@@ -719,6 +998,10 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
 
   // start polling when component mounts
   useEffect(() => {
+    // ✅ Mark component as mounted
+    isMountedRef.current = true;
+    console.log('[tiempo-real] 🚀 Component mounted');
+    
     // helper to compute current tick interval
     const getIntervalMs = () => (typeof document !== 'undefined' && (document as any).hidden) ? 15000 : 4000;
 
@@ -762,10 +1045,13 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
           const json = await res.json();
           
           // ✅ OPTIMIZACIÓN: Usar stats del backend desde la carga inicial
-          const rows = json.data || (Array.isArray(json) ? json : []);
+          let rows = json.data || (Array.isArray(json) ? json : []);
           const stats = json.stats || null;
           
           if (Array.isArray(rows)) {
+            // ✨ ENRIQUECER REGISTROS con info-para-terminales (en carga inicial)
+            rows = await enrichRecordsWithTerminalesInfo(rows);
+            
             const m = new Map<string, TiempoRealRecord>();
             for (const r of rows) m.set(keyForRecord(r), r);
             cacheRef.current = m;
@@ -784,7 +1070,8 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
                 setCounts({
                   operador: stats.operadoresUnicos ?? 0,
                   tarea: stats.tareasUnicas ?? 0,
-                  pedido: stats.pedidosUnicos ?? 0
+                  pedido: stats.pedidosUnicos ?? 0,
+                  serie: stats.seriesUnicas ?? 0
                 });
               }
             }
@@ -804,13 +1091,25 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
       }
     })();
 
+    // ✅ CLEANUP: Limpiar todo al desmontar el componente
     return () => {
-      if (intervalIdRef.current) clearInterval(intervalIdRef.current);
+      console.log('[tiempo-real] 🛑 COMPONENT UNMOUNTING - Cleaning up...');
+      isMountedRef.current = false; // ✅ Mark as unmounted
+      pollingEnabledRef.current = false; // ✅ Disable polling
+      
+      if (intervalIdRef.current) {
+        clearInterval(intervalIdRef.current);
+        intervalIdRef.current = null;
+        console.log('[tiempo-real] ✅ Polling interval cleared');
+      }
       if (typeof document !== 'undefined') {
         document.removeEventListener('visibilitychange', onVisibility);
+        console.log('[tiempo-real] ✅ Visibility listener removed');
       }
       // clear any pending highlight timeouts
       for (const t of highlightTimeoutsRef.current) clearTimeout(t);
+      highlightTimeoutsRef.current = [];
+      console.log('[tiempo-real] ✅ All cleanup completed');
     };
   }, [testDate]); // 🧪 Re-ejecutar cuando cambia testDate
 
@@ -829,7 +1128,14 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
       if (intervalIdRef.current) { clearInterval(intervalIdRef.current); intervalIdRef.current = null; }
       console.log('[tiempo-real] polling disabled by toggle');
     }
-    return () => {};
+    // ✅ CLEANUP: Limpiar interval al desmontar o cambiar pollingEnabled
+    return () => {
+      if (intervalIdRef.current) { 
+        clearInterval(intervalIdRef.current); 
+        intervalIdRef.current = null; 
+        console.log('[tiempo-real] polling cleanup - toggle effect');
+      }
+    };
   }, [pollingEnabled]);
   // Removed other endpoint handlers (modules, operarios, tareas) — this screen only uses tiempo-real
 
@@ -1217,12 +1523,46 @@ if (!allowed) {
                 </Text>
               </TouchableOpacity>
             )}
+            {modalContext !== 'serie' && (
+              <TouchableOpacity 
+                style={[
+                  styles.filterButton, 
+                  modalGroupBy === 'serie' && styles.filterButtonActive, 
+                  isMobile && { 
+                    flex: 1, 
+                    paddingVertical: 16, 
+                    paddingHorizontal: 16,
+                    backgroundColor: modalGroupBy === 'serie' ? COLORS.primary : '#f0f0f0',
+                    borderWidth: 2,
+                    borderColor: modalGroupBy === 'serie' ? COLORS.primary : '#ddd',
+                    borderRadius: 10,
+                  }
+                ]} 
+                onPress={() => setModalGroupBy(modalGroupBy === 'serie' ? 'none' : 'serie')}
+              >
+                <Text style={[
+                  styles.filterText, 
+                  modalGroupBy === 'serie' && styles.filterTextActive,
+                  isMobile && { 
+                    fontSize: 10, 
+                    fontWeight: '700',
+                    textAlign: 'center',
+                    color: modalGroupBy === 'serie' ? '#ffffff' : '#333333',
+                  }
+                ]}>
+                  Agrupar por Serie{modalCounts.serie ? ` · ${modalCounts.serie}` : ''}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {modalGroupBy === 'none' ? (
             <FlatList
               data={detailList}
               keyExtractor={(it, idx) => `${it.NumeroManual ?? 'nm'}-${idx}-${it.Fecha ?? ''}-${it.HoraInicio ?? ''}`}
+              nestedScrollEnabled={true}
+              removeClippedSubviews={Platform.OS === 'android'}
+              contentContainerStyle={{ paddingBottom: 20 }}
               renderItem={({ item }) => {
                 const issues = detectTimeIssues(item);
                 const hasAnyIssue = issues.hasOpenTime || issues.overlapsBreak;
@@ -1243,6 +1583,21 @@ if (!allowed) {
                       {modalContext !== 'pedido' && `${item.NumeroManual}`}
                       {' · '}{item.Modulo} · {item.CodigoPuesto}
                     </Text>
+                    {/* ✨ Mostrar información adicional: ClienteNombre y Fabricacion */}
+                    {(item.ClienteNombre || item.Fabricacion) && (
+                      <View style={{ marginTop: 6, padding: 6, backgroundColor: '#f0f9ff', borderRadius: 6, borderLeftWidth: 3, borderLeftColor: '#0284c7' }}>
+                        {item.ClienteNombre && (
+                          <Text style={{ color: '#0369a1', fontSize: 12, fontWeight: '600' }}>
+                            👤 Cliente: {item.ClienteNombre}
+                          </Text>
+                        )}
+                        {item.Fabricacion && (
+                          <Text style={{ color: '#0369a1', fontSize: 12, fontWeight: '600', marginTop: 2 }}>
+                            🏭 Fabricación: {item.Fabricacion}
+                          </Text>
+                        )}
+                      </View>
+                    )}
                     {/* 🚨 Mostrar alertas específicas */}
                     {issues.hasOpenTime && (
                       <Text style={{ color: '#dc2626', marginTop: 4, fontSize: 12, fontWeight: '600' }}>
@@ -1271,6 +1626,7 @@ if (!allowed) {
                 if (modalGroupBy === 'operador') key = operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario);
                 else if (modalGroupBy === 'tarea') key = (r.CodigoTarea || 'SIN_TAREA').toString();
                 else if (modalGroupBy === 'pedido') key = (r.NumeroManual || 'SIN_PEDIDO').toString();
+                else if (modalGroupBy === 'serie') key = (r.Serie1Desc || 'SIN_SERIE').toString();
                 const arr = map.get(key) || [];
                 arr.push(r);
                 map.set(key, arr);
@@ -1280,7 +1636,8 @@ if (!allowed) {
               for (const [k, arr] of map.entries()) {
                 const sorted = arr.sort((a,b)=> recordTimestamp(b) - recordTimestamp(a));
                 // calcular estadistica (activo/inactivo/estado/restante/porcentaje)
-                const estadistica = computeEstadisticaForArray(sorted);
+                // 🔑 CLAVE: Pasar modalGroupBy como modo para aplicar correctamente el límite
+                const estadistica = computeEstadisticaForArray(sorted, modalGroupBy as 'operador'|'tarea'|'pedido'|'serie');
                 groups.push({ key: k, items: sorted, estadistica });
               }
               groups.sort((a,b)=> String(a.key).localeCompare(String(b.key)));
@@ -1289,12 +1646,33 @@ if (!allowed) {
                 <FlatList
                   data={groups}
                   keyExtractor={(g) => String(g.key)}
+                  nestedScrollEnabled={true}
+                  removeClippedSubviews={Platform.OS === 'android'}
+                  contentContainerStyle={{ paddingBottom: 20 }}
                   renderItem={({ item: g }) => (
                     <View style={{ marginBottom: 8 }}>
                       <View style={[styles.card, { padding: 10 }]}>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                           <Text style={{ fontWeight: '700', color: COLORS.primary }}>{g.key} <Text style={{ color: '#6b7280' }}>· {g.items.length}</Text></Text>
                           {g.estadistica ? (() => {
+                            // 🔑 CLAVE: Si modalGroupBy NO es 'operador', mostrar "Tiempo de Fabricación"
+                            if (modalGroupBy !== 'operador') {
+                              const tiempoFabricacion = g.estadistica.activeSeconds || 0;
+                              const status = g.estadistica.status || 'total';
+                              return (
+                                <View style={styles.estadisticaContainer}>
+                                  <Text style={styles.estadisticaLabel}>T. Fab.</Text>
+                                  <Text style={[styles.estadisticaValue, { fontSize: 13, fontWeight: '700' }]}>
+                                    {formatHoursMinutes(tiempoFabricacion)}
+                                  </Text>
+                                  <Text style={status === 'parcial' ? styles.estadisticaStatusParcial : styles.estadisticaStatus}>
+                                    {status.toUpperCase()}
+                                  </Text>
+                                </View>
+                              );
+                            }
+
+                            // Caso OPERADOR: Mostrar Act/Inac/Estado/Valor
                             const now = new Date(nowTick);
                             const { total, breakOverlap, effective } = computeEffectiveElapsed(now);
                             let elapsed = effective; // effective elapsed (excluye pausa comida)
@@ -1342,6 +1720,11 @@ if (!allowed) {
                               infoParts.push(String(it.NumeroManual ?? '-'));
                             }
                             
+                            // Solo mostrar serie si NO estamos agrupando por serie Y NO es el contexto original
+                            if (modalGroupBy !== 'serie' && modalContext !== 'serie') {
+                              infoParts.push(String(it.Serie1Desc ?? '-'));
+                            }
+                            
                             // Siempre mostrar Módulo y Puesto ya que nunca son contexto de agrupación
                             infoParts.push(it.Modulo ?? '-');
                             infoParts.push(it.CodigoPuesto ?? '-');
@@ -1355,6 +1738,21 @@ if (!allowed) {
                                   </View>
                                   <Text style={styles.modalItemDate}>{formatDateOnly(it.Fecha)}</Text>
                                 </View>
+                                {/* ✨ Mostrar información adicional: ClienteNombre y Fabricacion */}
+                                {(it.ClienteNombre || it.Fabricacion) && (
+                                  <View style={{ marginTop: 4, padding: 4, backgroundColor: '#f0f9ff', borderRadius: 4, borderLeftWidth: 2, borderLeftColor: '#0284c7' }}>
+                                    {it.ClienteNombre && (
+                                      <Text style={{ color: '#0369a1', fontSize: 10, fontWeight: '600' }}>
+                                        👤 {it.ClienteNombre}
+                                      </Text>
+                                    )}
+                                    {it.Fabricacion && (
+                                      <Text style={{ color: '#0369a1', fontSize: 10, fontWeight: '600', marginTop: 1 }}>
+                                        🏭 {it.Fabricacion}
+                                      </Text>
+                                    )}
+                                  </View>
+                                )}
                                 {/* 🚨 Mostrar alertas específicas */}
                                 {(issues.hasOpenTime || issues.overlapsBreak) && (
                                   <View style={{ marginTop: 4, gap: 2 }}>
@@ -1392,7 +1790,7 @@ if (!allowed) {
 
   {/* Lista agrupada tiempo-real */}
   <View style={{ flex: 1, paddingHorizontal: 12, paddingVertical: 8 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 4 }}>
           <TouchableOpacity style={[styles.filterButton, filterMode === 'operador' && styles.filterButtonActive, isMobile && styles.filterButtonMobile]} onPress={() => setFilterMode('operador')}>
             <Text style={[styles.filterText, filterMode === 'operador' && styles.filterTextActive]}>Operador{filterMode === 'operador' ? ` · ${counts.operador}` : ''}</Text>
           </TouchableOpacity>
@@ -1401,6 +1799,9 @@ if (!allowed) {
           </TouchableOpacity>
           <TouchableOpacity style={[styles.filterButton, filterMode === 'pedido' && styles.filterButtonActive, isMobile && styles.filterButtonMobile]} onPress={() => setFilterMode('pedido')}>
             <Text style={[styles.filterText, filterMode === 'pedido' && styles.filterTextActive]}>Pedido{filterMode === 'pedido' ? ` · ${counts.pedido}` : ''}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.filterButton, filterMode === 'serie' && styles.filterButtonActive, isMobile && styles.filterButtonMobile]} onPress={() => setFilterMode('serie')}>
+            <Text style={[styles.filterText, filterMode === 'serie' && styles.filterTextActive]}>Serie{filterMode === 'serie' ? ` · ${counts.serie}` : ''}</Text>
           </TouchableOpacity>
         </View>
 
@@ -1428,6 +1829,8 @@ if (!allowed) {
                   { key: 'modulo', label: String(last.Modulo ?? '-') },
                   { key: 'dur', label: formatDuration(last.TiempoDedicado ?? null) },
                   { key: 'horas', label: `${last.HoraInicio ?? '-'}→${last.HoraFin ?? '-'}` },
+                  ...(last.ClienteNombre ? [{ key: 'cliente', label: `👤 ${last.ClienteNombre}` }] : []),
+                  ...(last.Fabricacion ? [{ key: 'fab', label: `🏭 ${last.Fabricacion}` }] : []),
                 ];
               } else if (filterMode === 'tarea') {
                 title = item.key; // CodigoTarea
@@ -1436,6 +1839,19 @@ if (!allowed) {
                   { key: 'numero', label: String(last.NumeroManual ?? '-') },
                   { key: 'modulo', label: String(last.Modulo ?? '-') },
                   { key: 'dur', label: formatDuration(last.TiempoDedicado ?? null) },
+                  ...(last.ClienteNombre ? [{ key: 'cliente', label: `👤 ${last.ClienteNombre}` }] : []),
+                  ...(last.Fabricacion ? [{ key: 'fab', label: `🏭 ${last.Fabricacion}` }] : []),
+                ];
+              } else if (filterMode === 'serie') {
+                title = item.key; // Serie1Desc
+                badges = [
+                  { key: 'oper', label: operarioFirstNameKey(last.OperarioNombre || last.CodigoOperario) },
+                  { key: 'tarea', label: String(last.CodigoTarea ?? '-') },
+                  { key: 'numero', label: String(last.NumeroManual ?? '-') },
+                  { key: 'modulo', label: String(last.Modulo ?? '-') },
+                  { key: 'dur', label: formatDuration(last.TiempoDedicado ?? null) },
+                  ...(last.ClienteNombre ? [{ key: 'cliente', label: `👤 ${last.ClienteNombre}` }] : []),
+                  ...(last.Fabricacion ? [{ key: 'fab', label: `🏭 ${last.Fabricacion}` }] : []),
                 ];
               } else {
                 title = item.key; // NumeroManual
@@ -1444,24 +1860,39 @@ if (!allowed) {
                   { key: 'modulo', label: String(last.Modulo ?? '-') },
                   { key: 'puesto', label: String(last.CodigoPuesto ?? '-') },
                   { key: 'dur', label: formatDuration(last.TiempoDedicado ?? null) },
+                  ...(last.ClienteNombre ? [{ key: 'cliente', label: `👤 ${last.ClienteNombre}` }] : []),
+                  ...(last.Fabricacion ? [{ key: 'fab', label: `🏭 ${last.Fabricacion}` }] : []),
                 ];
               }
 
               const isHighlighted = highlightedGroups[item.key];
+              
+              // 🔍 DEBUG: Log para verificar estadísticas
+              // ✅ Solo log si el componente está montado y polling habilitado
+              if (debugLogs && item.estadistica && isMountedRef.current && pollingEnabledRef.current) {
+                console.log(`[DEBUG ${filterMode}] ${item.key}:`, {
+                  activeSeconds: item.estadistica.activeSeconds,
+                  status: item.estadistica.status,
+                  remainingSeconds: item.estadistica.remainingSeconds,
+                  count: item.count
+                });
+              }
+              
               return (
                 <TouchableOpacity key={item.key} style={[styles.card, isHighlighted ? { backgroundColor: '#fff7e6' } : undefined]} onPress={() => {
                   // abrir modal con todos los items del grupo
                   const all = tiempoRecords.filter((r) => {
                     if (filterMode === 'operador') return operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario) === item.key;
                     if (filterMode === 'tarea') return (r.CodigoTarea || 'SIN_TAREA').toString() === item.key;
+                    if (filterMode === 'serie') return (r.Serie1Desc || 'SIN_SERIE').toString() === item.key;
                     return (r.NumeroManual || 'SIN_PEDIDO').toString() === item.key;
                   });
                   setDetailList(all.sort((a,b)=> recordTimestamp(b) - recordTimestamp(a)));
                   setSelectedGroupKey(item.key);
                   setModalContext(filterMode);
                   // seleccionar automáticamente el primer botón visible en el modal
-                  const order: Array<'operador'|'tarea'|'pedido'> = ['operador','tarea','pedido'];
-                  let defaultGroup: 'none' | 'operador' | 'tarea' | 'pedido' = 'none';
+                  const order: Array<'operador'|'tarea'|'pedido'|'serie'> = ['operador','tarea','pedido','serie'];
+                  let defaultGroup: 'none' | 'operador' | 'tarea' | 'pedido' | 'serie' = 'none';
                   for (const opt of order) {
                     if (filterMode !== opt) { defaultGroup = opt; break; }
                   }
@@ -1479,6 +1910,12 @@ if (!allowed) {
                         <View style={{ alignItems: 'flex-end' }}>
                           <Text style={{ color: '#6b7280', fontWeight: '600' }}>{item.count}</Text>
                           {item.estadistica ? (() => {
+                            // 🔍 DEBUG: Verificar que estadistica existe
+                            // ✅ Solo log si el componente está montado y polling habilitado
+                            if (debugLogs && !item.estadistica && isMountedRef.current && pollingEnabledRef.current) {
+                              console.log(`[DEBUG ${filterMode}] ${item.key} - NO TIENE ESTADÍSTICA`);
+                            }
+                            
                             const now = new Date(nowTick);
                             const { total, breakOverlap, effective } = computeEffectiveElapsed(now);
                             let elapsed = effective; // effective elapsed (excluye pausa comida)
@@ -1490,6 +1927,34 @@ if (!allowed) {
                               const groupItems = (item as any).items ?? tiempoRecords.filter((r) => (r.CodigoTarea || 'SIN_TAREA').toString() === item.key);
                               const ops = new Set(groupItems.map((x:any) => operarioFirstNameKey(x.OperarioNombre || x.CodigoOperario)));
                               isTareaMultiOperator = ops.size > 1;
+                              
+                              // 🔍 DEBUG: Log para verificar múltiples operarios
+                              // ✅ Solo log si el componente está montado y polling habilitado
+                              if (debugLogs && isTareaMultiOperator && isMountedRef.current && pollingEnabledRef.current) {
+                                console.log(`[DEBUG] Tarea ${item.key} tiene ${ops.size} operarios diferentes:`, Array.from(ops));
+                              }
+                            }
+
+                            // 🔑 CLAVE: Si NO es modo operador (tarea/pedido/serie), mostrar "Tiempo de Fabricación"
+                            // porque son sumas de múltiples operarios, no tiene sentido mostrar activo/inactivo
+                            if (filterMode !== 'operador') {
+                              // Para tarea/pedido/serie: Mostrar tiempo total de fabricación
+                              const tiempoFabricacion = item.estadistica.activeSeconds || 0;
+                              const status = item.estadistica.status || 'total';
+                              
+                              return (
+                                <View style={styles.estadisticaContainerInline}>
+                                  <View style={styles.estadisticaInlineBlock}>
+                                    <Text style={styles.estadisticaLabel}>Tiempo Fab.</Text>
+                                    <Text style={[styles.estadisticaValue, { fontSize: 14, fontWeight: '700' }]}>
+                                      {formatHoursMinutes(tiempoFabricacion)}
+                                    </Text>
+                                  </View>
+                                  <Text style={status === 'parcial' ? styles.estadisticaStatusParcial : styles.estadisticaStatus}>
+                                    {status.toUpperCase()}
+                                  </Text>
+                                </View>
+                              );
                             }
 
                             if (isTareaMultiOperator) {
@@ -1501,18 +1966,62 @@ if (!allowed) {
                               );
                             }
 
-                            // Caso normal: mostrar Act/Inac/Estado/Valor
-                            const inactive = Math.max(0, elapsed - (item.estadistica.activeSeconds || 0));
+                            // Caso normal OPERADOR: mostrar Act/Inac/Estado/Valor
+                            // 🔧 CORRECCIÓN: Calcular correctamente inactivo y exceso
+                            // ⚠️ IMPORTANTE: Inactivo se calcula contra JORNADA_SECONDS (7.5h), NO contra elapsed (7h efectivas)
+                            const jornadaTotalSeconds = JORNADA_SECONDS || 7.5 * 3600; // 27,000 seg = 7h 30m
+                            const rawInactive = jornadaTotalSeconds - (item.estadistica.activeSeconds || 0);
+                            const inactive = Math.max(0, rawInactive);
+                            const exceso = rawInactive < 0 ? Math.abs(rawInactive) : 0; // Tiempo que excede la jornada
+                            // Porcentaje de actividad contra elapsed (7h efectivas para mostrar % realista)
                             const percentActivity = elapsed > 0 ? Math.max(0, Math.min(100, Math.round(((item.estadistica.activeSeconds || 0) / elapsed) * 100))) : 0;
+                            
+                            // ⚠️ Verificar si excede la jornada (acceder al nuevo campo excedeLimite)
+                            const excedeLimite = (item.estadistica as any).excedeLimite || false;
+                            
+                            // 🔍 DEBUG: Log para verificar cálculos finales con validación
+                            // ✅ Solo log si el componente está montado y polling habilitado
+                            if (debugLogs && isMountedRef.current && pollingEnabledRef.current) {
+                              console.log(`[DEBUG ${filterMode}] ${item.key} - Cálculos finales:`, {
+                                jornadaTotal: jornadaTotalSeconds,
+                                jornadaTotalHoras: (jornadaTotalSeconds / 3600).toFixed(2) + 'h',
+                                elapsed,
+                                elapsedHoras: (elapsed / 3600).toFixed(2) + 'h',
+                                activeSeconds: item.estadistica.activeSeconds,
+                                rawInactive,
+                                inactive,
+                                exceso,
+                                percentActivity,
+                                excedeLimite,
+                                formatted_active: formatHoursMinutes(item.estadistica.activeSeconds),
+                                formatted_inactive: formatHoursMinutes(inactive),
+                                formatted_exceso: formatHoursMinutes(exceso),
+                                horasActivo: (item.estadistica.activeSeconds / 3600).toFixed(2) + 'h'
+                              });
+                            }
+                            
                             return (
-                              <View style={styles.estadisticaContainerInline}>
+                              <View style={[styles.estadisticaContainerInline, excedeLimite && { backgroundColor: '#fee2e2', borderColor: '#ef4444', borderWidth: 2 }]}>
                                 <View style={styles.estadisticaInlineBlock}>
                                   <Text style={styles.estadisticaLabel}>Act</Text>
-                                  <Text style={styles.estadisticaValue}>{formatHoursMinutes(item.estadistica.activeSeconds)}</Text>
+                                  <Text style={[styles.estadisticaValue, excedeLimite && { color: '#dc2626', fontWeight: '900' }]}>
+                                    {excedeLimite && '⚠️ '}{formatHoursMinutes(item.estadistica.activeSeconds)}
+                                  </Text>
                                 </View>
                                 <View style={styles.estadisticaInlineBlock}>
-                                  <Text style={styles.estadisticaLabel}>Inac</Text>
-                                  <Text style={styles.estadisticaValue}>{formatHoursMinutes(inactive)}</Text>
+                                  {excedeLimite && exceso > 0 ? (
+                                    <>
+                                      <Text style={[styles.estadisticaLabel, { color: '#dc2626' }]}>Exceso</Text>
+                                      <Text style={[styles.estadisticaValue, { color: '#dc2626', fontWeight: '900' }]}>
+                                        +{formatHoursMinutes(exceso)}
+                                      </Text>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Text style={styles.estadisticaLabel}>Inac</Text>
+                                      <Text style={styles.estadisticaValue}>{formatHoursMinutes(inactive)}</Text>
+                                    </>
+                                  )}
                                 </View>
                                 <Text style={item.estadistica.status === 'parcial' ? styles.estadisticaStatusParcial : styles.estadisticaStatus}>{item.estadistica.status.toUpperCase()}</Text>
                                 <View style={styles.estadisticaInlineBlock}>
@@ -1523,9 +2032,36 @@ if (!allowed) {
                                 </View>
                               </View>
                             );
-                          })() : null}
+                          })() : (
+                            <Text style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>Sin datos de tiempo</Text>
+                          )}
                         </View>
                       </View>
+                      
+                      {/* ⚠️ ALERTA: Mostrar mensaje si excede la jornada (SOLO para modo operador) */}
+                      {filterMode === 'operador' && item.estadistica && (item.estadistica as any).excedeLimite && (
+                        <View style={{ backgroundColor: '#fef2f2', borderLeftWidth: 4, borderLeftColor: '#dc2626', padding: 8, marginTop: 8, borderRadius: 6 }}>
+                          <Text style={{ color: '#dc2626', fontWeight: '700', fontSize: 12 }}>
+                            ⚠️ ALERTA: Tiempo activo excede jornada laboral (máx 7.5h)
+                          </Text>
+                          <Text style={{ color: '#991b1b', fontSize: 11, marginTop: 2 }}>
+                            Total registrado: {formatHoursMinutes(item.estadistica.activeSeconds)} - Revisa posibles duplicados o errores
+                          </Text>
+                        </View>
+                      )}
+                      
+                      {/* 🍽️ INFO: Mostrar mensaje si se descontó tiempo de pausa de comida */}
+                      {item.estadistica && (item.estadistica as any).breakTimeDeducted > 0 && (
+                        <View style={{ backgroundColor: '#f0fdf4', borderLeftWidth: 4, borderLeftColor: '#10b981', padding: 8, marginTop: 8, borderRadius: 6 }}>
+                          <Text style={{ color: '#047857', fontWeight: '700', fontSize: 11 }}>
+                            🍽️ Pausa de comida descontada automáticamente
+                          </Text>
+                          <Text style={{ color: '#065f46', fontSize: 10, marginTop: 2 }}>
+                            {(item.estadistica as any).recordsWithBreak} fichaje(s) con pausa · {formatHoursMinutes((item.estadistica as any).breakTimeDeducted)} descontados
+                          </Text>
+                        </View>
+                      )}
+                      
                       <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 6, gap: 6 }}>
                         {badges.map(b => (
                           <View key={b.key} style={styles.badge}><Text style={styles.badgeText}>{b.label}</Text></View>
@@ -1600,17 +2136,16 @@ if (!allowed) {
                                     </View>
                                   </View>
                                 ))}
-                                {/* Total en móvil */}
+                                {/* Total en móvil - Tiempo de Fabricación */}
                                 <View style={{ backgroundColor: '#f3f4f6', padding: 10, borderRadius: 6, marginTop: 4 }}>
-                                  <Text style={{ fontWeight: '700', fontSize: 14, color: '#1f2937', marginBottom: 4 }}>Total</Text>
+                                  <Text style={{ fontWeight: '700', fontSize: 14, color: '#1f2937', marginBottom: 4 }}>Total Tarea</Text>
                                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                    <Text style={{ fontSize: 12, color: '#6b7280' }}>Activo:</Text>
-                                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#1f2937' }}>{formatHoursMinutes(totalActive)}</Text>
+                                    <Text style={{ fontSize: 12, color: '#6b7280' }}>Tiempo Fabricación:</Text>
+                                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#0284c7' }}>{formatHoursMinutes(totalActive)}</Text>
                                   </View>
-                                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                    <Text style={{ fontSize: 12, color: '#6b7280' }}>Inactivo:</Text>
-                                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#1f2937' }}>{formatHoursMinutes(Math.max(0, elapsed - totalActive))}</Text>
-                                  </View>
+                                  <Text style={{ fontSize: 10, color: '#6b7280', marginTop: 2, fontStyle: 'italic' }}>
+                                    Suma de {rows.length} operario{rows.length > 1 ? 's' : ''}
+                                  </Text>
                                 </View>
                               </>
                             ) : (
@@ -1633,11 +2168,15 @@ if (!allowed) {
                                     <Text style={{ width: 72, textAlign: 'right', color: '#1f2937' }}>{r.percent}%</Text>
                                   </View>
                                 ))}
-                                <View style={{ flexDirection: 'row', paddingVertical: 8, marginTop: 6, borderTopWidth: 1, borderTopColor: '#e6eef6' }}>
-                                  <Text style={{ flex: 2, fontWeight: '800', color: '#1f2937' }}>Total</Text>
-                                  <Text style={{ flex: 1, textAlign: 'right', fontWeight: '800', color: '#1f2937' }}>{formatHoursMinutes(totalActive)}</Text>
-                                  <Text style={{ flex: 1, textAlign: 'right', fontWeight: '800', color: '#1f2937' }}>{formatHoursMinutes(Math.max(0, elapsed - totalActive))}</Text>
-                                  <Text style={{ width: 80, textAlign: 'right', fontWeight: '800', color: '#1f2937' }}>—</Text>
+                                {/* Total desktop - Tiempo de Fabricación */}
+                                <View style={{ flexDirection: 'row', paddingVertical: 8, marginTop: 6, borderTopWidth: 2, borderTopColor: '#0284c7', backgroundColor: '#f0f9ff' }}>
+                                  <Text style={{ flex: 2, fontWeight: '800', color: '#0369a1' }}>Total Tarea (Tiempo Fabricación)</Text>
+                                  <Text style={{ flex: 1, textAlign: 'right', fontWeight: '800', color: '#0369a1', fontSize: 15 }}>{formatHoursMinutes(totalActive)}</Text>
+                                  <Text style={{ flex: 1, textAlign: 'right', fontWeight: '600', color: '#64748b', fontSize: 11, fontStyle: 'italic' }}>
+                                    {rows.length} op{rows.length > 1 ? 's' : ''}
+                                  </Text>
+                                  <Text style={{ width: 80, textAlign: 'right', fontWeight: '800', color: '#0369a1' }}>—</Text>
+                                  <Text style={{ width: 72, textAlign: 'right', fontWeight: '800', color: '#0369a1' }}>—</Text>
                                 </View>
                               </>
                             )}
@@ -1712,17 +2251,16 @@ if (!allowed) {
                                     </View>
                                   </View>
                                 ))}
-                                {/* Total en móvil */}
+                                {/* Total en móvil - Tiempo de Fabricación */}
                                 <View style={{ backgroundColor: '#f3f4f6', padding: 10, borderRadius: 6, marginTop: 4 }}>
-                                  <Text style={{ fontWeight: '700', fontSize: 14, color: '#1f2937', marginBottom: 4 }}>Total</Text>
+                                  <Text style={{ fontWeight: '700', fontSize: 14, color: '#1f2937', marginBottom: 4 }}>Total Pedido</Text>
                                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                    <Text style={{ fontSize: 12, color: '#6b7280' }}>Activo:</Text>
-                                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#1f2937' }}>{formatHoursMinutes(totalActiveT)}</Text>
+                                    <Text style={{ fontSize: 12, color: '#6b7280' }}>Tiempo Fabricación:</Text>
+                                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#7c3aed' }}>{formatHoursMinutes(totalActiveT)}</Text>
                                   </View>
-                                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                                    <Text style={{ fontSize: 12, color: '#6b7280' }}>Inactivo:</Text>
-                                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#1f2937' }}>{formatHoursMinutes(Math.max(0, elapsed - totalActiveT))}</Text>
-                                  </View>
+                                  <Text style={{ fontSize: 10, color: '#6b7280', marginTop: 2, fontStyle: 'italic' }}>
+                                    Suma de {rowsT.length} tarea{rowsT.length > 1 ? 's' : ''}
+                                  </Text>
                                 </View>
                               </>
                             ) : (
@@ -1746,11 +2284,15 @@ if (!allowed) {
                                   </View>
                                 ))}
 
-                                <View style={{ flexDirection: 'row', paddingVertical: 8, marginTop: 6, borderTopWidth: 1, borderTopColor: '#e6eef6' }}>
-                                  <Text style={{ flex: 2, fontWeight: '800', color: '#1f2937' }}>Total</Text>
-                                  <Text style={{ flex: 1, textAlign: 'right', fontWeight: '800', color: '#1f2937' }}>{formatHoursMinutes(totalActiveT)}</Text>
-                                  <Text style={{ flex: 1, textAlign: 'right', fontWeight: '800', color: '#1f2937' }}>{formatHoursMinutes(Math.max(0, elapsed - totalActiveT))}</Text>
-                                  <Text style={{ width: 80, textAlign: 'right', fontWeight: '800', color: '#1f2937' }}>—</Text>
+                                {/* Total desktop - Tiempo de Fabricación */}
+                                <View style={{ flexDirection: 'row', paddingVertical: 8, marginTop: 6, borderTopWidth: 2, borderTopColor: '#7c3aed', backgroundColor: '#faf5ff' }}>
+                                  <Text style={{ flex: 2, fontWeight: '800', color: '#6b21a8' }}>Total Pedido (Tiempo Fabricación)</Text>
+                                  <Text style={{ flex: 1, textAlign: 'right', fontWeight: '800', color: '#6b21a8', fontSize: 15 }}>{formatHoursMinutes(totalActiveT)}</Text>
+                                  <Text style={{ flex: 1, textAlign: 'right', fontWeight: '600', color: '#64748b', fontSize: 11, fontStyle: 'italic' }}>
+                                    {rowsT.length} tarea{rowsT.length > 1 ? 's' : ''}
+                                  </Text>
+                                  <Text style={{ width: 80, textAlign: 'right', fontWeight: '800', color: '#6b21a8' }}>—</Text>
+                                  <Text style={{ width: 72, textAlign: 'right', fontWeight: '800', color: '#6b21a8' }}>—</Text>
                                 </View>
                               </>
                             )}

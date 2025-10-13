@@ -41,6 +41,22 @@ type TiempoRealRecord = {
   TiempoDedicado?: number | null;
   Abierta?: number | null;
   CodigoPuesto?: string | null;
+  Serie1Desc?: string | null; // ✨ Campo para agrupación por serie
+  ClienteNombre?: string | null; // ✨ Campo enriquecido desde info-para-terminales
+  Fabricacion?: string | null; // ✨ Campo enriquecido: CodigoSerie-CodigoNumero
+};
+
+// ✨ Tipo para la respuesta de info-para-terminales
+type InfoParaTerminalesResponse = {
+  status: string;
+  codigoPresupuesto: string;
+  clienteNombre: string;
+  modulos: Array<{
+    Serie1Desc: string;
+    CodigoSerie: string;
+    CodigoNumero: number;
+    Modulo: string;
+  }>;
 };
 
 interface UserData {
@@ -135,10 +151,28 @@ interface PedidoAnalysis {
   fechaFin: string;
   diasTrabajados: number;
 
-  // Eficiencia
+  // 🆕 Estadísticas Avanzadas
   eficienciaPromedio: number; // % de tiempo válido sobre tiempo total
   tiempoPromedioPorOperario: number;
   tiempoPromedioPorTarea: number;
+  tiempoPromedioPorModulo: number; // Tiempo promedio de fabricación por módulo
+  tiempoPromedioPorRegistro: number; // Tiempo promedio por registro
+  tiempoPromedioDiario: number; // Tiempo promedio trabajado por día en este pedido
+  
+  // Productividad del pedido
+  registrosPorOperario: number; // Promedio de registros por operario
+  modulosPorOperario: number; // Promedio de módulos por operario
+  tareasPorOperario: number; // Promedio de tareas por operario
+  operariosPorModulo: number; // Promedio de operarios por módulo
+  tareasPorModulo: number; // Promedio de tareas por módulo
+  
+  // Eficiencia y calidad
+  tasaFichajesCorrectos: number; // % de registros sin fichajes abiertos
+  tasaDentroHorario: number; // % de tiempo dentro del horario laboral
+  velocidadProduccion: number; // Módulos producidos por hora de trabajo válido
+  
+  // Distribución de esfuerzo
+  concentracionTrabajo: number; // Indica si el trabajo está balanceado entre operarios
 }
 
 // ✅ Interface para análisis detallado de tarea
@@ -193,10 +227,27 @@ interface TareaAnalysis {
   fechaFin: string;
   diasTrabajados: number;
 
-  // Eficiencia
+  // 🆕 Estadísticas Avanzadas
   eficienciaPromedio: number;
   tiempoPromedioPorOperario: number;
   tiempoPromedioPorPedido: number;
+  tiempoPromedioPorModulo: number; // Tiempo promedio en cada módulo para esta tarea
+  tiempoPromedioPorRegistro: number; // Tiempo promedio de ejecución de la tarea
+  tiempoPromedioDiario: number; // Tiempo promedio dedicado por día a esta tarea
+  
+  // Productividad de la tarea
+  registrosPorOperario: number; // Promedio de veces que cada operario hace esta tarea
+  pedidosPorOperario: number; // Promedio de pedidos distintos por operario
+  modulosPorOperario: number; // Promedio de módulos distintos por operario
+  operariosPorPedido: number; // Promedio de operarios trabajando en cada pedido
+  
+  // Eficiencia de ejecución
+  tasaFichajesCorrectos: number; // % de registros sin fichajes abiertos
+  tasaDentroHorario: number; // % de tiempo dentro del horario laboral
+  velocidadEjecucion: number; // Registros completados por hora de trabajo válido
+  
+  // Distribución
+  concentracionTrabajo: number; // Indica si está balanceado entre operarios
 }
 
 // ✅ Interface para análisis detallado de operario
@@ -250,15 +301,125 @@ interface OperarioAnalysis {
   fechaFin: string;
   diasTrabajados: number;
 
-  // Eficiencia
+  // 🆕 Estadísticas Avanzadas del Operario
   eficienciaPromedio: number;
   tiempoPromedioPorPedido: number;
   tiempoPromedioPorTarea: number;
+  tiempoPromedioPorModulo: number; // Tiempo promedio en cada módulo
+  tiempoPromedioPorRegistro: number; // Tiempo promedio por fichaje
+  tiempoPromedioDiario: number; // Tiempo promedio trabajado por día
+  
+  // Productividad personal
+  registrosPorDia: number; // Promedio de registros por día trabajado
+  tareasPorDia: number; // Promedio de tareas distintas por día
+  modulosPorDia: number; // Promedio de módulos distintos por día
+  pedidosPorDia: number; // Promedio de pedidos distintos por día
+  
+  // Versatilidad y polivalencia
+  diversidadTareas: number; // Número de tareas distintas (indica polivalencia)
+  diversidadModulos: number; // Número de módulos distintos trabajados
+  tareasPorPedido: number; // Promedio de tareas distintas por pedido
+  
+  // Calidad del trabajo
+  tasaFichajesCorrectos: number; // % de registros sin fichajes abiertos
+  tasaDentroHorario: number; // % de tiempo dentro del horario laboral
+  consistenciaDiaria: number; // Desviación estándar del tiempo por día (menor = más consistente)
+  
+  // Rendimiento comparativo
+  velocidadProduccion: number; // Registros completados por hora de trabajo válido
+}
+
+// ✅ Interface para análisis detallado de serie
+interface SerieAnalysis {
+  serie: string;
+  // Totales generales
+  totalRegistros: number;
+  tiempoTotalReal: number;
+  tiempoTotalValido: number;
+  tiempoFueraTurno: number;
+  fichajesAbiertos: number;
+
+  // Pedidos
+  totalPedidos: number;
+  pedidosDetalle: Array<{
+    nombre: string;
+    tiempo: number;
+    tiempoValido: number;
+    registros: number;
+    operarios: number;
+    modulos: number;
+    porcentaje: number;
+  }>;
+
+  // Módulos
+  totalModulos: number;
+  modulosDetalle: Array<{
+    nombre: string;
+    tiempo: number;
+    tiempoValido: number;
+    registros: number;
+    operarios: number;
+    pedidos: number;
+    porcentaje: number;
+  }>;
+
+  // Operarios
+  totalOperarios: number;
+  operariosDetalle: Array<{
+    nombre: string;
+    tiempo: number;
+    tiempoValido: number;
+    registros: number;
+    modulos: number;
+    pedidos: number;
+    porcentaje: number;
+    tieneAnomalias: boolean;
+  }>;
+
+  // Tareas
+  totalTareas: number;
+  tareasDetalle: Array<{
+    codigo: string;
+    tiempo: number;
+    tiempoValido: number;
+    registros: number;
+    operarios: number;
+    pedidos: number;
+    porcentaje: number;
+  }>;
+
+  // Fechas
+  fechaInicio: string;
+  fechaFin: string;
+  diasTrabajados: number;
+
+  // 🆕 Estadísticas Avanzadas
+  eficienciaPromedio: number;
+  tiempoPromedioPorOperario: number;
+  tiempoPromedioPorTarea: number;
+  tiempoPromedioPorModulo: number; // Tiempo promedio de fabricación por módulo
+  tiempoPromedioPorPedido: number; // Tiempo promedio por pedido
+  tiempoPromedioPorRegistro: number; // Tiempo promedio por registro
+  tiempoPromedioDiario: number; // Tiempo promedio trabajado por día
+  
+  // Productividad
+  registrosPorOperario: number; // Promedio de registros por operario
+  modulosPorOperario: number; // Promedio de módulos trabajados por operario
+  tareasPorOperario: number; // Promedio de tareas distintas por operario
+  operariosPorModulo: number; // Promedio de operarios que trabajan en cada módulo
+  
+  // Distribución de trabajo
+  tasaUtilizacionOperarios: number; // % de tiempo que los operarios están ocupados
+  concentracionTrabajo: number; // Desviación estándar del tiempo por operario (indica si el trabajo está balanceado)
+  
+  // Calidad y consistencia
+  tasaFichajesCorrectos: number; // % de registros sin fichajes abiertos
+  tasaDentroHorario: number; // % de tiempo dentro del horario laboral
 }
 
 // ✅ Interface para modal de detalle de item clickeado
 interface ItemDetail {
-  tipo: 'pedido' | 'modulo' | 'tarea' | 'operario';
+  tipo: 'pedido' | 'modulo' | 'tarea' | 'operario' | 'serie';
   nombre: string;
   contextoPrincipal: string; // Ej: "Análisis de Operario: JOSE"
   registros: TiempoRealRecord[];
@@ -881,11 +1042,36 @@ const analyzePedidoDetailed = (records: TiempoRealRecord[]): PedidoAnalysis => {
   const fechasArray = Array.from(fechasSet).sort();
   const fechaInicio = fechasArray.length > 0 ? fechasArray[0] : '-';
   const fechaFin = fechasArray.length > 0 ? fechasArray[fechasArray.length - 1] : '-';
+  const diasTrabajados = fechasArray.length;
 
-  // Eficiencia
+  // 🆕 Estadísticas Avanzadas del Pedido
   const eficienciaPromedio = tiempoTotalReal > 0 ? (tiempoTotalValido / tiempoTotalReal) * 100 : 0;
   const tiempoPromedioPorOperario = operariosDetalle.length > 0 ? tiempoTotalValido / operariosDetalle.length : 0;
   const tiempoPromedioPorTarea = tareasDetalle.length > 0 ? tiempoTotalValido / tareasDetalle.length : 0;
+  const tiempoPromedioPorModulo = modulosDetalle.length > 0 ? tiempoTotalValido / modulosDetalle.length : 0;
+  const tiempoPromedioPorRegistro = records.length > 0 ? tiempoTotalValido / records.length : 0;
+  const tiempoPromedioDiario = diasTrabajados > 0 ? tiempoTotalValido / diasTrabajados : 0;
+  
+  // Productividad del pedido
+  const registrosPorOperario = operariosDetalle.length > 0 ? records.length / operariosDetalle.length : 0;
+  const modulosPorOperario = operariosDetalle.length > 0 ? modulosDetalle.length / operariosDetalle.length : 0;
+  const tareasPorOperario = operariosDetalle.length > 0 ? tareasDetalle.length / operariosDetalle.length : 0;
+  const operariosPorModulo = modulosDetalle.length > 0 ? operariosDetalle.length / modulosDetalle.length : 0;
+  const tareasPorModulo = modulosDetalle.length > 0 ? tareasDetalle.length / modulosDetalle.length : 0;
+  
+  // Calidad y eficiencia
+  const registrosSinFichajesAbiertos = records.length - fichajesAbiertos;
+  const tasaFichajesCorrectos = records.length > 0 ? (registrosSinFichajesAbiertos / records.length) * 100 : 0;
+  const tasaDentroHorario = tiempoTotalReal > 0 ? ((tiempoTotalReal - tiempoFueraTurno) / tiempoTotalReal) * 100 : 0;
+  const velocidadProduccion = tiempoTotalValido > 0 ? (modulosDetalle.length / (tiempoTotalValido / 60)) : 0; // Módulos por hora
+  
+  // Distribución de esfuerzo - Calcular desviación estándar del tiempo por operario
+  const tiemposOperarios = operariosDetalle.map(op => op.tiempoValido);
+  const promTiempoOp = tiemposOperarios.length > 0 ? tiemposOperarios.reduce((a, b) => a + b, 0) / tiemposOperarios.length : 0;
+  const varianza = tiemposOperarios.length > 0 
+    ? tiemposOperarios.reduce((sum, t) => sum + Math.pow(t - promTiempoOp, 2), 0) / tiemposOperarios.length 
+    : 0;
+  const concentracionTrabajo = Math.sqrt(varianza);
 
   const pedido = records.length > 0 ? normalizePedidoKey(records[0].NumeroManual) : 'SIN_PEDIDO';
 
@@ -904,10 +1090,22 @@ const analyzePedidoDetailed = (records: TiempoRealRecord[]): PedidoAnalysis => {
     tareasDetalle,
     fechaInicio,
     fechaFin,
-    diasTrabajados: fechasArray.length,
+    diasTrabajados,
     eficienciaPromedio,
     tiempoPromedioPorOperario,
-    tiempoPromedioPorTarea
+    tiempoPromedioPorTarea,
+    tiempoPromedioPorModulo,
+    tiempoPromedioPorRegistro,
+    tiempoPromedioDiario,
+    registrosPorOperario,
+    modulosPorOperario,
+    tareasPorOperario,
+    operariosPorModulo,
+    tareasPorModulo,
+    tasaFichajesCorrectos,
+    tasaDentroHorario,
+    velocidadProduccion,
+    concentracionTrabajo
   };
 };
 
@@ -1057,11 +1255,35 @@ const analyzeTareaDetailed = (records: TiempoRealRecord[]): TareaAnalysis => {
   const fechasArray = Array.from(fechasSet).sort();
   const fechaInicio = fechasArray.length > 0 ? fechasArray[0] : '-';
   const fechaFin = fechasArray.length > 0 ? fechasArray[fechasArray.length - 1] : '-';
+  const diasTrabajados = fechasArray.length;
 
-  // Eficiencia
+  // 🆕 Estadísticas Avanzadas de la Tarea
   const eficienciaPromedio = tiempoTotalReal > 0 ? (tiempoTotalValido / tiempoTotalReal) * 100 : 0;
   const tiempoPromedioPorOperario = operariosDetalle.length > 0 ? tiempoTotalValido / operariosDetalle.length : 0;
   const tiempoPromedioPorPedido = pedidosDetalle.length > 0 ? tiempoTotalValido / pedidosDetalle.length : 0;
+  const tiempoPromedioPorModulo = modulosDetalle.length > 0 ? tiempoTotalValido / modulosDetalle.length : 0;
+  const tiempoPromedioPorRegistro = records.length > 0 ? tiempoTotalValido / records.length : 0;
+  const tiempoPromedioDiario = diasTrabajados > 0 ? tiempoTotalValido / diasTrabajados : 0;
+  
+  // Productividad de la tarea
+  const registrosPorOperario = operariosDetalle.length > 0 ? records.length / operariosDetalle.length : 0;
+  const pedidosPorOperario = operariosDetalle.length > 0 ? pedidosDetalle.length / operariosDetalle.length : 0;
+  const modulosPorOperario = operariosDetalle.length > 0 ? modulosDetalle.length / operariosDetalle.length : 0;
+  const operariosPorPedido = pedidosDetalle.length > 0 ? operariosDetalle.length / pedidosDetalle.length : 0;
+  
+  // Eficiencia de ejecución
+  const registrosSinFichajesAbiertos = records.length - fichajesAbiertos;
+  const tasaFichajesCorrectos = records.length > 0 ? (registrosSinFichajesAbiertos / records.length) * 100 : 0;
+  const tasaDentroHorario = tiempoTotalReal > 0 ? ((tiempoTotalReal - tiempoFueraTurno) / tiempoTotalReal) * 100 : 0;
+  const velocidadEjecucion = tiempoTotalValido > 0 ? (records.length / (tiempoTotalValido / 60)) : 0; // Registros por hora
+  
+  // Distribución - Calcular desviación estándar del tiempo por operario
+  const tiemposOperarios = operariosDetalle.map(op => op.tiempoValido);
+  const promTiempoOp = tiemposOperarios.length > 0 ? tiemposOperarios.reduce((a, b) => a + b, 0) / tiemposOperarios.length : 0;
+  const varianza = tiemposOperarios.length > 0 
+    ? tiemposOperarios.reduce((sum, t) => sum + Math.pow(t - promTiempoOp, 2), 0) / tiemposOperarios.length 
+    : 0;
+  const concentracionTrabajo = Math.sqrt(varianza);
 
   const tarea = records.length > 0 ? normalizeTareaKey(records[0].CodigoTarea) : 'SIN_TAREA';
 
@@ -1080,10 +1302,21 @@ const analyzeTareaDetailed = (records: TiempoRealRecord[]): TareaAnalysis => {
     operariosDetalle,
     fechaInicio,
     fechaFin,
-    diasTrabajados: fechasArray.length,
+    diasTrabajados,
     eficienciaPromedio,
     tiempoPromedioPorOperario,
-    tiempoPromedioPorPedido
+    tiempoPromedioPorPedido,
+    tiempoPromedioPorModulo,
+    tiempoPromedioPorRegistro,
+    tiempoPromedioDiario,
+    registrosPorOperario,
+    pedidosPorOperario,
+    modulosPorOperario,
+    operariosPorPedido,
+    tasaFichajesCorrectos,
+    tasaDentroHorario,
+    velocidadEjecucion,
+    concentracionTrabajo
   };
 };
 
@@ -1230,11 +1463,48 @@ const analyzeOperarioDetailed = (records: TiempoRealRecord[]): OperarioAnalysis 
   const fechasArray = Array.from(fechasSet).sort();
   const fechaInicio = fechasArray.length > 0 ? fechasArray[0] : '-';
   const fechaFin = fechasArray.length > 0 ? fechasArray[fechasArray.length - 1] : '-';
+  const diasTrabajados = fechasArray.length;
 
-  // Eficiencia
+  // 🆕 Estadísticas Avanzadas del Operario
   const eficienciaPromedio = tiempoTotalReal > 0 ? (tiempoTotalValido / tiempoTotalReal) * 100 : 0;
   const tiempoPromedioPorPedido = pedidosDetalle.length > 0 ? tiempoTotalValido / pedidosDetalle.length : 0;
   const tiempoPromedioPorTarea = tareasDetalle.length > 0 ? tiempoTotalValido / tareasDetalle.length : 0;
+  const tiempoPromedioPorModulo = modulosDetalle.length > 0 ? tiempoTotalValido / modulosDetalle.length : 0;
+  const tiempoPromedioPorRegistro = records.length > 0 ? tiempoTotalValido / records.length : 0;
+  const tiempoPromedioDiario = diasTrabajados > 0 ? tiempoTotalValido / diasTrabajados : 0;
+  
+  // Productividad personal
+  const registrosPorDia = diasTrabajados > 0 ? records.length / diasTrabajados : 0;
+  const tareasPorDia = diasTrabajados > 0 ? tareasDetalle.length / diasTrabajados : 0;
+  const modulosPorDia = diasTrabajados > 0 ? modulosDetalle.length / diasTrabajados : 0;
+  const pedidosPorDia = diasTrabajados > 0 ? pedidosDetalle.length / diasTrabajados : 0;
+  
+  // Versatilidad y polivalencia
+  const diversidadTareas = tareasDetalle.length;
+  const diversidadModulos = modulosDetalle.length;
+  const tareasPorPedido = pedidosDetalle.length > 0 ? tareasDetalle.length / pedidosDetalle.length : 0;
+  
+  // Calidad del trabajo
+  const registrosSinFichajesAbiertos = records.length - fichajesAbiertos;
+  const tasaFichajesCorrectos = records.length > 0 ? (registrosSinFichajesAbiertos / records.length) * 100 : 0;
+  const tasaDentroHorario = tiempoTotalReal > 0 ? ((tiempoTotalReal - tiempoFueraTurno) / tiempoTotalReal) * 100 : 0;
+  
+  // Consistencia diaria - Calcular desviación estándar del tiempo por día
+  const tiemposPorDia = new Map<string, number>();
+  for (const record of records) {
+    const fecha = formatDateOnly(record.FechaInicio || record.Fecha);
+    const tiempo = calculateValidWorkTime(record);
+    tiemposPorDia.set(fecha, (tiemposPorDia.get(fecha) || 0) + tiempo);
+  }
+  const tiemposDiarios = Array.from(tiemposPorDia.values());
+  const promTiempoDia = tiemposDiarios.length > 0 ? tiemposDiarios.reduce((a, b) => a + b, 0) / tiemposDiarios.length : 0;
+  const varianzaDiaria = tiemposDiarios.length > 0 
+    ? tiemposDiarios.reduce((sum, t) => sum + Math.pow(t - promTiempoDia, 2), 0) / tiemposDiarios.length 
+    : 0;
+  const consistenciaDiaria = Math.sqrt(varianzaDiaria);
+  
+  // Rendimiento comparativo
+  const velocidadProduccion = tiempoTotalValido > 0 ? (records.length / (tiempoTotalValido / 60)) : 0; // Registros por hora
 
   const operario = records.length > 0 ? operarioFirstNameKey(records[0].OperarioNombre || records[0].CodigoOperario) : 'SIN_OPERARIO';
 
@@ -1253,16 +1523,281 @@ const analyzeOperarioDetailed = (records: TiempoRealRecord[]): OperarioAnalysis 
     tareasDetalle,
     fechaInicio,
     fechaFin,
-    diasTrabajados: fechasArray.length,
+    diasTrabajados,
     eficienciaPromedio,
     tiempoPromedioPorPedido,
-    tiempoPromedioPorTarea
+    tiempoPromedioPorTarea,
+    tiempoPromedioPorModulo,
+    tiempoPromedioPorRegistro,
+    tiempoPromedioDiario,
+    registrosPorDia,
+    tareasPorDia,
+    modulosPorDia,
+    pedidosPorDia,
+    diversidadTareas,
+    diversidadModulos,
+    tareasPorPedido,
+    tasaFichajesCorrectos,
+    tasaDentroHorario,
+    consistenciaDiaria,
+    velocidadProduccion
+  };
+};
+
+// ✅ Análisis detallado de Serie
+const analyzeSerieDetailed = (records: TiempoRealRecord[]): SerieAnalysis => {
+  console.log(`[analyzeSerieDetailed] 📊 Analizando ${records.length} registros`);
+
+  const parseTime = (timeStr: string): number => {
+    const parts = timeStr.trim().split(':');
+    if (parts.length < 2) return 0;
+    const h = parseInt(parts[0]);
+    const m = parseInt(parts[1]);
+    return isNaN(h) || isNaN(m) ? 0 : h * 60 + m;
+  };
+
+  // Agrupar por pedidos, módulos, operarios y tareas
+  const pedidosMap = new Map<string, TiempoRealRecord[]>();
+  const modulosMap = new Map<string, TiempoRealRecord[]>();
+  const operariosMap = new Map<string, TiempoRealRecord[]>();
+  const tareasMap = new Map<string, TiempoRealRecord[]>();
+  const fechasSet = new Set<string>();
+
+  let tiempoTotalReal = 0;
+  let tiempoTotalValido = 0;
+  let tiempoFueraTurno = 0;
+  let fichajesAbiertos = 0;
+
+  for (const record of records) {
+    const pedido = normalizePedidoKey(record.NumeroManual);
+    const modulo = record.Modulo?.trim() || 'SIN_MODULO';
+    const operario = operarioFirstNameKey(record.OperarioNombre || record.CodigoOperario);
+    const tarea = normalizeTareaKey(record.CodigoTarea);
+    const fecha = formatDateOnly(record.FechaInicio || record.Fecha);
+
+    // Agrupar
+    if (!pedidosMap.has(pedido)) pedidosMap.set(pedido, []);
+    if (!modulosMap.has(modulo)) modulosMap.set(modulo, []);
+    if (!operariosMap.has(operario)) operariosMap.set(operario, []);
+    if (!tareasMap.has(tarea)) tareasMap.set(tarea, []);
+
+    pedidosMap.get(pedido)!.push(record);
+    modulosMap.get(modulo)!.push(record);
+    operariosMap.get(operario)!.push(record);
+    tareasMap.get(tarea)!.push(record);
+    fechasSet.add(fecha);
+
+    // Calcular tiempos
+    const tiempoAjustado = calculateAdjustedTime(record);
+    const tiempoFuera = calculateOutsideWorkTime(record);
+    const tiempoValido = calculateValidWorkTime(record);
+
+    tiempoTotalReal += tiempoAjustado;
+    tiempoTotalValido += tiempoValido;
+    tiempoFueraTurno += tiempoFuera;
+
+    // Detectar fichajes abiertos
+    if (record.HoraInicio && record.HoraFin) {
+      const inicioMin = parseTime(record.HoraInicio);
+      const finMin = parseTime(record.HoraFin);
+      if (inicioMin > 0 && finMin > 0 && finMin < inicioMin) {
+        fichajesAbiertos++;
+      }
+    }
+  }
+
+  // Analizar pedidos
+  const pedidosDetalle = Array.from(pedidosMap.entries()).map(([nombre, recs]) => {
+    const operariosSet = new Set<string>();
+    const modulosSet = new Set<string>();
+    let tiempo = 0;
+    let tiempoValido = 0;
+
+    for (const r of recs) {
+      operariosSet.add(operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario));
+      modulosSet.add(r.Modulo?.trim() || 'SIN_MODULO');
+      const t = calculateAdjustedTime(r);
+      const tv = calculateValidWorkTime(r);
+      tiempo += t;
+      tiempoValido += tv;
+    }
+
+    return {
+      nombre,
+      tiempo,
+      tiempoValido,
+      registros: recs.length,
+      operarios: operariosSet.size,
+      modulos: modulosSet.size,
+      porcentaje: tiempoTotalReal > 0 ? (tiempo / tiempoTotalReal) * 100 : 0
+    };
+  }).sort((a, b) => b.tiempoValido - a.tiempoValido);
+
+  // Analizar módulos
+  const modulosDetalle = Array.from(modulosMap.entries()).map(([nombre, recs]) => {
+    const operariosSet = new Set<string>();
+    const pedidosSet = new Set<string>();
+    let tiempo = 0;
+    let tiempoValido = 0;
+
+    for (const r of recs) {
+      operariosSet.add(operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario));
+      pedidosSet.add(normalizePedidoKey(r.NumeroManual));
+      const t = calculateAdjustedTime(r);
+      const tv = calculateValidWorkTime(r);
+      tiempo += t;
+      tiempoValido += tv;
+    }
+
+    return {
+      nombre,
+      tiempo,
+      tiempoValido,
+      registros: recs.length,
+      operarios: operariosSet.size,
+      pedidos: pedidosSet.size,
+      porcentaje: tiempoTotalReal > 0 ? (tiempo / tiempoTotalReal) * 100 : 0
+    };
+  }).sort((a, b) => b.tiempoValido - a.tiempoValido);
+
+  // Analizar operarios
+  const operariosDetalle = Array.from(operariosMap.entries()).map(([nombre, recs]) => {
+    const modulosSet = new Set<string>();
+    const pedidosSet = new Set<string>();
+    let tiempo = 0;
+    let tiempoValido = 0;
+
+    for (const r of recs) {
+      modulosSet.add(r.Modulo?.trim() || 'SIN_MODULO');
+      pedidosSet.add(normalizePedidoKey(r.NumeroManual));
+      const t = calculateAdjustedTime(r);
+      const tv = calculateValidWorkTime(r);
+      tiempo += t;
+      tiempoValido += tv;
+    }
+
+    const analysis = analyzeOperarioOutsideTime(recs);
+
+    return {
+      nombre,
+      tiempo,
+      tiempoValido,
+      registros: recs.length,
+      modulos: modulosSet.size,
+      pedidos: pedidosSet.size,
+      porcentaje: tiempoTotalReal > 0 ? (tiempo / tiempoTotalReal) * 100 : 0,
+      tieneAnomalias: analysis.hasOutsideTime
+    };
+  }).sort((a, b) => b.tiempoValido - a.tiempoValido);
+
+  // Analizar tareas
+  const tareasDetalle = Array.from(tareasMap.entries()).map(([codigo, recs]) => {
+    const operariosSet = new Set<string>();
+    const pedidosSet = new Set<string>();
+    let tiempo = 0;
+    let tiempoValido = 0;
+
+    for (const r of recs) {
+      operariosSet.add(operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario));
+      pedidosSet.add(normalizePedidoKey(r.NumeroManual));
+      const t = calculateAdjustedTime(r);
+      const tv = calculateValidWorkTime(r);
+      tiempo += t;
+      tiempoValido += tv;
+    }
+
+    return {
+      codigo,
+      tiempo,
+      tiempoValido,
+      registros: recs.length,
+      operarios: operariosSet.size,
+      pedidos: pedidosSet.size,
+      porcentaje: tiempoTotalReal > 0 ? (tiempo / tiempoTotalReal) * 100 : 0
+    };
+  }).sort((a, b) => b.tiempoValido - a.tiempoValido);
+
+  // Fechas
+  const fechasArray = Array.from(fechasSet).sort();
+  const fechaInicio = fechasArray.length > 0 ? fechasArray[0] : '-';
+  const fechaFin = fechasArray.length > 0 ? fechasArray[fechasArray.length - 1] : '-';
+  const diasTrabajados = fechasArray.length;
+
+  // 🆕 Estadísticas Avanzadas
+  const eficienciaPromedio = tiempoTotalReal > 0 ? (tiempoTotalValido / tiempoTotalReal) * 100 : 0;
+  const tiempoPromedioPorOperario = operariosMap.size > 0 ? tiempoTotalValido / operariosMap.size : 0;
+  const tiempoPromedioPorTarea = tareasMap.size > 0 ? tiempoTotalValido / tareasMap.size : 0;
+  const tiempoPromedioPorModulo = modulosMap.size > 0 ? tiempoTotalValido / modulosMap.size : 0;
+  const tiempoPromedioPorPedido = pedidosMap.size > 0 ? tiempoTotalValido / pedidosMap.size : 0;
+  const tiempoPromedioPorRegistro = records.length > 0 ? tiempoTotalValido / records.length : 0;
+  const tiempoPromedioDiario = diasTrabajados > 0 ? tiempoTotalValido / diasTrabajados : 0;
+  
+  // Productividad
+  const registrosPorOperario = operariosMap.size > 0 ? records.length / operariosMap.size : 0;
+  const modulosPorOperario = operariosMap.size > 0 ? modulosMap.size / operariosMap.size : 0;
+  const tareasPorOperario = operariosMap.size > 0 ? tareasMap.size / operariosMap.size : 0;
+  const operariosPorModulo = modulosMap.size > 0 ? operariosMap.size / modulosMap.size : 0;
+  
+  // Distribución de trabajo - Calcular desviación estándar del tiempo por operario
+  const tiemposOperarios = Array.from(operariosMap.values()).map(recs => {
+    return recs.reduce((sum, r) => sum + calculateValidWorkTime(r), 0);
+  });
+  const promTiempoOp = tiemposOperarios.length > 0 ? tiemposOperarios.reduce((a, b) => a + b, 0) / tiemposOperarios.length : 0;
+  const varianza = tiemposOperarios.length > 0 
+    ? tiemposOperarios.reduce((sum, t) => sum + Math.pow(t - promTiempoOp, 2), 0) / tiemposOperarios.length 
+    : 0;
+  const concentracionTrabajo = Math.sqrt(varianza);
+  
+  // Tasa de utilización (asumiendo 8 horas x día x operarios como máximo teórico)
+  const tiempoMaximoTeorico = diasTrabajados * operariosMap.size * 480; // 480 min = 8 horas
+  const tasaUtilizacionOperarios = tiempoMaximoTeorico > 0 ? (tiempoTotalValido / tiempoMaximoTeorico) * 100 : 0;
+  
+  // Calidad y consistencia
+  const registrosSinFichajesAbiertos = records.length - fichajesAbiertos;
+  const tasaFichajesCorrectos = records.length > 0 ? (registrosSinFichajesAbiertos / records.length) * 100 : 0;
+  const tasaDentroHorario = tiempoTotalReal > 0 ? ((tiempoTotalReal - tiempoFueraTurno) / tiempoTotalReal) * 100 : 0;
+
+  const serie = records[0]?.Serie1Desc || 'SIN_SERIE';
+
+  return {
+    serie,
+    totalRegistros: records.length,
+    tiempoTotalReal,
+    tiempoTotalValido,
+    tiempoFueraTurno,
+    fichajesAbiertos,
+    totalPedidos: pedidosMap.size,
+    pedidosDetalle,
+    totalModulos: modulosMap.size,
+    modulosDetalle,
+    totalOperarios: operariosMap.size,
+    operariosDetalle,
+    totalTareas: tareasMap.size,
+    tareasDetalle,
+    fechaInicio,
+    fechaFin,
+    diasTrabajados,
+    eficienciaPromedio,
+    tiempoPromedioPorOperario,
+    tiempoPromedioPorTarea,
+    tiempoPromedioPorModulo,
+    tiempoPromedioPorPedido,
+    tiempoPromedioPorRegistro,
+    tiempoPromedioDiario,
+    registrosPorOperario,
+    modulosPorOperario,
+    tareasPorOperario,
+    operariosPorModulo,
+    tasaUtilizacionOperarios,
+    concentracionTrabajo,
+    tasaFichajesCorrectos,
+    tasaDentroHorario
   };
 };
 
 // ✅ Función para analizar detalles de un item específico
 const analyzeItemDetail = (
-  tipo: 'pedido' | 'modulo' | 'tarea' | 'operario',
+  tipo: 'pedido' | 'modulo' | 'tarea' | 'operario' | 'serie',
   nombre: string,
   contextoPrincipal: string,
   records: TiempoRealRecord[]
@@ -1552,9 +2087,9 @@ export default function ControlTerminalesScreen() {
   const [tiempoRecords, setTiempoRecords] = useState<TiempoRealRecord[]>([]);
   const [loadingTiempo, setLoadingTiempo] = useState(false);
 
-  const [filterMode, setFilterMode] = useState<'operador' | 'tarea' | 'pedido'>('operador');
+  const [filterMode, setFilterMode] = useState<'operador' | 'tarea' | 'pedido' | 'serie'>('operador');
   const [groupedList, setGroupedList] = useState<any[]>([]);
-  const [counts, setCounts] = useState({ operador: 0, tarea: 0, pedido: 0 });
+  const [counts, setCounts] = useState({ operador: 0, tarea: 0, pedido: 0, serie: 0 });
 
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -1569,6 +2104,10 @@ export default function ControlTerminalesScreen() {
   // ✅ Estado para modal de análisis de operario
   const [operarioAnalysisVisible, setOperarioAnalysisVisible] = useState(false);
   const [operarioAnalysisData, setOperarioAnalysisData] = useState<OperarioAnalysis | null>(null);
+
+  // ✅ Estado para modal de análisis de serie
+  const [serieAnalysisVisible, setSerieAnalysisVisible] = useState(false);
+  const [serieAnalysisData, setSerieAnalysisData] = useState<SerieAnalysis | null>(null);
 
   // ✅ Estado para modal de detalle de item clickeado
   const [itemDetailVisible, setItemDetailVisible] = useState(false);
@@ -1616,15 +2155,19 @@ export default function ControlTerminalesScreen() {
     .toString().trim().toLowerCase();
   const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole);
 
-  // ✅ Fecha inicial: hoy (current date)
-  const today = new Date();
-  today.setHours(12, 0, 0, 0); // ✅ Usar hora local en lugar de UTC
-  console.log('[FECHA-DEBUG] 🔷 Inicialización de fechas:', {
-    today: today.toISOString(),
-    todayLocal: today.toString(),
-    todayFormattedUTC: formatDateUTC(today),
-    todayFormattedLocal: formatDateLocal(today)
-  });
+  // ✅ Fecha inicial: hoy (current date) - OPTIMIZADO con useMemo
+  const today = useMemo(() => {
+    const date = new Date();
+    date.setHours(12, 0, 0, 0); // ✅ Usar hora local en lugar de UTC
+    console.log('[FECHA-DEBUG] 🔷 Inicialización de fechas:', {
+      today: date.toISOString(),
+      todayLocal: date.toString(),
+      todayFormattedUTC: formatDateUTC(date),
+      todayFormattedLocal: formatDateLocal(date)
+    });
+    return date;
+  }, []); // Solo se ejecuta una vez al montar
+
   const [fromDate, setFromDate] = useState<Date>(today);
   const [toDate, setToDate] = useState<Date>(today);
   const [showFromPicker, setShowFromPicker] = useState(false);
@@ -1644,6 +2187,105 @@ export default function ControlTerminalesScreen() {
     fetchTiempoReal(formatDateLocal(fromDate), formatDateLocal(toDate));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // ⚠️ Solo se ejecuta al montar el componente
+
+  // ✨ Función para enriquecer registros con info de info-para-terminales
+  async function enrichRecordsWithTerminalesInfo(records: TiempoRealRecord[]): Promise<TiempoRealRecord[]> {
+    try {
+      console.log(`🚀 [enrichRecords] INICIO - Procesando ${records.length} registros`);
+      
+      // Agrupar registros por NumeroManual
+      const pedidosMap = new Map<string, TiempoRealRecord[]>();
+      let registrosSinPedido = 0;
+      
+      for (const r of records) {
+        const pedido = r.NumeroManual || 'SIN_PEDIDO';
+        if (pedido === 'SIN_PEDIDO') {
+          registrosSinPedido++;
+          continue;
+        }
+        
+        const arr = pedidosMap.get(pedido) || [];
+        arr.push(r);
+        pedidosMap.set(pedido, arr);
+      }
+      
+      console.log(`🔍 [enrichRecords] Agrupación:`, {
+        totalRegistros: records.length,
+        registrosSinPedido,
+        pedidosUnicos: pedidosMap.size,
+        pedidos: Array.from(pedidosMap.keys()).slice(0, 5) // Primeros 5
+      });
+      
+      // Hacer consultas para cada pedido (solo enviando codigoPresupuesto)
+      const enrichPromises = Array.from(pedidosMap.entries()).map(async ([pedido, pedidoRecords]) => {
+        try {
+          // 📤 Solo enviamos codigoPresupuesto, el backend devuelve TODOS los módulos
+          const requestBody = { codigoPresupuesto: pedido };
+          
+          console.log(`📤 [info-terminales] Request pedido ${pedido}`);
+          
+          const response = await fetch(`${API_URL}/control-pedido/info-para-terminales`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+          });
+          
+          if (!response.ok) {
+            console.error(`❌ [info-terminales] Error ${response.status} para pedido ${pedido}`);
+            return;
+          }
+          
+          const data: InfoParaTerminalesResponse = await response.json();
+          
+          if (data.status !== 'ok' || !data.modulos || data.modulos.length === 0) {
+            console.warn(`⚠️ [info-terminales] Sin datos para pedido ${pedido}`);
+            return;
+          }
+          
+          console.log(`📦 [info-terminales] Pedido ${pedido}: ${data.modulos.length} módulos recibidos`);
+          
+          // Crear mapa módulo -> info
+          const moduloInfoMap = new Map<string, { serie1Desc: string; fabricacion: string }>();
+          for (const mod of data.modulos) {
+            const fabricacion = `${mod.CodigoSerie}-${mod.CodigoNumero}`;
+            moduloInfoMap.set(mod.Modulo, {
+              serie1Desc: mod.Serie1Desc,
+              fabricacion
+            });
+          }
+          
+          // Enriquecer registros
+          let enriquecidos = 0;
+          for (const record of pedidoRecords) {
+            const modInfo = moduloInfoMap.get(record.Modulo || '');
+            if (modInfo) {
+              record.ClienteNombre = data.clienteNombre;
+              record.Serie1Desc = modInfo.serie1Desc;
+              record.Fabricacion = modInfo.fabricacion;
+              enriquecidos++;
+            }
+          }
+          
+          console.log(`✅ [info-terminales] Pedido ${pedido}: ${enriquecidos}/${pedidoRecords.length} enriquecidos`);
+          
+        } catch (error) {
+          console.error(`❌ [info-terminales] Error pedido ${pedido}:`, error);
+        }
+      });
+      
+      await Promise.all(enrichPromises);
+      
+      // Resumen final
+      const recordsConCliente = records.filter(r => r.ClienteNombre).length;
+      console.log(`🎯 [enrichRecords] FINAL: ${recordsConCliente}/${records.length} enriquecidos (${Math.round((recordsConCliente / records.length) * 100)}%)`);
+      
+      return records;
+      
+    } catch (error) {
+      console.error('❌ [enrichRecords] Error general:', error);
+      return records;
+    }
+  }
 
   async function fetchTiempoReal(from: string, to: string) {
     try {
@@ -1671,9 +2313,13 @@ export default function ControlTerminalesScreen() {
       });
 
       // El backend devuelve { data: [...], pagination: {...} }
-      const records = Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : []);
+      let records = Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : []);
 
       console.log(`[ProduccionAnalytics] ✅ Records loaded: ${records.length}`);
+
+      // ✨ ENRIQUECER REGISTROS con info-para-terminales
+      records = await enrichRecordsWithTerminalesInfo(records);
+      
       setTiempoRecords(records as TiempoRealRecord[]);
     } catch (err) {
       console.error('[ProduccionAnalytics] ❌ Error:', err);
@@ -1684,7 +2330,7 @@ export default function ControlTerminalesScreen() {
   }
 
   // ✅ Agrupar por modo con logs detallados
-  const computeGroups = (records: TiempoRealRecord[], mode: 'operador' | 'tarea' | 'pedido') => {
+  const computeGroups = (records: TiempoRealRecord[], mode: 'operador' | 'tarea' | 'pedido' | 'serie') => {
     console.log(`[computeGroups] 🔄 Agrupando ${records.length} registros por: ${mode}`);
 
     const map = new Map<string, TiempoRealRecord[]>();
@@ -1696,6 +2342,8 @@ export default function ControlTerminalesScreen() {
         key = operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario);
       } else if (mode === 'tarea') {
         key = normalizeTareaKey(r.CodigoTarea);
+      } else if (mode === 'serie') {
+        key = (r.Serie1Desc || 'SIN_SERIE').toString();
       } else {
         key = normalizePedidoKey(r.NumeroManual);
       }
@@ -1787,17 +2435,20 @@ export default function ControlTerminalesScreen() {
     const operadorSet = new Set<string>();
     const tareaSet = new Set<string>();
     const pedidoSet = new Set<string>();
+    const serieSet = new Set<string>();
 
     for (const r of tiempoRecords) {
       operadorSet.add(operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario));
       tareaSet.add(normalizeTareaKey(r.CodigoTarea));
       pedidoSet.add(normalizePedidoKey(r.NumeroManual));
+      serieSet.add(String(r.Serie1Desc ?? 'SIN_SERIE'));
     }
 
     const newCounts = {
       operador: operadorSet.size,
       tarea: tareaSet.size,
-      pedido: pedidoSet.size
+      pedido: pedidoSet.size,
+      serie: serieSet.size
     };
 
     console.log('[useEffect] 📊 Contadores actualizados:', newCounts);
@@ -1840,6 +2491,37 @@ export default function ControlTerminalesScreen() {
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={styles.analysisMainTitle}>Análisis de Pedido</Text>
                   <Text style={styles.analysisPedidoNumber}>{analysis.pedido}</Text>
+                  {/* ✨ Mostrar información enriquecida del cliente y fabricación */}
+                  {(() => {
+                    const recordConInfo = tiempoRecords.find(r => 
+                      normalizePedidoKey(r.NumeroManual) === analysis.pedido && 
+                      (r.ClienteNombre || r.Fabricacion)
+                    );
+                    
+                    if (recordConInfo) {
+                      return (
+                        <View style={{ marginTop: 8, gap: 4 }}>
+                          {recordConInfo.ClienteNombre && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Ionicons name="person-outline" size={14} color="#0369a1" />
+                              <Text style={{ fontSize: 12, color: '#0369a1', fontWeight: '600' }}>
+                                Cliente: {recordConInfo.ClienteNombre}
+                              </Text>
+                            </View>
+                          )}
+                          {recordConInfo.Fabricacion && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Ionicons name="build-outline" size={14} color="#0369a1" />
+                              <Text style={{ fontSize: 12, color: '#0369a1', fontWeight: '600' }}>
+                                Fabricación: {recordConInfo.Fabricacion}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      );
+                    }
+                    return null;
+                  })()}
                 </View>
               </View>
               <View style={styles.analysisDateRange}>
@@ -1923,12 +2605,12 @@ export default function ControlTerminalesScreen() {
               </View>
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>Tiempo real invertido</Text>
-                  <Text style={styles.statValue}>{formatDurationLong(analysis.tiempoTotalReal)}</Text>
+                  <Text style={styles.statLabel}>Tiempo total válido</Text>
+                  <Text style={styles.statValue}>{formatDurationLong(analysis.tiempoTotalValido)}</Text>
                 </View>
                 <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>Promedio por operario</Text>
-                  <Text style={styles.statValue}>{formatHM(analysis.tiempoPromedioPorOperario)}</Text>
+                  <Text style={styles.statLabel}>Promedio por módulo</Text>
+                  <Text style={styles.statValue}>{formatHM(analysis.tiempoPromedioPorModulo)}</Text>
                 </View>
               </View>
             </View>
@@ -1939,42 +2621,56 @@ export default function ControlTerminalesScreen() {
                 <Ionicons name="cube" size={20} color="#f59e0b" />
                 <Text style={styles.sectionTitle}>Desglose por Módulos ({analysis.totalModulos})</Text>
               </View>
-              {analysis.modulosDetalle.map((mod, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  onPress={() => {
-                    // Filtrar registros para este módulo en el pedido
-                    const moduloRecords = tiempoRecords.filter(r => 
-                      normalizePedidoKey(r.NumeroManual) === analysis.pedido &&
-                      (r.Modulo?.trim() || 'SIN_MODULO') === mod.nombre
-                    );
-                    const detail = analyzeItemDetail(
-                      'modulo',
-                      mod.nombre,
-                      `En Pedido: ${analysis.pedido}`,
-                      moduloRecords
-                    );
-                    setItemDetailData(detail);
-                    setItemDetailVisible(true);
-                  }}
-                >
-                  <View style={styles.detailRow}>
-                    <View style={styles.detailLeft}>
-                      <Text style={styles.detailName}>{mod.nombre}</Text>
-                      <Text style={styles.detailSubtext}>
-                        {mod.operarios} operario{mod.operarios !== 1 ? 's' : ''} · {mod.tareas} tarea{mod.tareas !== 1 ? 's' : ''} · {mod.registros} reg.
-                      </Text>
-                    </View>
-                    <View style={styles.detailRight}>
-                      <Text style={styles.detailTime}>{formatHM(mod.tiempoValido)}</Text>
-                      <View style={styles.progressBarContainer}>
-                        <View style={[styles.progressBar, { width: `${mod.porcentaje}%` }]} />
+              {analysis.modulosDetalle.map((mod, idx) => {
+                // ✨ Obtener información de Serie del módulo
+                const moduloRecord = tiempoRecords.find(r => 
+                  normalizePedidoKey(r.NumeroManual) === analysis.pedido &&
+                  (r.Modulo?.trim() || 'SIN_MODULO') === mod.nombre
+                );
+                
+                return (
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={() => {
+                      // Filtrar registros para este módulo en el pedido
+                      const moduloRecords = tiempoRecords.filter(r => 
+                        normalizePedidoKey(r.NumeroManual) === analysis.pedido &&
+                        (r.Modulo?.trim() || 'SIN_MODULO') === mod.nombre
+                      );
+                      const detail = analyzeItemDetail(
+                        'modulo',
+                        mod.nombre,
+                        `En Pedido: ${analysis.pedido}`,
+                        moduloRecords
+                      );
+                      setItemDetailData(detail);
+                      setItemDetailVisible(true);
+                    }}
+                  >
+                    <View style={styles.detailRow}>
+                      <View style={styles.detailLeft}>
+                        <Text style={styles.detailName}>{mod.nombre}</Text>
+                        {/* ✨ Mostrar Serie1Desc */}
+                        {moduloRecord?.Serie1Desc && (
+                          <Text style={{ fontSize: 10, color: '#8b5cf6', fontWeight: '600', marginTop: 2 }}>
+                            📦 Serie: {moduloRecord.Serie1Desc}
+                          </Text>
+                        )}
+                        <Text style={styles.detailSubtext}>
+                          {mod.operarios} operario{mod.operarios !== 1 ? 's' : ''} · {mod.tareas} tarea{mod.tareas !== 1 ? 's' : ''} · {mod.registros} reg.
+                        </Text>
                       </View>
-                      <Text style={styles.detailPercentage}>{mod.porcentaje.toFixed(1)}%</Text>
+                      <View style={styles.detailRight}>
+                        <Text style={styles.detailTime}>{formatHM(mod.tiempoValido)}</Text>
+                        <View style={styles.progressBarContainer}>
+                          <View style={[styles.progressBar, { width: `${mod.porcentaje}%` }]} />
+                        </View>
+                        <Text style={styles.detailPercentage}>{mod.porcentaje.toFixed(1)}%</Text>
+                      </View>
                     </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             {/* Desglose por Operarios */}
@@ -2186,12 +2882,12 @@ export default function ControlTerminalesScreen() {
               </View>
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>Tiempo real invertido</Text>
-                  <Text style={styles.statValue}>{formatDurationLong(analysis.tiempoTotalReal)}</Text>
+                  <Text style={styles.statLabel}>Tiempo total válido</Text>
+                  <Text style={styles.statValue}>{formatDurationLong(analysis.tiempoTotalValido)}</Text>
                 </View>
                 <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>Promedio por operario</Text>
-                  <Text style={styles.statValue}>{formatHM(analysis.tiempoPromedioPorOperario)}</Text>
+                  <Text style={styles.statLabel}>Promedio por módulo</Text>
+                  <Text style={styles.statValue}>{formatHM(analysis.tiempoPromedioPorModulo)}</Text>
                 </View>
               </View>
             </View>
@@ -2202,42 +2898,61 @@ export default function ControlTerminalesScreen() {
                 <Ionicons name="document-text" size={20} color="#ef4444" />
                 <Text style={styles.sectionTitle}>Desglose por Pedidos ({analysis.totalPedidos})</Text>
               </View>
-              {analysis.pedidosDetalle.map((ped, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  onPress={() => {
-                    // Filtrar registros para este pedido en la tarea
-                    const pedidoRecords = tiempoRecords.filter(r => 
-                      normalizeTareaKey(r.CodigoTarea) === analysis.tarea &&
-                      normalizePedidoKey(r.NumeroManual) === ped.nombre
-                    );
-                    const detail = analyzeItemDetail(
-                      'pedido',
-                      ped.nombre,
-                      `En Tarea: ${analysis.tarea}`,
-                      pedidoRecords
-                    );
-                    setItemDetailData(detail);
-                    setItemDetailVisible(true);
-                  }}
-                >
-                  <View style={styles.detailRow}>
-                    <View style={styles.detailLeft}>
-                      <Text style={styles.detailName}>{ped.nombre}</Text>
-                      <Text style={styles.detailSubtext}>
-                        {ped.operarios} operario{ped.operarios !== 1 ? 's' : ''} · {ped.modulos} módulo{ped.modulos !== 1 ? 's' : ''} · {ped.registros} reg.
-                      </Text>
-                    </View>
-                    <View style={styles.detailRight}>
-                      <Text style={styles.detailTime}>{formatHM(ped.tiempoValido)}</Text>
-                      <View style={styles.progressBarContainer}>
-                        <View style={[styles.progressBar, { width: `${ped.porcentaje}%`, backgroundColor: '#ef4444' }]} />
+              {analysis.pedidosDetalle.map((ped, idx) => {
+                // ✨ Obtener información enriquecida del pedido
+                const pedidoRecords = tiempoRecords.filter(r => 
+                  normalizeTareaKey(r.CodigoTarea) === analysis.tarea &&
+                  normalizePedidoKey(r.NumeroManual) === ped.nombre
+                );
+                const recordConInfo = pedidoRecords.find(r => r.ClienteNombre || r.Fabricacion);
+                
+                return (
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={() => {
+                      const detail = analyzeItemDetail(
+                        'pedido',
+                        ped.nombre,
+                        `En Tarea: ${analysis.tarea}`,
+                        pedidoRecords
+                      );
+                      setItemDetailData(detail);
+                      setItemDetailVisible(true);
+                    }}
+                  >
+                    <View style={styles.detailRow}>
+                      <View style={styles.detailLeft}>
+                        <Text style={styles.detailName}>{ped.nombre}</Text>
+                        {/* ✨ Mostrar ClienteNombre y Fabricacion */}
+                        {recordConInfo && (
+                          <View style={{ marginTop: 2, gap: 2 }}>
+                            {recordConInfo.ClienteNombre && (
+                              <Text style={{ fontSize: 10, color: '#0369a1', fontWeight: '600' }}>
+                                👤 {recordConInfo.ClienteNombre}
+                              </Text>
+                            )}
+                            {recordConInfo.Fabricacion && (
+                              <Text style={{ fontSize: 10, color: '#0369a1', fontWeight: '600' }}>
+                                🏭 {recordConInfo.Fabricacion}
+                              </Text>
+                            )}
+                          </View>
+                        )}
+                        <Text style={styles.detailSubtext}>
+                          {ped.operarios} operario{ped.operarios !== 1 ? 's' : ''} · {ped.modulos} módulo{ped.modulos !== 1 ? 's' : ''} · {ped.registros} reg.
+                        </Text>
                       </View>
-                      <Text style={styles.detailPercentage}>{ped.porcentaje.toFixed(1)}%</Text>
+                      <View style={styles.detailRight}>
+                        <Text style={styles.detailTime}>{formatHM(ped.tiempoValido)}</Text>
+                        <View style={styles.progressBarContainer}>
+                          <View style={[styles.progressBar, { width: `${ped.porcentaje}%`, backgroundColor: '#ef4444' }]} />
+                        </View>
+                        <Text style={styles.detailPercentage}>{ped.porcentaje.toFixed(1)}%</Text>
+                      </View>
                     </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             {/* Desglose por Operarios */}
@@ -2405,12 +3120,12 @@ export default function ControlTerminalesScreen() {
               </View>
               <View style={styles.statsRow}>
                 <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>Tiempo real invertido</Text>
-                  <Text style={styles.statValue}>{formatDurationLong(analysis.tiempoTotalReal)}</Text>
+                  <Text style={styles.statLabel}>Tiempo total válido</Text>
+                  <Text style={styles.statValue}>{formatDurationLong(analysis.tiempoTotalValido)}</Text>
                 </View>
                 <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>Promedio por pedido</Text>
-                  <Text style={styles.statValue}>{formatHM(analysis.tiempoPromedioPorPedido)}</Text>
+                  <Text style={styles.statLabel}>Promedio por módulo</Text>
+                  <Text style={styles.statValue}>{formatHM(analysis.tiempoPromedioPorModulo)}</Text>
                 </View>
               </View>
             </View>
@@ -2421,42 +3136,61 @@ export default function ControlTerminalesScreen() {
                 <Ionicons name="document-text" size={20} color="#ef4444" />
                 <Text style={styles.sectionTitle}>Desglose por Pedidos ({analysis.totalPedidos})</Text>
               </View>
-              {analysis.pedidosDetalle.map((ped, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  onPress={() => {
-                    // Filtrar registros para este pedido del operario
-                    const pedidoRecords = tiempoRecords.filter(r => 
-                      operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario) === analysis.operario &&
-                      normalizePedidoKey(r.NumeroManual) === ped.nombre
-                    );
-                    const detail = analyzeItemDetail(
-                      'pedido',
-                      ped.nombre,
-                      `Operario: ${analysis.operario}`,
-                      pedidoRecords
-                    );
-                    setItemDetailData(detail);
-                    setItemDetailVisible(true);
-                  }}
-                >
-                  <View style={styles.detailRow}>
-                    <View style={styles.detailLeft}>
-                      <Text style={styles.detailName}>{ped.nombre}</Text>
-                      <Text style={styles.detailSubtext}>
-                        {ped.modulos} módulo{ped.modulos !== 1 ? 's' : ''} · {ped.tareas} tarea{ped.tareas !== 1 ? 's' : ''} · {ped.registros} reg.
-                      </Text>
-                    </View>
-                    <View style={styles.detailRight}>
-                      <Text style={styles.detailTime}>{formatHM(ped.tiempoValido)}</Text>
-                      <View style={styles.progressBarContainer}>
-                        <View style={[styles.progressBar, { width: `${ped.porcentaje}%`, backgroundColor: '#ef4444' }]} />
+              {analysis.pedidosDetalle.map((ped, idx) => {
+                // ✨ Obtener información enriquecida del pedido
+                const pedidoRecords = tiempoRecords.filter(r => 
+                  operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario) === analysis.operario &&
+                  normalizePedidoKey(r.NumeroManual) === ped.nombre
+                );
+                const recordConInfo = pedidoRecords.find(r => r.ClienteNombre || r.Fabricacion);
+                
+                return (
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={() => {
+                      const detail = analyzeItemDetail(
+                        'pedido',
+                        ped.nombre,
+                        `Operario: ${analysis.operario}`,
+                        pedidoRecords
+                      );
+                      setItemDetailData(detail);
+                      setItemDetailVisible(true);
+                    }}
+                  >
+                    <View style={styles.detailRow}>
+                      <View style={styles.detailLeft}>
+                        <Text style={styles.detailName}>{ped.nombre}</Text>
+                        {/* ✨ Mostrar ClienteNombre y Fabricacion */}
+                        {recordConInfo && (
+                          <View style={{ marginTop: 2, gap: 2 }}>
+                            {recordConInfo.ClienteNombre && (
+                              <Text style={{ fontSize: 10, color: '#0369a1', fontWeight: '600' }}>
+                                👤 {recordConInfo.ClienteNombre}
+                              </Text>
+                            )}
+                            {recordConInfo.Fabricacion && (
+                              <Text style={{ fontSize: 10, color: '#0369a1', fontWeight: '600' }}>
+                                🏭 {recordConInfo.Fabricacion}
+                              </Text>
+                            )}
+                          </View>
+                        )}
+                        <Text style={styles.detailSubtext}>
+                          {ped.modulos} módulo{ped.modulos !== 1 ? 's' : ''} · {ped.tareas} tarea{ped.tareas !== 1 ? 's' : ''} · {ped.registros} reg.
+                        </Text>
                       </View>
-                      <Text style={styles.detailPercentage}>{ped.porcentaje.toFixed(1)}%</Text>
+                      <View style={styles.detailRight}>
+                        <Text style={styles.detailTime}>{formatHM(ped.tiempoValido)}</Text>
+                        <View style={styles.progressBarContainer}>
+                          <View style={[styles.progressBar, { width: `${ped.porcentaje}%`, backgroundColor: '#ef4444' }]} />
+                        </View>
+                        <Text style={styles.detailPercentage}>{ped.porcentaje.toFixed(1)}%</Text>
+                      </View>
                     </View>
-                  </View>
-                </TouchableOpacity>
-              ))}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             {/* Desglose por Tareas */}
@@ -2516,6 +3250,497 @@ export default function ControlTerminalesScreen() {
     );
   };
 
+  // ✅ Renderizar análisis de Serie
+  const renderSerieAnalysis = (analysis: SerieAnalysis) => {
+    return (
+      <FlatList
+        data={[analysis]}
+        keyExtractor={() => 'analysis'}
+        contentContainerStyle={{ paddingBottom: 24 }}
+        showsVerticalScrollIndicator={true}
+        nestedScrollEnabled={true}
+        renderItem={() => (
+          <View style={styles.analysisContainer}>
+            {/* Header de la Serie */}
+            <View style={styles.analysisHeaderCard}>
+              <View style={styles.analysisHeaderTitle}>
+                <Ionicons name="layers" size={32} color="#8b5cf6" />
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.analysisMainTitle}>Análisis de Serie</Text>
+                  <Text style={styles.analysisPedidoNumber}>{analysis.serie}</Text>
+                  {/* ✨ Mostrar información enriquecida del cliente y fabricación */}
+                  {(() => {
+                    // Obtener el primer registro con ClienteNombre y Fabricacion
+                    const recordConInfo = tiempoRecords.find(r => 
+                      (r.Serie1Desc || 'SIN_SERIE') === analysis.serie && 
+                      (r.ClienteNombre || r.Fabricacion)
+                    );
+                    
+                    if (recordConInfo) {
+                      return (
+                        <View style={{ marginTop: 8, gap: 4 }}>
+                          {recordConInfo.ClienteNombre && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Ionicons name="person-outline" size={14} color="#0369a1" />
+                              <Text style={{ fontSize: 12, color: '#0369a1', fontWeight: '600' }}>
+                                Cliente: {recordConInfo.ClienteNombre}
+                              </Text>
+                            </View>
+                          )}
+                          {recordConInfo.Fabricacion && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Ionicons name="build-outline" size={14} color="#0369a1" />
+                              <Text style={{ fontSize: 12, color: '#0369a1', fontWeight: '600' }}>
+                                Fabricación: {recordConInfo.Fabricacion}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      );
+                    }
+                    return null;
+                  })()}
+                </View>
+              </View>
+              <View style={styles.analysisDateRange}>
+                <Ionicons name="calendar-outline" size={16} color="#6b7280" />
+                <Text style={styles.analysisDateText}>
+                  {analysis.fechaInicio} → {analysis.fechaFin} ({analysis.diasTrabajados} día{analysis.diasTrabajados !== 1 ? 's' : ''})
+                </Text>
+              </View>
+            </View>
+
+            {/* Métricas Principales */}
+            <View style={styles.metricsGrid}>
+              <View style={styles.metricCard}>
+                <View style={styles.metricIconContainer}>
+                  <Ionicons name="time" size={24} color="#3b82f6" />
+                </View>
+                <Text style={styles.analysisMetricValue}>{formatHM(analysis.tiempoTotalValido)}</Text>
+                <Text style={styles.analysisMetricLabel}>Tiempo Válido</Text>
+              </View>
+
+              <View style={styles.metricCard}>
+                <View style={[styles.metricIconContainer, { backgroundColor: '#dbeafe' }]}>
+                  <Ionicons name="speedometer" size={24} color="#3b82f6" />
+                </View>
+                <Text style={styles.analysisMetricValue}>{analysis.eficienciaPromedio.toFixed(1)}%</Text>
+                <Text style={styles.analysisMetricLabel}>Eficiencia</Text>
+              </View>
+
+              <View style={styles.metricCard}>
+                <View style={[styles.metricIconContainer, { backgroundColor: '#dcfce7' }]}>
+                  <Ionicons name="people" size={24} color="#10b981" />
+                </View>
+                <Text style={styles.analysisMetricValue}>{analysis.totalOperarios}</Text>
+                <Text style={styles.analysisMetricLabel}>Operarios</Text>
+              </View>
+
+              <View style={styles.metricCard}>
+                <View style={[styles.metricIconContainer, { backgroundColor: '#fee2e2' }]}>
+                  <Ionicons name="document-text" size={24} color="#ef4444" />
+                </View>
+                <Text style={styles.analysisMetricValue}>{analysis.totalPedidos}</Text>
+                <Text style={styles.analysisMetricLabel}>Pedidos</Text>
+              </View>
+            </View>
+
+            {/* Alertas si hay anomalías */}
+            {(analysis.tiempoFueraTurno > 0 || analysis.fichajesAbiertos > 0) && (
+              <View style={styles.alertCard}>
+                <View style={styles.alertHeader}>
+                  <Ionicons name="warning" size={20} color="#dc2626" />
+                  <Text style={styles.alertTitle}>Anomalías Detectadas</Text>
+                </View>
+                {analysis.tiempoFueraTurno > 0 && (
+                  <Text style={styles.alertText}>
+                    ⚠️ {formatHM(analysis.tiempoFueraTurno)} trabajado fuera de horario (descontado)
+                  </Text>
+                )}
+                {analysis.fichajesAbiertos > 0 && (
+                  <Text style={styles.alertText}>
+                    🔴 {analysis.fichajesAbiertos} fichaje{analysis.fichajesAbiertos > 1 ? 's' : ''} abierto{analysis.fichajesAbiertos > 1 ? 's' : ''} (ajustado{analysis.fichajesAbiertos > 1 ? 's' : ''})
+                  </Text>
+                )}
+              </View>
+            )}
+
+            {/* 📊 Estadísticas Generales Completas */}
+            <View style={styles.sectionCard}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="stats-chart" size={20} color={COLORS.primary} />
+                <Text style={styles.sectionTitle}>Estadísticas Generales</Text>
+              </View>
+              
+              {/* Contadores Básicos */}
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Registros totales</Text>
+                  <Text style={styles.statValue}>{analysis.totalRegistros}</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Módulos diferentes</Text>
+                  <Text style={styles.statValue}>{analysis.totalModulos}</Text>
+                </View>
+              </View>
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Pedidos diferentes</Text>
+                  <Text style={styles.statValue}>{analysis.totalPedidos}</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Tareas diferentes</Text>
+                  <Text style={styles.statValue}>{analysis.totalTareas}</Text>
+                </View>
+              </View>
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Operarios diferentes</Text>
+                  <Text style={styles.statValue}>{analysis.totalOperarios}</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Días trabajados</Text>
+                  <Text style={styles.statValue}>{analysis.diasTrabajados}</Text>
+                </View>
+              </View>
+
+              {/* ⏱️ Tiempos Totales y Promedios */}
+              <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#e5e7eb' }}>
+                <Text style={[styles.statLabel, { fontWeight: '700', fontSize: 14, marginBottom: 10, color: COLORS.primary }]}>
+                  ⏱️ Tiempos de Fabricación
+                </Text>
+                <View style={styles.statsRow}>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statLabel}>Tiempo total válido</Text>
+                    <Text style={[styles.statValue, { fontSize: 16, fontWeight: '700', color: '#3b82f6' }]}>
+                      {formatDurationLong(analysis.tiempoTotalValido)}
+                    </Text>
+                  </View>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statLabel}>Tiempo promedio diario</Text>
+                    <Text style={[styles.statValue, { color: '#3b82f6' }]}>
+                      {formatHM(analysis.tiempoPromedioDiario)}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              {/* 📦 Promedios por Elemento */}
+              <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#e5e7eb' }}>
+                <Text style={[styles.statLabel, { fontWeight: '700', fontSize: 14, marginBottom: 10, color: COLORS.primary }]}>
+                  📦 Tiempo Promedio por Elemento
+                </Text>
+                <View style={styles.statsRow}>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statLabel}>Por módulo</Text>
+                    <Text style={[styles.statValue, { color: '#f59e0b', fontWeight: '700' }]}>
+                      {formatHM(analysis.tiempoPromedioPorModulo)}
+                    </Text>
+                  </View>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statLabel}>Por pedido</Text>
+                    <Text style={[styles.statValue, { color: '#ef4444' }]}>
+                      {formatHM(analysis.tiempoPromedioPorPedido)}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.statsRow}>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statLabel}>Por tarea (promedio)</Text>
+                    <Text style={[styles.statValue, { color: '#8b5cf6' }]}>
+                      {formatHM(analysis.tiempoPromedioPorTarea)}
+                    </Text>
+                  </View>
+                  <View style={styles.statItem}>
+                    <Text style={styles.statLabel}>Por operario (promedio)</Text>
+                    <Text style={[styles.statValue, { color: '#10b981' }]}>
+                      {formatHM(analysis.tiempoPromedioPorOperario)}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Tarea con más tiempo */}
+                {(() => {
+                  const tareaTop = analysis.tareasDetalle[0];
+                  if (tareaTop) {
+                    return (
+                      <View style={styles.statsRow}>
+                        <View style={styles.statItem}>
+                          <Text style={styles.statLabel}>Tarea con más tiempo</Text>
+                          <Text style={[styles.statValue, { fontSize: 13, color: '#8b5cf6' }]}>
+                            {tareaTop.codigo}
+                          </Text>
+                          <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
+                            {formatHM(tareaTop.tiempoValido)}
+                          </Text>
+                        </View>
+                        <View style={styles.statItem}>
+                          <Text style={styles.statLabel}>Operario con más tiempo</Text>
+                          <Text style={[styles.statValue, { fontSize: 13, color: '#10b981' }]}>
+                            {analysis.operariosDetalle[0]?.nombre || '-'}
+                          </Text>
+                          <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>
+                            {formatHM(analysis.operariosDetalle[0]?.tiempoValido || 0)}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  }
+                  return null;
+                })()}
+              </View>
+            </View>
+
+            {/* Desglose por Pedidos */}
+            <View style={styles.sectionCard}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="document-text" size={20} color="#ef4444" />
+                <Text style={styles.sectionTitle}>Desglose por Pedidos ({analysis.totalPedidos})</Text>
+              </View>
+              {analysis.pedidosDetalle.slice(0, 10).map((ped, idx) => {
+                // ✨ Obtener información enriquecida del pedido (solo para mostrar)
+                const recordConInfo = tiempoRecords.find(r => 
+                  normalizePedidoKey(r.NumeroManual) === ped.nombre && 
+                  (r.Serie1Desc || 'SIN_SERIE') === analysis.serie &&
+                  (r.ClienteNombre || r.Fabricacion)
+                );
+                
+                return (
+                  <TouchableOpacity
+                    key={idx}
+                    onPress={() => {
+                      // 🔍 Filtrar y abrir análisis detallado del pedido
+                      const pedidoRecords = tiempoRecords.filter(r => 
+                        normalizePedidoKey(r.NumeroManual) === ped.nombre && 
+                        (r.Serie1Desc || 'SIN_SERIE') === analysis.serie
+                      );
+                      const pedidoAnalysisData = analyzePedidoDetailed(pedidoRecords);
+                      setPedidoAnalysisData(pedidoAnalysisData);
+                      setPedidoAnalysisVisible(true);
+                    }}
+                  >
+                    <View style={styles.detailRow}>
+                      <View style={styles.detailLeft}>
+                        <Text style={styles.detailName}>{ped.nombre}</Text>
+                        {/* ✨ Mostrar ClienteNombre y Fabricacion */}
+                        {recordConInfo && (
+                          <View style={{ marginTop: 2, gap: 2 }}>
+                            {recordConInfo.ClienteNombre && (
+                              <Text style={{ fontSize: 10, color: '#0369a1', fontWeight: '600' }}>
+                                👤 {recordConInfo.ClienteNombre}
+                              </Text>
+                            )}
+                            {recordConInfo.Fabricacion && (
+                              <Text style={{ fontSize: 10, color: '#0369a1', fontWeight: '600' }}>
+                                🏭 {recordConInfo.Fabricacion}
+                              </Text>
+                            )}
+                          </View>
+                        )}
+                        <Text style={styles.detailSubtext}>
+                          {ped.operarios} op. · {ped.modulos} mód. · {ped.registros} reg.
+                        </Text>
+                      </View>
+                      <View style={styles.detailRight}>
+                        <Text style={styles.detailTime}>{formatHM(ped.tiempoValido)}</Text>
+                        <View style={styles.progressBarContainer}>
+                          <View style={[styles.progressBar, { width: `${ped.porcentaje}%` }]} />
+                        </View>
+                        <Text style={styles.detailPercentage}>{ped.porcentaje.toFixed(1)}%</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* 🆕 Desglose por Módulos (ordenado por Pedido → Módulo) */}
+            <View style={styles.sectionCard}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="cube" size={20} color="#f59e0b" />
+                <Text style={styles.sectionTitle}>Desglose por Módulos (Pedido → Módulo)</Text>
+              </View>
+              {(() => {
+                // Agrupar módulos por pedido
+                const modulosPorPedido = new Map<string, Array<{
+                  modulo: string;
+                  tiempoValido: number;
+                  registros: number;
+                  operarios: number;
+                  porcentaje: number;
+                }>>();
+
+                // Procesar todos los registros de la serie
+                tiempoRecords
+                  .filter(r => (r.Serie1Desc || 'SIN_SERIE') === analysis.serie)
+                  .forEach(record => {
+                    const pedido = normalizePedidoKey(record.NumeroManual);
+                    const modulo = record.Modulo?.trim() || 'SIN_MODULO';
+                    
+                    if (!modulosPorPedido.has(pedido)) {
+                      modulosPorPedido.set(pedido, []);
+                    }
+
+                    const modulosDelPedido = modulosPorPedido.get(pedido)!;
+                    let moduloExistente = modulosDelPedido.find(m => m.modulo === modulo);
+
+                    if (!moduloExistente) {
+                      moduloExistente = {
+                        modulo,
+                        tiempoValido: 0,
+                        registros: 0,
+                        operarios: 0,
+                        porcentaje: 0
+                      };
+                      modulosDelPedido.push(moduloExistente);
+                    }
+
+                    moduloExistente.tiempoValido += calculateValidWorkTime(record);
+                    moduloExistente.registros++;
+                  });
+
+                // Calcular operarios únicos por módulo y ordenar
+                modulosPorPedido.forEach((modulos, pedido) => {
+                  modulos.forEach(modulo => {
+                    const operariosSet = new Set<string>();
+                    tiempoRecords
+                      .filter(r => 
+                        normalizePedidoKey(r.NumeroManual) === pedido &&
+                        (r.Modulo?.trim() || 'SIN_MODULO') === modulo.modulo
+                      )
+                      .forEach(r => {
+                        operariosSet.add(operarioFirstNameKey(r.OperarioNombre || r.CodigoOperario));
+                      });
+                    modulo.operarios = operariosSet.size;
+                    modulo.porcentaje = analysis.tiempoTotalValido > 0 
+                      ? (modulo.tiempoValido / analysis.tiempoTotalValido) * 100 
+                      : 0;
+                  });
+                  // Ordenar módulos por tiempo válido descendente
+                  modulos.sort((a, b) => b.tiempoValido - a.tiempoValido);
+                });
+
+                // Ordenar pedidos por tiempo total descendente
+                const pedidosOrdenados = Array.from(modulosPorPedido.entries())
+                  .map(([pedido, modulos]) => ({
+                    pedido,
+                    modulos,
+                    tiempoTotal: modulos.reduce((sum, m) => sum + m.tiempoValido, 0)
+                  }))
+                  .sort((a, b) => b.tiempoTotal - a.tiempoTotal);
+
+                // Renderizar
+                return pedidosOrdenados.map((pedidoData, pedidoIdx) => (
+                  <View key={pedidoIdx} style={{ marginBottom: 16 }}>
+                    {/* Header del Pedido */}
+                    <View style={[styles.detailRow, { backgroundColor: '#fef3c7', paddingVertical: 8, borderRadius: 8, marginBottom: 8 }]}>
+                      <View style={styles.detailLeft}>
+                        <Text style={[styles.detailName, { color: '#92400e', fontWeight: '700' }]}>
+                          📋 {pedidoData.pedido}
+                        </Text>
+                        <Text style={[styles.detailSubtext, { color: '#92400e' }]}>
+                          {pedidoData.modulos.length} módulo{pedidoData.modulos.length !== 1 ? 's' : ''}
+                        </Text>
+                      </View>
+                      <View style={styles.detailRight}>
+                        <Text style={[styles.detailTime, { color: '#92400e' }]}>
+                          {formatHM(pedidoData.tiempoTotal)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Módulos del Pedido */}
+                    {pedidoData.modulos.map((modulo, moduloIdx) => (
+                      <View key={moduloIdx} style={[styles.detailRow, { marginLeft: 16, marginBottom: 4 }]}>
+                        <View style={styles.detailLeft}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Ionicons name="cube-outline" size={14} color="#f59e0b" />
+                            <Text style={styles.detailName}>{modulo.modulo}</Text>
+                          </View>
+                          <Text style={styles.detailSubtext}>
+                            {modulo.operarios} op. · {modulo.registros} reg.
+                          </Text>
+                        </View>
+                        <View style={styles.detailRight}>
+                          <Text style={styles.detailTime}>{formatHM(modulo.tiempoValido)}</Text>
+                          <View style={styles.progressBarContainer}>
+                            <View style={[styles.progressBar, { width: `${modulo.porcentaje}%`, backgroundColor: '#f59e0b' }]} />
+                          </View>
+                          <Text style={styles.detailPercentage}>{modulo.porcentaje.toFixed(1)}%</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ));
+              })()}
+            </View>
+
+            {/* Desglose por Operarios */}
+            <View style={styles.sectionCard}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="people" size={20} color="#10b981" />
+                <Text style={styles.sectionTitle}>Desglose por Operarios ({analysis.totalOperarios})</Text>
+              </View>
+              {analysis.operariosDetalle.map((op, idx) => (
+                <View key={idx} style={styles.detailRow}>
+                  <View style={styles.detailLeft}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={styles.detailName}>{op.nombre}</Text>
+                      {op.tieneAnomalias && <Ionicons name="warning" size={14} color="#dc2626" />}
+                    </View>
+                    <Text style={styles.detailSubtext}>
+                      {op.modulos} mód. · {op.pedidos} ped. · {op.registros} reg.
+                    </Text>
+                  </View>
+                  <View style={styles.detailRight}>
+                    <Text style={styles.detailTime}>{formatHM(op.tiempoValido)}</Text>
+                    <View style={styles.progressBarContainer}>
+                      <View style={[styles.progressBar, { width: `${op.porcentaje}%` }]} />
+                    </View>
+                    <Text style={styles.detailPercentage}>{op.porcentaje.toFixed(1)}%</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {/* Desglose por Tareas */}
+            <View style={styles.sectionCard}>
+              <View style={styles.sectionHeader}>
+                <Ionicons name="construct" size={20} color="#8b5cf6" />
+                <Text style={styles.sectionTitle}>Desglose por Tareas ({analysis.totalTareas})</Text>
+              </View>
+              {analysis.tareasDetalle.slice(0, 10).map((tar, idx) => (
+                <View key={idx} style={styles.detailRow}>
+                  <View style={styles.detailLeft}>
+                    <Text style={styles.detailName}>{tar.codigo}</Text>
+                    <Text style={styles.detailSubtext}>
+                      {tar.operarios} op. · {tar.pedidos} ped. · {tar.registros} reg.
+                    </Text>
+                  </View>
+                  <View style={styles.detailRight}>
+                    <Text style={styles.detailTime}>{formatHM(tar.tiempoValido)}</Text>
+                    <View style={styles.progressBarContainer}>
+                      <View style={[styles.progressBar, { width: `${tar.porcentaje}%` }]} />
+                    </View>
+                    <Text style={styles.detailPercentage}>{tar.porcentaje.toFixed(1)}%</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            {/* Resumen Final */}
+            <View style={styles.summaryFinalCard}>
+              <Ionicons name="checkmark-circle" size={24} color="#10b981" />
+              <Text style={styles.summaryFinalText}>
+                Análisis completado: {analysis.totalRegistros} registros procesados con {analysis.eficienciaPromedio.toFixed(1)}% de eficiencia
+              </Text>
+            </View>
+          </View>
+        )}
+      />
+    );
+  };
+
   // ✅ Renderizar modal de detalle de item clickeado
   const renderItemDetail = (detail: ItemDetail) => {
     const getIconForType = () => {
@@ -2524,6 +3749,7 @@ export default function ControlTerminalesScreen() {
         case 'modulo': return { name: 'cube' as const, color: '#f59e0b' };
         case 'tarea': return { name: 'construct' as const, color: '#8b5cf6' };
         case 'operario': return { name: 'person' as const, color: '#10b981' };
+        case 'serie': return { name: 'layers' as const, color: '#8b5cf6' };
       }
     };
 
@@ -2630,14 +3856,26 @@ export default function ControlTerminalesScreen() {
                     {categoria.categoria} ({categoria.items.length})
                   </Text>
                 </View>
-                {categoria.items.map((item, itemIdx) => (
-                  <View key={itemIdx} style={styles.detailRow}>
-                    <View style={styles.detailLeft}>
-                      <Text style={styles.detailName}>{item.nombre}</Text>
-                      <Text style={styles.detailSubtext}>
-                        {item.registros} registro{item.registros > 1 ? 's' : ''}
-                      </Text>
-                    </View>
+                {categoria.items.map((item, itemIdx) => {
+                  // ✨ Si es un módulo, obtener información de Serie
+                  const serieInfo = categoria.categoria === 'Módulos' 
+                    ? tiempoRecords.find(r => (r.Modulo?.trim() || 'SIN_MODULO') === item.nombre)
+                    : null;
+                  
+                  return (
+                    <View key={itemIdx} style={styles.detailRow}>
+                      <View style={styles.detailLeft}>
+                        <Text style={styles.detailName}>{item.nombre}</Text>
+                        {/* ✨ Mostrar Serie1Desc si es un módulo */}
+                        {serieInfo?.Serie1Desc && (
+                          <Text style={{ fontSize: 10, color: '#8b5cf6', fontWeight: '600', marginTop: 2 }}>
+                            📦 Serie: {serieInfo.Serie1Desc}
+                          </Text>
+                        )}
+                        <Text style={styles.detailSubtext}>
+                          {item.registros} registro{item.registros > 1 ? 's' : ''}
+                        </Text>
+                      </View>
                     <View style={styles.detailRight}>
                       <Text style={styles.detailTime}>{formatHM(item.tiempo)}</Text>
                       <View style={styles.progressBarContainer}>
@@ -2660,7 +3898,8 @@ export default function ControlTerminalesScreen() {
                       </Text>
                     </View>
                   </View>
-                ))}
+                );
+                })}
               </View>
             ))}
 
@@ -3457,6 +4696,14 @@ export default function ControlTerminalesScreen() {
             Pedidos · {counts.pedido}
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.filterButton, filterMode === 'serie' && styles.filterButtonActive]}
+          onPress={() => setFilterMode('serie')}
+        >
+          <Text style={[styles.filterText, filterMode === 'serie' && styles.filterTextActive]}>
+            Series · {counts.serie}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Lista */}
@@ -3478,6 +4725,9 @@ export default function ControlTerminalesScreen() {
                 if (filterMode === 'tarea') {
                   return normalizeTareaKey(r.CodigoTarea) === item.key;
                 }
+                if (filterMode === 'serie') {
+                  return (r.Serie1Desc || 'SIN_SERIE') === item.key;
+                }
                 return normalizePedidoKey(r.NumeroManual) === item.key;
               });
 
@@ -3496,6 +4746,10 @@ export default function ControlTerminalesScreen() {
                 const analysis = analyzeOperarioDetailed(all);
                 setOperarioAnalysisData(analysis);
                 setOperarioAnalysisVisible(true);
+              } else if (filterMode === 'serie') {
+                const analysis = analyzeSerieDetailed(all);
+                setSerieAnalysisData(analysis);
+                setSerieAnalysisVisible(true);
               }
             }}
           >
@@ -3507,6 +4761,27 @@ export default function ControlTerminalesScreen() {
                     <Ionicons name="warning" size={14} color="#dc2626" />
                   </View>
                 )}
+                {/* ✨ Mostrar información enriquecida si es modo serie */}
+                {filterMode === 'serie' && (() => {
+                  const recordConInfo = item.items.find((r: TiempoRealRecord) => r.ClienteNombre || r.Fabricacion);
+                  if (recordConInfo) {
+                    return (
+                      <View style={{ marginTop: 4, gap: 2 }}>
+                        {recordConInfo.ClienteNombre && (
+                          <Text style={{ fontSize: 10, color: '#0369a1', fontWeight: '600' }}>
+                            👤 {recordConInfo.ClienteNombre}
+                          </Text>
+                        )}
+                        {recordConInfo.Fabricacion && (
+                          <Text style={{ fontSize: 10, color: '#0369a1', fontWeight: '600' }}>
+                            🏭 {recordConInfo.Fabricacion}
+                          </Text>
+                        )}
+                      </View>
+                    );
+                  }
+                  return null;
+                })()}
               </View>
               <View style={styles.cardStats}>
                 <Text style={styles.cardTime}>{formatHM(item.totalValidTime)}</Text>
@@ -3612,6 +4887,24 @@ export default function ControlTerminalesScreen() {
           </View>
 
           {operarioAnalysisData && renderOperarioAnalysis(operarioAnalysisData)}
+        </SafeAreaView>
+      </Modal>
+
+      {/* ✅ Modal de Análisis de Serie */}
+      <Modal
+        visible={serieAnalysisVisible}
+        animationType="slide"
+        onRequestClose={() => setSerieAnalysisVisible(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Análisis Detallado de Serie</Text>
+            <TouchableOpacity onPress={() => setSerieAnalysisVisible(false)} style={styles.closeButton}>
+              <Ionicons name="close" size={24} color={COLORS.primary} />
+            </TouchableOpacity>
+          </View>
+
+          {serieAnalysisData && renderSerieAnalysis(serieAnalysisData)}
         </SafeAreaView>
       </Modal>
 
