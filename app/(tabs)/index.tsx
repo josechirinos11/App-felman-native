@@ -1,7 +1,8 @@
 // app/index.tsx
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -12,13 +13,23 @@ type IconName = React.ComponentProps<typeof Ionicons>['name'];
 type RouteNames = '/control-pedidos' | '/control-comerciales' | '/control-incidencias' | '/control-entregas-diarias' | '/pagina-construccion' | string;
 
 interface MenuItem {
-  id: number;
+  id: number | string;
   title: string;
   icon: IconName;
   route: RouteNames;
+  isCustom?: boolean;
 }
 
-const menuItems: MenuItem[] = [
+interface CustomModule {
+  id: string;
+  nombre: string;
+  icono: IconName;
+  consultaSQL: string;
+  apiRestUrl: string;
+  fechaCreacion: string;
+}
+
+const menuItemsBase: MenuItem[] = [
   { id: 1, title: 'Moncada', icon: 'construct-outline', route: '/moncada' },
   { id: 2, title: 'Almassera', icon: 'business-outline', route: '/optima' },
   { id: 3, title: 'Almacén', icon: 'cube-outline', route: '/almacen' },
@@ -39,6 +50,7 @@ export default function HomeScreen() {
   const [token, setToken] = useState<string | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>(menuItemsBase);
   const { authenticated, loading: authLoading } = useAuth();
   const router = useRouter();
 
@@ -51,6 +63,13 @@ export default function HomeScreen() {
     }
   }, [authenticated, authLoading, router]);
 
+
+  // Cargar módulos personalizados cuando la pantalla obtiene el foco
+  useFocusEffect(
+    useCallback(() => {
+      cargarModulosPersonalizados();
+    }, [])
+  );
 
   useEffect(() => {
     (async () => {
@@ -93,6 +112,34 @@ export default function HomeScreen() {
       }
     })();
   }, []);
+
+  // Función para cargar módulos personalizados
+  const cargarModulosPersonalizados = async () => {
+    try {
+      const modulosJSON = await AsyncStorage.getItem('customModules');
+      if (modulosJSON) {
+        const modulosCustom: CustomModule[] = JSON.parse(modulosJSON);
+        
+        // Convertir módulos personalizados a MenuItem
+        const menuItemsCustom: MenuItem[] = modulosCustom.map(modulo => ({
+          id: modulo.id,
+          title: modulo.nombre,
+          icon: modulo.icono,
+          route: `/modulos/${modulo.id}` as RouteNames,
+          isCustom: true,
+        }));
+
+        // Combinar menús base con personalizados
+        setMenuItems([...menuItemsBase, ...menuItemsCustom]);
+        console.log('✅ Módulos personalizados cargados:', menuItemsCustom.length);
+      } else {
+        setMenuItems(menuItemsBase);
+      }
+    } catch (error) {
+      console.error('❌ Error al cargar módulos personalizados:', error);
+      setMenuItems(menuItemsBase);
+    }
+  };
 
   if (loading) {
     return (
@@ -143,6 +190,14 @@ export default function HomeScreen() {
             </View>
           </ScrollView>
         </View>
+
+        {/* Botón de agregar fijo arriba del botón de configuraciones */}
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => router.push('/modulos/agregarModulo')}
+        >
+          <Ionicons name="add-outline" size={24} color="#1976d2" />
+        </TouchableOpacity>
 
         {/* Botón de configuraciones fijo abajo a la derecha */}
         <TouchableOpacity
@@ -239,6 +294,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginVertical: 12,
     fontWeight: '500',
+  },
+  addButton: {
+    position: 'absolute',
+    bottom: 86,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#e3eafc',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
   configButton: {
     position: 'absolute',
