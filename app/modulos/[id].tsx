@@ -85,17 +85,28 @@ export default function ModuloDetalleScreen() {
 
   const cargarModulo = async () => {
     try {
+      console.log('🔍 Cargando módulo con ID:', id);
       const modulosJSON = await AsyncStorage.getItem('customModules');
+      console.log('📦 Módulos en storage:', modulosJSON ? 'Encontrados' : 'No encontrados');
+      
       if (modulosJSON) {
         const modulos: CustomModule[] = JSON.parse(modulosJSON);
+        console.log('📊 Total de módulos:', modulos.length);
+        
         const moduloEncontrado = modulos.find(m => m.id === id);
         
         if (moduloEncontrado) {
+          console.log('✅ Módulo encontrado:', moduloEncontrado.nombre);
+          console.log('🔹 usaConsultasMultiples:', moduloEncontrado.usaConsultasMultiples);
+          console.log('🔹 consultasSQL:', moduloEncontrado.consultasSQL?.length || 0, 'consultas');
+          console.log('🔹 queryIdPrincipal:', moduloEncontrado.queryIdPrincipal);
           setModulo(moduloEncontrado);
         } else {
+          console.error('❌ Módulo no encontrado con ID:', id);
           setError('Módulo no encontrado');
         }
       } else {
+        console.warn('⚠️ No hay módulos guardados en AsyncStorage');
         setError('No hay módulos guardados');
       }
     } catch (err) {
@@ -126,11 +137,22 @@ export default function ModuloDetalleScreen() {
       // Determinar el tipo de conexión
       if (modulo.tipoConexion === 'api') {
         console.log('✅ Usando CONEXIÓN API REST');
+        console.log('🔍 Verificando modo de consultas...');
+        console.log('   - usaConsultasMultiples:', modulo.usaConsultasMultiples);
+        console.log('   - consultasSQL existe:', !!modulo.consultasSQL);
+        console.log('   - consultasSQL length:', modulo.consultasSQL?.length || 0);
         
         // Verificar si usa consultas múltiples
-        if (modulo.usaConsultasMultiples && modulo.consultasSQL && modulo.consultasSQL.length > 0) {
-          console.log('🔷 MODO: Consultas Múltiples (consultaMAYOR)');
+        if (modulo.usaConsultasMultiples === true && 
+            modulo.consultasSQL && 
+            Array.isArray(modulo.consultasSQL) && 
+            modulo.consultasSQL.length > 0) {
+          
+          console.log('🔷 ========================================');
+          console.log('🔷 MODO: CONSULTAS MÚLTIPLES (consultaMAYOR)');
+          console.log('🔷 ========================================');
           console.log('🔷 Total de consultas:', modulo.consultasSQL.length);
+          console.log('🔷 Query ID Principal:', modulo.queryIdPrincipal);
           
           // Formato para /consultaMAYOR
           requestBody = {
@@ -143,20 +165,43 @@ export default function ModuloDetalleScreen() {
           };
           
           console.log('📤 Request Body (Consultas Múltiples):');
+          console.log(JSON.stringify(requestBody, null, 2));
+          
+          console.log('📋 Detalle de cada consulta:');
           requestBody.queries.forEach((q: any, idx: number) => {
-            console.log(`   Query ${idx + 1}:`);
-            console.log(`     ID: ${q.id}`);
-            console.log(`     SQL: ${q.sql.substring(0, 60)}...`);
-            console.log(`     Params: ${JSON.stringify(q.params)}`);
-            console.log(`     stopOnEmpty: ${q.stopOnEmpty}`);
+            console.log(`   ▶️ Query ${idx + 1}:`);
+            console.log(`      ID: ${q.id}`);
+            console.log(`      SQL: ${q.sql.substring(0, 80)}${q.sql.length > 80 ? '...' : ''}`);
+            console.log(`      Params: ${JSON.stringify(q.params)}`);
+            console.log(`      stopOnEmpty: ${q.stopOnEmpty}`);
           });
+          console.log('🔷 ========================================');
+          
         } else {
-          console.log('🔷 MODO: Consulta Simple');
+          console.log('🔷 ========================================');
+          console.log('🔷 MODO: CONSULTA SIMPLE');
+          console.log('🔷 ========================================');
+          console.log('🔷 Razones por las que se usa modo simple:');
+          if (!modulo.usaConsultasMultiples) {
+            console.log('   ❌ usaConsultasMultiples es false o undefined');
+          }
+          if (!modulo.consultasSQL) {
+            console.log('   ❌ consultasSQL no existe');
+          }
+          if (modulo.consultasSQL && !Array.isArray(modulo.consultasSQL)) {
+            console.log('   ❌ consultasSQL no es un array');
+          }
+          if (modulo.consultasSQL && modulo.consultasSQL.length === 0) {
+            console.log('   ❌ consultasSQL está vacío');
+          }
+          
           // Formato simple para consulta única
           requestBody = {
             query: modulo.consultaSQL,
           };
-          console.log('📤 Request Body (Consulta Simple):', JSON.stringify(requestBody, null, 2));
+          console.log('📤 Request Body (Consulta Simple):');
+          console.log(JSON.stringify(requestBody, null, 2));
+          console.log('🔷 ========================================');
         }
         
         // ✅ CONEXIÓN API REST - Formato correcto como en tus ejemplos

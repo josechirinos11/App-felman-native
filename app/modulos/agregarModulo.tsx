@@ -9,6 +9,7 @@ import {
     Modal,
     ScrollView,
     StyleSheet,
+    Switch,
     Text,
     TextInput,
     TouchableOpacity,
@@ -17,6 +18,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+interface QuerySQL {
+  id: string;
+  sql: string;
+  params?: any[];
+  stopOnEmpty?: boolean;
+}
 
 interface CustomModule {
   id: string;
@@ -43,6 +51,10 @@ interface CustomModule {
     ordenColumnas?: string[];
     formatoColumnas?: { [key: string]: string };
   };
+  // Campos para consultas múltiples
+  usaConsultasMultiples?: boolean;
+  consultasSQL?: QuerySQL[];
+  queryIdPrincipal?: string;
 }
 
 // Lista de iconos disponibles
@@ -115,6 +127,12 @@ export default function AgregarModuloScreen() {
   // Control de acceso
   const [rolesSeleccionados, setRolesSeleccionados] = useState<string[]>(['Todos']);
   const [rolPersonalizado, setRolPersonalizado] = useState('');
+  
+  // Estados para consultas múltiples
+  const [usaConsultasMultiples, setUsaConsultasMultiples] = useState(false);
+  const [consultasSQL, setConsultasSQL] = useState<QuerySQL[]>([]);
+  const [queryIdPrincipal, setQueryIdPrincipal] = useState('');
+  const [mostrarSelectorQueryPrincipal, setMostrarSelectorQueryPrincipal] = useState(false);
 
   // Cargar rol del usuario actual
   useEffect(() => {
@@ -139,9 +157,44 @@ export default function AgregarModuloScreen() {
       Alert.alert('Error', 'El nombre del módulo es obligatorio');
       return false;
     }
-    if (!consultaSQL.trim()) {
-      Alert.alert('Error', 'La consulta SQL es obligatoria');
-      return false;
+    
+    // Validar según el modo de consultas
+    if (!usaConsultasMultiples) {
+      if (!consultaSQL.trim()) {
+        Alert.alert('Error', 'La consulta SQL es obligatoria');
+        return false;
+      }
+    } else {
+      if (consultasSQL.length === 0) {
+        Alert.alert('Error', 'Debe agregar al menos una consulta');
+        return false;
+      }
+
+      // Validar que todas las consultas tengan ID y SQL
+      for (let i = 0; i < consultasSQL.length; i++) {
+        if (!consultasSQL[i].id.trim()) {
+          Alert.alert('Error', `La consulta #${i + 1} debe tener un ID`);
+          return false;
+        }
+        if (!consultasSQL[i].sql.trim()) {
+          Alert.alert('Error', `La consulta #${i + 1} debe tener SQL`);
+          return false;
+        }
+      }
+
+      // Validar IDs únicos
+      const ids = consultasSQL.map(c => c.id);
+      const idsUnicos = new Set(ids);
+      if (ids.length !== idsUnicos.size) {
+        Alert.alert('Error', 'Los IDs de las consultas deben ser únicos');
+        return false;
+      }
+
+      // Validar que se haya seleccionado un query principal
+      if (!queryIdPrincipal) {
+        Alert.alert('Error', 'Debe seleccionar una consulta principal para mostrar');
+        return false;
+      }
     }
     
     if (tipoConexion === 'api') {
@@ -195,6 +248,10 @@ export default function AgregarModuloScreen() {
         fechaCreacion: new Date().toISOString(),
         tipoConexion,
         rolesPermitidos: rolesSeleccionados,
+        // Incluir consultas múltiples si están habilitadas
+        usaConsultasMultiples,
+        consultasSQL: usaConsultasMultiples ? consultasSQL : undefined,
+        queryIdPrincipal: usaConsultasMultiples ? queryIdPrincipal : undefined,
       };
 
       console.log('📋 Información Básica:');
@@ -313,6 +370,37 @@ export default function AgregarModuloScreen() {
       
       setRolesSeleccionados(nuevosRoles);
     }
+  };
+
+  // Funciones para manejar consultas múltiples
+  const agregarConsulta = () => {
+    const nuevaConsulta: QuerySQL = {
+      id: `query${consultasSQL.length + 1}`,
+      sql: '',
+      params: [],
+      stopOnEmpty: false,
+    };
+    setConsultasSQL([...consultasSQL, nuevaConsulta]);
+  };
+
+  const eliminarConsulta = (index: number) => {
+    if (consultasSQL.length === 1) {
+      Alert.alert('Atención', 'Debe haber al menos una consulta');
+      return;
+    }
+    const nuevasConsultas = consultasSQL.filter((_, i) => i !== index);
+    setConsultasSQL(nuevasConsultas);
+    
+    // Si se eliminó el query principal, seleccionar el primero
+    if (consultasSQL[index].id === queryIdPrincipal && nuevasConsultas.length > 0) {
+      setQueryIdPrincipal(nuevasConsultas[0].id);
+    }
+  };
+
+  const actualizarConsulta = (index: number, campo: keyof QuerySQL, valor: any) => {
+    const nuevasConsultas = [...consultasSQL];
+    nuevasConsultas[index] = { ...nuevasConsultas[index], [campo]: valor };
+    setConsultasSQL(nuevasConsultas);
   };
 
   return (
@@ -528,23 +616,155 @@ export default function AgregarModuloScreen() {
 
             {/* Consulta SQL */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Consulta SQL</Text>
-              
-              <View style={styles.fieldContainer}>
-                <Text style={styles.label}>Consulta SQL *</Text>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  placeholder="SELECT * FROM tabla WHERE condicion"
-                  value={consultaSQL}
-                  onChangeText={setConsultaSQL}
-                  multiline
-                  numberOfLines={6}
-                  placeholderTextColor="#9ca3af"
+              <Text style={styles.sectionTitle}>💾 Consulta SQL</Text>
+
+              {/* Toggle para consultas múltiples */}
+              <View style={styles.switchRow}>
+                <View style={styles.switchLabelContainer}>
+                  <Text style={styles.switchLabel}>Usar Consultas Múltiples</Text>
+                  <Text style={styles.helpText}>
+                    Permite ejecutar varias consultas relacionadas (formato /consultaMAYOR)
+                  </Text>
+                </View>
+                <Switch
+                  value={usaConsultasMultiples}
+                  onValueChange={(value) => {
+                    setUsaConsultasMultiples(value);
+                    if (value && consultasSQL.length === 0) {
+                      // Inicializar con una consulta vacía
+                      setConsultasSQL([{ id: 'query1', sql: '', params: [], stopOnEmpty: false }]);
+                      setQueryIdPrincipal('query1');
+                    }
+                  }}
+                  trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
+                  thumbColor={usaConsultasMultiples ? '#2e78b7' : '#f4f3f4'}
                 />
-                <Text style={styles.helpText}>
-                  Solo se permiten consultas SELECT por seguridad
-                </Text>
               </View>
+
+              {!usaConsultasMultiples ? (
+                // Consulta SQL Simple
+                <View style={styles.fieldContainer}>
+                  <Text style={styles.label}>Consulta SQL *</Text>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    placeholder="SELECT * FROM tabla WHERE condicion"
+                    value={consultaSQL}
+                    onChangeText={setConsultaSQL}
+                    multiline
+                    numberOfLines={6}
+                    placeholderTextColor="#9ca3af"
+                  />
+                  <Text style={styles.helpText}>
+                    Solo se permiten consultas SELECT por seguridad
+                  </Text>
+                </View>
+              ) : (
+                // Consultas Múltiples
+                <View style={styles.fieldContainer}>
+                  <View style={styles.multiQueryHeader}>
+                    <Text style={styles.label}>Consultas SQL ({consultasSQL.length})</Text>
+                    <TouchableOpacity
+                      style={styles.addQueryButton}
+                      onPress={agregarConsulta}
+                    >
+                      <Ionicons name="add-circle" size={24} color="#2e78b7" />
+                      <Text style={styles.addQueryText}>Agregar Consulta</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {consultasSQL.map((consulta, index) => (
+                    <View key={index} style={styles.queryCard}>
+                      <View style={styles.queryCardHeader}>
+                        <Text style={styles.queryCardTitle}>Consulta #{index + 1}</Text>
+                        {consultasSQL.length > 1 && (
+                          <TouchableOpacity onPress={() => eliminarConsulta(index)}>
+                            <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+
+                      <View style={styles.queryCardContent}>
+                        <View style={styles.fieldContainer}>
+                          <Text style={styles.label}>ID de Consulta *</Text>
+                          <TextInput
+                            style={styles.input}
+                            value={consulta.id}
+                            onChangeText={(value) => actualizarConsulta(index, 'id', value)}
+                            placeholder="query1, query2, etc."
+                            placeholderTextColor="#9ca3af"
+                          />
+                          <Text style={styles.helpText}>
+                            Identificador único para referenciar esta consulta
+                          </Text>
+                        </View>
+
+                        <View style={styles.fieldContainer}>
+                          <Text style={styles.label}>SQL *</Text>
+                          <TextInput
+                            style={[styles.input, styles.textArea]}
+                            value={consulta.sql}
+                            onChangeText={(value) => actualizarConsulta(index, 'sql', value)}
+                            placeholder="SELECT * FROM tabla WHERE id = {{query1[0].id}}"
+                            placeholderTextColor="#9ca3af"
+                            multiline
+                            numberOfLines={4}
+                          />
+                          <Text style={styles.helpText}>
+                            Usa {`{{queryId[index].campo}}`} para referenciar resultados de consultas anteriores
+                          </Text>
+                        </View>
+
+                        <View style={styles.fieldContainer}>
+                          <Text style={styles.label}>Parámetros (JSON opcional)</Text>
+                          <TextInput
+                            style={styles.input}
+                            value={JSON.stringify(consulta.params || [])}
+                            onChangeText={(value) => {
+                              try {
+                                const parsed = JSON.parse(value);
+                                actualizarConsulta(index, 'params', parsed);
+                              } catch (e) {
+                                // Ignorar errores de parsing mientras escribe
+                              }
+                            }}
+                            placeholder='["valor1", "valor2"]'
+                            placeholderTextColor="#9ca3af"
+                          />
+                        </View>
+
+                        <View style={styles.switchRow}>
+                          <Text style={styles.switchLabel}>Detener si no hay resultados</Text>
+                          <Switch
+                            value={consulta.stopOnEmpty || false}
+                            onValueChange={(value) => actualizarConsulta(index, 'stopOnEmpty', value)}
+                            trackColor={{ false: '#d1d5db', true: '#93c5fd' }}
+                            thumbColor={consulta.stopOnEmpty ? '#2e78b7' : '#f4f3f4'}
+                          />
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+
+                  {/* Selector de Query Principal */}
+                  {consultasSQL.length > 0 && (
+                    <View style={styles.fieldContainer}>
+                      <Text style={styles.label}>Consulta Principal para Mostrar *</Text>
+                      <TouchableOpacity
+                        style={styles.selector}
+                        onPress={() => setMostrarSelectorQueryPrincipal(true)}
+                      >
+                        <Text style={styles.selectorText}>
+                          {queryIdPrincipal || 'Seleccionar consulta'}
+                        </Text>
+                        <Ionicons name="chevron-down-outline" size={20} color="#9ca3af" />
+                      </TouchableOpacity>
+                      <Text style={styles.helpText}>
+                        Los datos de esta consulta se mostrarán en la tabla del módulo
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              )}
             </View>
 
             {/* Botones */}
@@ -699,6 +919,64 @@ export default function AgregarModuloScreen() {
                 <TouchableOpacity
                   style={styles.modalButton}
                   onPress={() => setMostrarSelectorRoles(false)}
+                >
+                  <Text style={styles.modalButtonText}>Listo</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Modal: Selector de Query Principal */}
+        <Modal
+          visible={mostrarSelectorQueryPrincipal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setMostrarSelectorQueryPrincipal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Seleccionar Consulta Principal</Text>
+                <TouchableOpacity onPress={() => setMostrarSelectorQueryPrincipal(false)}>
+                  <Ionicons name="close-outline" size={24} color="#4a5568" />
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView style={styles.modalList}>
+                {consultasSQL.map((consulta, index) => (
+                  <TouchableOpacity
+                    key={consulta.id}
+                    style={[
+                      styles.modalOption,
+                      queryIdPrincipal === consulta.id && styles.modalOptionSelected,
+                    ]}
+                    onPress={() => {
+                      setQueryIdPrincipal(consulta.id);
+                      setMostrarSelectorQueryPrincipal(false);
+                    }}
+                  >
+                    <View style={styles.iconContainer}>
+                      {queryIdPrincipal === consulta.id ? (
+                        <Ionicons name="checkmark-circle" size={24} color="#2e78b7" />
+                      ) : (
+                        <View style={styles.iconPlaceholder} />
+                      )}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.modalOptionText}>{consulta.id}</Text>
+                      <Text style={[styles.helpText, { marginTop: 4, marginBottom: 0 }]}>
+                        {consulta.sql.substring(0, 60)}{consulta.sql.length > 60 ? '...' : ''}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <View style={styles.modalFooter}>
+                <TouchableOpacity
+                  style={styles.modalButton}
+                  onPress={() => setMostrarSelectorQueryPrincipal(false)}
                 >
                   <Text style={styles.modalButtonText}>Listo</Text>
                 </TouchableOpacity>
@@ -979,5 +1257,77 @@ const styles = StyleSheet.create({
   rolPersonalizadoText: {
     fontWeight: '600',
     color: '#2e78b7',
+  },
+  // Estilos para consultas múltiples
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  switchLabel: {
+    fontSize: 14,
+    color: '#1f2937',
+  },
+  switchLabelContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
+  multiQueryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  addQueryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: '#e3eafc',
+    borderRadius: 6,
+  },
+  addQueryText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2e78b7',
+  },
+  queryCard: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  queryCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  queryCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  queryCardContent: {
+    gap: 4,
+  },
+  iconContainer: {
+    width: 24,
+    height: 24,
+    marginRight: 12,
+  },
+  iconPlaceholder: {
+    width: 24,
+    height: 24,
   },
 });

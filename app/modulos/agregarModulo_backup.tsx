@@ -4,15 +4,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -126,6 +126,8 @@ export default function AgregarModuloScreen() {
         consultaSQL: consultaSQL.trim(),
         apiRestUrl: apiRestUrl.trim(),
         fechaCreacion: new Date().toISOString(),
+        tipoConexion: 'api', // Por defecto usar API REST
+        rolesPermitidos: ['Todos'], // Por defecto acceso para todos
       };
 
       // Recuperar módulos existentes
