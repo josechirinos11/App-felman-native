@@ -1,19 +1,19 @@
 // app/modulos/agregarModulo.tsx - VERSIÓN MEJORADA
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -55,6 +55,9 @@ interface CustomModule {
   usaConsultasMultiples?: boolean;
   consultasSQL?: QuerySQL[];
   queryIdPrincipal?: string;
+  // ✅ Campo para submódulos
+  tieneSubmodulos?: boolean;
+  submodulos?: CustomModule[];
 }
 
 // Lista de iconos disponibles
@@ -101,9 +104,16 @@ const rolesDisponibles = [
 
 export default function AgregarModuloScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const parentId = params.parentId as string | undefined; // ID del módulo padre si es submódulo
+  
   const [loading, setLoading] = useState(false);
   const [mostrarSelectorIcono, setMostrarSelectorIcono] = useState(false);
   const [mostrarSelectorRoles, setMostrarSelectorRoles] = useState(false);
+
+  // ✅ Estado para el paso inicial: pregunta si será módulo principal (solo si NO es submódulo)
+  const [pasoInicial, setPasoInicial] = useState(!parentId); // Si tiene parentId, no muestra paso inicial
+  const [esModuloPrincipal, setEsModuloPrincipal] = useState<boolean | null>(parentId ? false : null);
 
   // Estados básicos del formulario
   const [nombreModulo, setNombreModulo] = useState('');
@@ -153,71 +163,64 @@ export default function AgregarModuloScreen() {
 
   // Validar formulario
   const validarFormulario = (): boolean => {
+    // ✅ SOLO EL NOMBRE ES OBLIGATORIO
     if (!nombreModulo.trim()) {
       Alert.alert('Error', 'El nombre del módulo es obligatorio');
       return false;
     }
     
-    // Validar según el modo de consultas
-    if (!usaConsultasMultiples) {
-      if (!consultaSQL.trim()) {
-        Alert.alert('Error', 'La consulta SQL es obligatoria');
-        return false;
-      }
-    } else {
-      if (consultasSQL.length === 0) {
-        Alert.alert('Error', 'Debe agregar al menos una consulta');
-        return false;
-      }
-
-      // Validar que todas las consultas tengan ID y SQL
-      for (let i = 0; i < consultasSQL.length; i++) {
-        if (!consultasSQL[i].id.trim()) {
-          Alert.alert('Error', `La consulta #${i + 1} debe tener un ID`);
-          return false;
-        }
-        if (!consultasSQL[i].sql.trim()) {
-          Alert.alert('Error', `La consulta #${i + 1} debe tener SQL`);
-          return false;
-        }
-      }
-
-      // Validar IDs únicos
-      const ids = consultasSQL.map(c => c.id);
-      const idsUnicos = new Set(ids);
-      if (ids.length !== idsUnicos.size) {
-        Alert.alert('Error', 'Los IDs de las consultas deben ser únicos');
-        return false;
-      }
-
-      // Validar que se haya seleccionado un query principal
-      if (!queryIdPrincipal) {
-        Alert.alert('Error', 'Debe seleccionar una consulta principal para mostrar');
-        return false;
-      }
+    // ✅ Si es módulo principal (con submódulos), solo necesita nombre e ícono
+    if (esModuloPrincipal === true) {
+      return true;
     }
     
-    if (tipoConexion === 'api') {
-      if (!apiRestUrl.trim()) {
-        Alert.alert('Error', 'La URL de la API REST es obligatoria');
-        return false;
+    // ✅ Si NO es módulo principal, validaciones opcionales
+    if (esModuloPrincipal === false) {
+      // ✅ SQL y API son OPCIONALES - se pueden configurar después
+      
+      // Si usa consultas múltiples, validar su estructura (si las agregó)
+      if (usaConsultasMultiples && consultasSQL.length > 0) {
+        // Validar que todas las consultas tengan ID
+        for (let i = 0; i < consultasSQL.length; i++) {
+          if (!consultasSQL[i].id.trim()) {
+            Alert.alert('Error', `La consulta #${i + 1} debe tener un ID`);
+            return false;
+          }
+        }
+
+        // Validar IDs únicos
+        const ids = consultasSQL.map(c => c.id);
+        const idsUnicos = new Set(ids);
+        if (ids.length !== idsUnicos.size) {
+          Alert.alert('Error', 'Los IDs de las consultas deben ser únicos');
+          return false;
+        }
+
+        // Validar que se haya seleccionado un query principal si hay consultas
+        if (!queryIdPrincipal) {
+          Alert.alert('Error', 'Debe seleccionar una consulta principal para mostrar');
+          return false;
+        }
       }
-      try {
-        new URL(apiRestUrl);
-      } catch (e) {
-        Alert.alert('Error', 'La URL de la API REST no tiene un formato válido');
-        return false;
+      
+      // Validar formato de URL si se proporcionó
+      if (tipoConexion === 'api' && apiRestUrl.trim()) {
+        try {
+          new URL(apiRestUrl);
+        } catch (e) {
+          Alert.alert('Error', 'La URL de la API REST no tiene un formato válido');
+          return false;
+        }
       }
-    } else {
-      if (!hostDB.trim() || !nombreDB.trim() || !usuarioDB.trim()) {
-        Alert.alert('Error', 'Todos los campos de conexión a BD son obligatorios');
-        return false;
+      
+      // Validar campos de BD solo si se llenó alguno (para evitar configuraciones parciales)
+      if (tipoConexion === 'directa') {
+        const camposLlenos = [hostDB.trim(), nombreDB.trim(), usuarioDB.trim()].filter(c => c).length;
+        if (camposLlenos > 0 && camposLlenos < 3) {
+          Alert.alert('Error', 'Si configuras conexión directa, debes llenar Host, Base de Datos y Usuario');
+          return false;
+        }
       }
-    }
-    
-    if (rolesSeleccionados.length === 0) {
-      Alert.alert('Error', 'Debes seleccionar al menos un rol con acceso');
-      return false;
     }
     
     return true;
@@ -243,15 +246,18 @@ export default function AgregarModuloScreen() {
         id: moduleId,
         nombre: nombreModulo.trim(),
         icono: iconoSeleccionado,
-        consultaSQL: consultaSQL.trim(),
-        apiRestUrl: tipoConexion === 'api' ? apiRestUrl.trim() : '',
+        consultaSQL: esModuloPrincipal ? '' : consultaSQL.trim(),
+        apiRestUrl: esModuloPrincipal ? '' : (tipoConexion === 'api' ? apiRestUrl.trim() : ''),
         fechaCreacion: new Date().toISOString(),
         tipoConexion,
         rolesPermitidos: rolesSeleccionados,
         // Incluir consultas múltiples si están habilitadas
-        usaConsultasMultiples,
-        consultasSQL: usaConsultasMultiples ? consultasSQL : undefined,
-        queryIdPrincipal: usaConsultasMultiples ? queryIdPrincipal : undefined,
+        usaConsultasMultiples: esModuloPrincipal ? false : usaConsultasMultiples,
+        consultasSQL: esModuloPrincipal ? undefined : (usaConsultasMultiples ? consultasSQL : undefined),
+        queryIdPrincipal: esModuloPrincipal ? undefined : (usaConsultasMultiples ? queryIdPrincipal : undefined),
+        // ✅ Incluir configuración de submódulos
+        tieneSubmodulos: esModuloPrincipal || false,
+        submodulos: esModuloPrincipal ? [] : undefined,
       };
 
       console.log('📋 Información Básica:');
@@ -291,18 +297,74 @@ export default function AgregarModuloScreen() {
       
       console.log('💾 Módulos existentes:', modulos.length);
       
-      modulos.push(nuevoModulo);
+      // ✅ Si es un submódulo, agregarlo al módulo padre
+      if (parentId) {
+        console.log('📁 Agregando como submódulo al módulo padre:', parentId);
+        const moduloPadreIndex = modulos.findIndex(m => m.id === parentId);
+        
+        if (moduloPadreIndex !== -1) {
+          if (!modulos[moduloPadreIndex].submodulos) {
+            modulos[moduloPadreIndex].submodulos = [];
+          }
+          modulos[moduloPadreIndex].submodulos!.push(nuevoModulo);
+          console.log('✅ Submódulo agregado al módulo padre');
+        } else {
+          console.error('❌ Módulo padre no encontrado');
+          Alert.alert('Error', 'No se encontró el módulo padre');
+          return;
+        }
+      } else {
+        // Si no es submódulo, agregarlo a la lista principal
+        modulos.push(nuevoModulo);
+      }
+      
       await AsyncStorage.setItem('customModules', JSON.stringify(modulos));
 
       console.log('✅ Módulo guardado exitosamente en AsyncStorage');
       console.log('✅ Total de módulos ahora:', modulos.length);
       console.log('✅ ========================================\n');
 
-      Alert.alert(
-        'Éxito',
-        'El módulo ha sido creado correctamente',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
+      // ✅ Mensajes según el tipo de módulo
+      if (parentId) {
+        // Es un submódulo
+        Alert.alert(
+          '✅ Submódulo Creado',
+          `El submódulo "${nombreModulo}" ha sido agregado exitosamente.`,
+          [{ 
+            text: 'OK', 
+            onPress: () => {
+              router.back();
+              // Volver al módulo padre
+              setTimeout(() => {
+                router.push(`/modulos/index-modulo-principal?id=${parentId}` as any);
+              }, 300);
+            }
+          }]
+        );
+      } else if (esModuloPrincipal) {
+        // Es un módulo principal
+        Alert.alert(
+          '✅ Módulo Principal Creado',
+          `El módulo "${nombreModulo}" ha sido creado exitosamente.\n\nAhora puedes agregar submódulos desde la vista del módulo.`,
+          [{ 
+            text: 'Ver Módulo', 
+            onPress: () => {
+              router.back();
+              // Navegar al módulo recién creado
+              setTimeout(() => {
+                router.push(`/modulos/index-modulo-principal?id=${moduleId}` as any);
+              }, 300);
+            }
+          }]
+        );
+      } else {
+        // Es un módulo normal con datos
+        Alert.alert(
+          '✅ Módulo Creado',
+          `El módulo "${nombreModulo}" ha sido creado correctamente con su consulta SQL.`,
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+      }
     } catch (error: any) {
       console.error('❌ ========================================');
       console.error('❌ ERROR AL GUARDAR MÓDULO');
@@ -403,15 +465,123 @@ export default function AgregarModuloScreen() {
     setConsultasSQL(nuevasConsultas);
   };
 
+  // ✅ Renderizar paso inicial si no ha seleccionado tipo de módulo
+  if (pasoInicial && esModuloPrincipal === null) {
+    return (
+      <View style={styles.container}>
+        <SafeAreaView style={styles.content}>
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <Ionicons name="arrow-back-outline" size={24} color="#2e78b7" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Nuevo Módulo</Text>
+            <View style={styles.placeholder} />
+          </View>
+
+          {/* Selección del tipo de módulo */}
+          <View style={styles.selectionContainer}>
+            <View style={styles.selectionHeader}>
+              <Ionicons name="help-circle-outline" size={48} color="#2e78b7" />
+              <Text style={styles.selectionTitle}>¿Qué tipo de módulo deseas crear?</Text>
+              <Text style={styles.selectionSubtitle}>
+                Selecciona el tipo de módulo según tus necesidades
+              </Text>
+            </View>
+
+            <View style={styles.optionsContainer}>
+              {/* Opción: Módulo Principal (con submódulos) */}
+              <TouchableOpacity
+                style={styles.optionCard}
+                onPress={() => {
+                  setEsModuloPrincipal(true);
+                  setPasoInicial(false);
+                }}
+              >
+                <View style={styles.optionIcon}>
+                  <Ionicons name="folder-outline" size={40} color="#2e78b7" />
+                </View>
+                <Text style={styles.optionTitle}>Módulo Principal</Text>
+                <Text style={styles.optionDescription}>
+                  Módulo contenedor que agrupa varios submódulos relacionados.
+                  Ideal para organizar módulos por categorías.
+                </Text>
+                <View style={styles.optionFeatures}>
+                  <View style={styles.featureItem}>
+                    <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+                    <Text style={styles.featureText}>Contiene submódulos</Text>
+                  </View>
+                  <View style={styles.featureItem}>
+                    <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+                    <Text style={styles.featureText}>Solo requiere nombre</Text>
+                  </View>
+                  <View style={styles.featureItem}>
+                    <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+                    <Text style={styles.featureText}>Vista de índice</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+
+              {/* Opción: Módulo con Datos (SQL) */}
+              <TouchableOpacity
+                style={styles.optionCard}
+                onPress={() => {
+                  setEsModuloPrincipal(false);
+                  setPasoInicial(false);
+                }}
+              >
+                <View style={styles.optionIcon}>
+                  <Ionicons name="document-text-outline" size={40} color="#2e78b7" />
+                </View>
+                <Text style={styles.optionTitle}>Módulo con Datos</Text>
+                <Text style={styles.optionDescription}>
+                  Módulo que muestra datos desde una consulta SQL.
+                  Requiere configuración de conexión y consulta.
+                </Text>
+                <View style={styles.optionFeatures}>
+                  <View style={styles.featureItem}>
+                    <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+                    <Text style={styles.featureText}>Consulta SQL</Text>
+                  </View>
+                  <View style={styles.featureItem}>
+                    <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+                    <Text style={styles.featureText}>Conexión API/BD</Text>
+                  </View>
+                  <View style={styles.featureItem}>
+                    <Ionicons name="checkmark-circle" size={16} color="#10b981" />
+                    <Text style={styles.featureText}>Vista de tabla</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </SafeAreaView>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity 
+            onPress={() => {
+              if (!parentId && esModuloPrincipal !== null && nombreModulo === '') {
+                // Si no es submódulo y no ha llenado nada, volver al paso inicial
+                setPasoInicial(true);
+                setEsModuloPrincipal(null);
+              } else {
+                router.back();
+              }
+            }} 
+            style={styles.backButton}
+          >
             <Ionicons name="arrow-back-outline" size={24} color="#2e78b7" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Agregar Módulo</Text>
+          <Text style={styles.headerTitle}>
+            {parentId ? 'Agregar Submódulo' : (esModuloPrincipal ? 'Módulo Principal' : 'Módulo con Datos')}
+          </Text>
           <View style={styles.placeholder} />
         </View>
 
@@ -473,7 +643,8 @@ export default function AgregarModuloScreen() {
               </View>
             </View>
 
-            {/* Tipo de Conexión */}
+            {/* Tipo de Conexión - Solo si NO es módulo principal */}
+            {esModuloPrincipal === false && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Configuración de Conexión</Text>
               
@@ -509,7 +680,7 @@ export default function AgregarModuloScreen() {
               {/* Configuración API */}
               {tipoConexion === 'api' && (
                 <View style={styles.fieldContainer}>
-                  <Text style={styles.label}>URL de la API REST *</Text>
+                  <Text style={styles.label}>URL de la API REST (Opcional)</Text>
                   <TextInput
                     style={styles.input}
                     placeholder="https://api.empresa.com/ejecutar-consulta"
@@ -520,7 +691,7 @@ export default function AgregarModuloScreen() {
                     placeholderTextColor="#9ca3af"
                   />
                   <Text style={styles.helpText}>
-                    URL del endpoint que ejecutará la consulta SQL
+                    Puedes configurar la URL después. Será el endpoint que ejecutará la consulta SQL.
                   </Text>
                 </View>
               )}
@@ -529,7 +700,7 @@ export default function AgregarModuloScreen() {
               {tipoConexion === 'directa' && (
                 <>
                   <View style={styles.fieldContainer}>
-                    <Text style={styles.label}>Tipo de Base de Datos *</Text>
+                    <Text style={styles.label}>Tipo de Base de Datos</Text>
                     <View style={styles.radioGroup}>
                       {['mysql', 'postgresql', 'sqlserver', 'oracle'].map((tipo) => (
                         <TouchableOpacity
@@ -549,7 +720,7 @@ export default function AgregarModuloScreen() {
                   </View>
 
                   <View style={styles.fieldContainer}>
-                    <Text style={styles.label}>Host / Servidor *</Text>
+                    <Text style={styles.label}>Host / Servidor (Opcional)</Text>
                     <TextInput
                       style={styles.input}
                       placeholder="localhost o 192.168.1.100"
@@ -561,7 +732,7 @@ export default function AgregarModuloScreen() {
                   </View>
 
                   <View style={styles.fieldContainer}>
-                    <Text style={styles.label}>Puerto *</Text>
+                    <Text style={styles.label}>Puerto (Opcional)</Text>
                     <TextInput
                       style={styles.input}
                       placeholder="3306"
@@ -573,7 +744,7 @@ export default function AgregarModuloScreen() {
                   </View>
 
                   <View style={styles.fieldContainer}>
-                    <Text style={styles.label}>Nombre de la Base de Datos *</Text>
+                    <Text style={styles.label}>Nombre de la Base de Datos (Opcional)</Text>
                     <TextInput
                       style={styles.input}
                       placeholder="mi_base_datos"
@@ -585,7 +756,7 @@ export default function AgregarModuloScreen() {
                   </View>
 
                   <View style={styles.fieldContainer}>
-                    <Text style={styles.label}>Usuario *</Text>
+                    <Text style={styles.label}>Usuario (Opcional)</Text>
                     <TextInput
                       style={styles.input}
                       placeholder="usuario_bd"
@@ -597,7 +768,7 @@ export default function AgregarModuloScreen() {
                   </View>
 
                   <View style={styles.fieldContainer}>
-                    <Text style={styles.label}>Contraseña *</Text>
+                    <Text style={styles.label}>Contraseña (Opcional)</Text>
                     <TextInput
                       style={styles.input}
                       placeholder="••••••••"
@@ -607,14 +778,16 @@ export default function AgregarModuloScreen() {
                       placeholderTextColor="#9ca3af"
                     />
                     <Text style={styles.helpText}>
-                      ⚠️ La contraseña se guardará de forma local
+                      ⚠️ La contraseña se guardará de forma local. Puedes configurarla después.
                     </Text>
                   </View>
                 </>
               )}
             </View>
+            )}
 
-            {/* Consulta SQL */}
+            {/* Consulta SQL - Solo si NO es módulo principal */}
+            {esModuloPrincipal === false && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>💾 Consulta SQL</Text>
 
@@ -644,7 +817,7 @@ export default function AgregarModuloScreen() {
               {!usaConsultasMultiples ? (
                 // Consulta SQL Simple
                 <View style={styles.fieldContainer}>
-                  <Text style={styles.label}>Consulta SQL *</Text>
+                  <Text style={styles.label}>Consulta SQL (Opcional)</Text>
                   <TextInput
                     style={[styles.input, styles.textArea]}
                     placeholder="SELECT * FROM tabla WHERE condicion"
@@ -655,7 +828,7 @@ export default function AgregarModuloScreen() {
                     placeholderTextColor="#9ca3af"
                   />
                   <Text style={styles.helpText}>
-                    Solo se permiten consultas SELECT por seguridad
+                    Puedes configurar la consulta SQL después desde el módulo. Solo se permiten consultas SELECT por seguridad.
                   </Text>
                 </View>
               ) : (
@@ -766,6 +939,7 @@ export default function AgregarModuloScreen() {
                 </View>
               )}
             </View>
+            )}
 
             {/* Botones */}
             <View style={styles.buttonContainer}>
@@ -1329,5 +1503,77 @@ const styles = StyleSheet.create({
   iconPlaceholder: {
     width: 24,
     height: 24,
+  },
+  // ✅ Estilos para la pantalla de selección inicial
+  selectionContainer: {
+    flex: 1,
+    padding: 20,
+    justifyContent: 'center',
+  },
+  selectionHeader: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  selectionTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1f2937',
+    textAlign: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  selectionSubtitle: {
+    fontSize: 15,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  optionsContainer: {
+    gap: 20,
+  },
+  optionCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  optionIcon: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#e3eafc',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  optionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 8,
+  },
+  optionDescription: {
+    fontSize: 14,
+    color: '#6b7280',
+    lineHeight: 20,
+    marginBottom: 16,
+  },
+  optionFeatures: {
+    gap: 8,
+  },
+  featureItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  featureText: {
+    fontSize: 13,
+    color: '#4b5563',
   },
 });

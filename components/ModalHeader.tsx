@@ -1,8 +1,9 @@
 // components/ModalHeader.tsx
 
 import Ionicons from '@expo/vector-icons/Ionicons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Animated, Dimensions, Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import COLORS from '../constants/Colors';
@@ -16,6 +17,17 @@ type ModalHeaderProps = {
 };
 
 type SubMenu = { label: string; route: string; icon?: string };
+
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+interface CustomModule {
+  id: string;
+  nombre: string;
+  icono: IconName;
+  consultaSQL: string;
+  apiRestUrl: string;
+  fechaCreacion: string;
+}
 
 // MenúItems de Moncada (de app/moncada/index.tsx)
 const moncadaMenuItems = [
@@ -67,10 +79,10 @@ type MenuSection = {
   title: string;
   route?: string;
   subMenus?: SubMenu[];
-  menuItems?: { id: number; title: string; route: string; icon?: string }[];
+  menuItems?: { id: number | string; title: string; route: string; icon?: string }[];
 };
 
-const MENU: MenuSection[] = [
+const MENU_BASE: MenuSection[] = [
   {
     title: 'INICIO',
     route: '/(tabs)',
@@ -139,14 +151,54 @@ export default function ModalHeader({ visible, onClose, userName, role }: ModalH
   const isWeb = Platform.OS === 'web';
   const isMobile = !isWeb && screenWidth < 600;
   const [subMenuVisible, setSubMenuVisible] = React.useState<number | null>(null);
-    const subMenuAnim = React.useRef(new Animated.Value(0)).current;
-    React.useEffect(() => {
-      if (subMenuVisible !== null) {
-        Animated.timing(subMenuAnim, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+  const subMenuAnim = React.useRef(new Animated.Value(0)).current;
+
+  // ✅ Estado para menú dinámico con módulos personalizados
+  const [MENU, setMENU] = React.useState<MenuSection[]>(MENU_BASE);
+
+  // ✅ Cargar módulos personalizados cuando el modal se abre
+  useEffect(() => {
+    if (visible) {
+      cargarModulosPersonalizados();
+    }
+  }, [visible]);
+
+  // ✅ Función para cargar módulos personalizados desde AsyncStorage
+  const cargarModulosPersonalizados = async () => {
+    try {
+      const modulosJSON = await AsyncStorage.getItem('customModules');
+      if (modulosJSON) {
+        const modulosCustom: CustomModule[] = JSON.parse(modulosJSON);
+        
+        if (modulosCustom.length > 0) {
+          // Convertir cada módulo personalizado en una sección individual del menú principal
+          const seccionesModulosPersonalizados: MenuSection[] = modulosCustom.map(modulo => ({
+            title: modulo.nombre,
+            route: `/modulos/${modulo.id}`,
+          }));
+
+          // Combinar menú base con módulos personalizados (uno tras otro)
+          setMENU([...MENU_BASE, ...seccionesModulosPersonalizados]);
+          console.log('✅ Módulos personalizados cargados en ModalHeader:', modulosCustom.length);
+        } else {
+          setMENU(MENU_BASE);
+        }
       } else {
-        Animated.timing(subMenuAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+        setMENU(MENU_BASE);
       }
-    }, [subMenuVisible]);
+    } catch (error) {
+      console.error('❌ Error al cargar módulos personalizados en ModalHeader:', error);
+      setMENU(MENU_BASE);
+    }
+  };
+
+  React.useEffect(() => {
+    if (subMenuVisible !== null) {
+      Animated.timing(subMenuAnim, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+    } else {
+      Animated.timing(subMenuAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+    }
+  }, [subMenuVisible]);
 
   React.useEffect(() => {
     if (visible) {
@@ -216,25 +268,41 @@ export default function ModalHeader({ visible, onClose, userName, role }: ModalH
                 <ScrollView contentContainerStyle={styles.cardContent} showsVerticalScrollIndicator={false}>
                   {/* Menú principal */}
                   <View style={{ width: '100%', marginTop: 18 }}>
-                    {MENU.map((section, idx) => (
-                      <Pressable
-                        key={section.title}
-                        style={styles.menuTitleBtn}
-                        onPress={() => {
-                          if (section.title === 'INICIO' && section.route) {
-                            onClose();
-                            router.push(section.route as any);
-                          } else {
-                            setSubMenuVisible(idx);
-                          }
-                        }}
-                      >
-                        <Text style={styles.menuTitleText}>{section.title}</Text>
-                        {section.title === 'INICIO' ? (
-                          <Ionicons name="home-outline" size={18} color={COLORS.primary} />
-                        ) : null}
-                      </Pressable>
-                    ))}
+                    {MENU.map((section, idx) => {
+                      // ✅ Verificar si tiene submenús o menuItems
+                      const tieneSubMenus = (section.menuItems && section.menuItems.length > 0) || 
+                                          (section.subMenus && section.subMenus.length > 0);
+                      
+                      return (
+                        <Pressable
+                          key={section.title}
+                          style={styles.menuTitleBtn}
+                          onPress={() => {
+                            // Si tiene ruta directa y NO tiene submenús, navegar directamente
+                            if (section.route && !tieneSubMenus) {
+                              onClose();
+                              router.push(section.route as any);
+                            } 
+                            // Si tiene submenús, mostrarlos
+                            else if (tieneSubMenus) {
+                              setSubMenuVisible(idx);
+                            }
+                            // Fallback: si tiene ruta aunque tenga submenús
+                            else if (section.route) {
+                              onClose();
+                              router.push(section.route as any);
+                            }
+                          }}
+                        >
+                          <Text style={styles.menuTitleText}>{section.title}</Text>
+                          {section.title === 'INICIO' ? (
+                            <Ionicons name="home-outline" size={18} color={COLORS.primary} />
+                          ) : tieneSubMenus ? (
+                            <Ionicons name="chevron-forward-outline" size={18} color={COLORS.primary} />
+                          ) : null}
+                        </Pressable>
+                      );
+                    })}
                   </View>
                 </ScrollView>
                 {/* Configuración fijo abajo */}

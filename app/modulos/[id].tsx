@@ -4,16 +4,21 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+// ✅ Imports para AppHeader y ModalHeader
+import AppHeader from '../../components/AppHeader';
+import ModalHeader from '../../components/ModalHeader';
+import { useAuth } from '../../hooks/useAuth';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -54,6 +59,9 @@ interface CustomModule {
   usaConsultasMultiples?: boolean;
   consultasSQL?: QuerySQL[];
   queryIdPrincipal?: string; // ID de la query que se mostrará por defecto
+  // Campos para submódulos
+  tieneSubmodulos?: boolean;
+  submodulos?: CustomModule[];
 }
 
 interface DataRow {
@@ -71,14 +79,20 @@ export default function ModuloDetalleScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ✅ Hook de autenticación
+  const { authenticated, usuario } = useAuth();
+
+  // ✅ Estados para ModalHeader (modal de usuario)
+  const [userModalVisible, setUserModalVisible] = useState(false);
+
   // Cargar información del módulo
   useEffect(() => {
     cargarModulo();
   }, [id]);
 
-  // Cargar datos cuando el módulo esté listo
+  // Cargar datos cuando el módulo esté listo (solo si NO tiene submódulos)
   useEffect(() => {
-    if (modulo) {
+    if (modulo && !modulo.tieneSubmodulos) {
       cargarDatos();
     }
   }, [modulo]);
@@ -97,6 +111,15 @@ export default function ModuloDetalleScreen() {
         
         if (moduloEncontrado) {
           console.log('✅ Módulo encontrado:', moduloEncontrado.nombre);
+          console.log('🔹 tieneSubmodulos:', moduloEncontrado.tieneSubmodulos);
+          
+          // ✅ Si es un módulo principal, redirigir al index genérico
+          if (moduloEncontrado.tieneSubmodulos) {
+            console.log('📁 Redirigiendo a index de módulo principal...');
+            router.replace(`/modulos/index-modulo-principal?id=${id}` as any);
+            return;
+          }
+          
           console.log('🔹 usaConsultasMultiples:', moduloEncontrado.usaConsultasMultiples);
           console.log('🔹 consultasSQL:', moduloEncontrado.consultasSQL?.length || 0, 'consultas');
           console.log('🔹 queryIdPrincipal:', moduloEncontrado.queryIdPrincipal);
@@ -466,32 +489,78 @@ export default function ModuloDetalleScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <SafeAreaView style={styles.content}>
-        {/* Encabezado */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.headerButton}>
-            <Ionicons name="arrow-back-outline" size={24} color="#2e78b7" />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Ionicons name={modulo?.icono || 'apps-outline'} size={24} color="#2e78b7" />
-            <Text style={styles.headerTitle}>{modulo?.nombre}</Text>
-          </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity 
-              onPress={() => router.push(`/modulos/configurarModulo?id=${id}`)} 
-              style={styles.headerButton}
-            >
-              <Ionicons name="settings-outline" size={24} color="#2e78b7" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={eliminarModulo} style={styles.headerButton}>
-              <Ionicons name="trash-outline" size={24} color="#e53e3e" />
-            </TouchableOpacity>
-          </View>
-        </View>
+    <SafeAreaView style={styles.container}>
+      <AppHeader
+        titleOverride={modulo?.nombre}
+        count={datos.length}
+        userNameProp={usuario?.nombre || usuario?.name || '—'}
+        roleProp={usuario?.rol || usuario?.role || '—'}
+        serverReachableOverride={!!authenticated}
+        onRefresh={cargarDatos}
+        onUserPress={({ userName, role }) => {
+          setUserModalVisible(true);
+        }}
+      />
 
-        {/* Contenido */}
-        {loading ? (
+      <ModalHeader
+        visible={userModalVisible}
+        onClose={() => setUserModalVisible(false)}
+        userName={usuario?.nombre || usuario?.name || '—'}
+        role={usuario?.rol || usuario?.role || '—'}
+      />
+
+      {/* Botones de acción */}
+      <View style={styles.actionButtonsContainer}>
+        <TouchableOpacity 
+          onPress={() => router.push(`/modulos/configurarModulo?id=${id}`)} 
+          style={styles.actionButton}
+        >
+          <Ionicons name="settings-outline" size={24} color="#2e78b7" />
+          <Text style={styles.actionButtonText}>Configurar</Text>
+        </TouchableOpacity>
+        <TouchableOpacity onPress={eliminarModulo} style={[styles.actionButton, styles.deleteButton]}>
+          <Ionicons name="trash-outline" size={24} color="#e53e3e" />
+          <Text style={[styles.actionButtonText, styles.deleteButtonText]}>Eliminar</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.content}>
+
+        {/* Contenido - Si tiene submódulos, mostrar vista de índice */}
+        {modulo?.tieneSubmodulos ? (
+          <ScrollView style={styles.scrollView}>
+            <View style={styles.submodulosContainer}>
+              <Text style={styles.submodulosTitle}>Submódulos</Text>
+              
+              {modulo.submodulos && modulo.submodulos.length > 0 ? (
+                <View style={styles.menuGrid}>
+                  {Array.from({ length: Math.ceil(modulo.submodulos.length / 2) }).map((_, rowIndex) => (
+                    <View key={rowIndex} style={styles.menuRow}>
+                      {modulo.submodulos!.slice(rowIndex * 2, rowIndex * 2 + 2).map((submodulo) => (
+                        <TouchableOpacity
+                          key={submodulo.id}
+                          style={styles.submodulo}
+                          onPress={() => router.push(`/modulos/${submodulo.id}` as any)}
+                        >
+                          <Ionicons name={submodulo.icono} size={32} color="#2e78b7" />
+                          <Text style={styles.submoduloText}>{submodulo.nombre}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptyContainer}>
+                  <Ionicons name="folder-open-outline" size={64} color="#9ca3af" />
+                  <Text style={styles.emptyText}>
+                    No hay submódulos aún.{'\n'}
+                    Presiona el botón "+" para agregar submódulos.
+                  </Text>
+                </View>
+              )}
+            </View>
+          </ScrollView>
+        ) : loading ? (
           <View style={styles.loaderContainer}>
             <ActivityIndicator size="large" color="#2e78b7" />
             <Text style={styles.loadingText}>Cargando datos...</Text>
@@ -552,8 +621,8 @@ export default function ModuloDetalleScreen() {
             </View>
           </ScrollView>
         )}
-      </SafeAreaView>
-    </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -565,34 +634,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     flexDirection: 'column',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  headerButton: {
-    padding: 8,
-  },
-  headerCenter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2e78b7',
   },
   scrollView: {
     flex: 1,
@@ -705,5 +746,72 @@ const styles = StyleSheet.create({
     flex: 2,
     fontSize: 13,
     color: '#1f2937',
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#f0f9ff',
+    gap: 8,
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2e78b7',
+  },
+  deleteButton: {
+    backgroundColor: '#fee',
+  },
+  deleteButtonText: {
+    color: '#e53e3e',
+  },
+  // Estilos para submódulos
+  submodulosContainer: {
+    padding: 16,
+  },
+  submodulosTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  menuGrid: {
+    paddingVertical: 10,
+  },
+  menuRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  submodulo: {
+    width: '48%',
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  submoduloText: {
+    marginTop: 8,
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#4a5568',
   },
 });
