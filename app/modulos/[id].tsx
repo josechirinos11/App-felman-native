@@ -1,8 +1,8 @@
 // app/modulos/[id].tsx
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -68,6 +68,20 @@ interface DataRow {
   [key: string]: any;
 }
 
+// ✅ Función auxiliar para buscar un módulo de forma recursiva
+const buscarModuloRecursivo = (modulos: CustomModule[], id: string): CustomModule | null => {
+  for (const modulo of modulos) {
+    if (modulo.id === id) {
+      return modulo;
+    }
+    if (modulo.submodulos && modulo.submodulos.length > 0) {
+      const encontrado = buscarModuloRecursivo(modulo.submodulos, id);
+      if (encontrado) return encontrado;
+    }
+  }
+  return null;
+};
+
 export default function ModuloDetalleScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -85,15 +99,33 @@ export default function ModuloDetalleScreen() {
   // ✅ Estados para ModalHeader (modal de usuario)
   const [userModalVisible, setUserModalVisible] = useState(false);
 
-  // Cargar información del módulo
-  useEffect(() => {
-    cargarModulo();
-  }, [id]);
+  // ✅ Cargar información del módulo cuando la pantalla esté en foco
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🔄 Pantalla en foco - Recargando módulo:', id);
+      cargarModulo();
+    }, [id])
+  );
 
   // Cargar datos cuando el módulo esté listo (solo si NO tiene submódulos)
   useEffect(() => {
     if (modulo && !modulo.tieneSubmodulos) {
-      cargarDatos();
+      // ✅ Validar que tenga SQL o URL de API configurada antes de intentar cargar datos
+      const tieneSQLConfigurada = modulo.consultaSQL && modulo.consultaSQL.trim() !== '';
+      const tieneAPIConfigurada = modulo.apiRestUrl && modulo.apiRestUrl.trim() !== '';
+      const tieneConsultasMultiples = modulo.usaConsultasMultiples && modulo.consultasSQL && modulo.consultasSQL.length > 0;
+      
+      if (tieneSQLConfigurada || tieneAPIConfigurada || tieneConsultasMultiples) {
+        cargarDatos();
+      } else {
+        console.log('⚠️ Módulo sin configuración SQL/API - No se cargan datos');
+        setLoading(false);
+        setError('Este módulo aún no tiene configurada una consulta SQL o URL de API. Por favor, configúralo desde el botón de configuración.');
+      }
+    } else if (modulo && modulo.tieneSubmodulos) {
+      // Si tiene submódulos, no está cargando
+      console.log('✅ Módulo con submódulos - No requiere cargar datos');
+      setLoading(false);
     }
   }, [modulo]);
 
@@ -107,23 +139,43 @@ export default function ModuloDetalleScreen() {
         const modulos: CustomModule[] = JSON.parse(modulosJSON);
         console.log('📊 Total de módulos:', modulos.length);
         
-        const moduloEncontrado = modulos.find(m => m.id === id);
+        // ✅ Log de la estructura completa en AsyncStorage
+        console.log('� Estructura completa en AsyncStorage:');
+        modulos.forEach((m, idx) => {
+          console.log(`  ${idx + 1}. ${m.nombre} (ID: ${m.id})`);
+          console.log(`     tieneSubmodulos: ${m.tieneSubmodulos}`);
+          console.log(`     submodulos.length: ${m.submodulos?.length || 0}`);
+          if (m.submodulos && m.submodulos.length > 0) {
+            m.submodulos.forEach((sub, subIdx) => {
+              console.log(`    ${subIdx + 1}. ${sub.nombre} (ID: ${sub.id})`);
+              console.log(`       tieneSubmodulos: ${sub.tieneSubmodulos}`);
+              console.log(`       submodulos.length: ${sub.submodulos?.length || 0}`);
+            });
+          }
+        });
+        
+        // �🔍 Buscar de forma recursiva en toda la jerarquía
+        const moduloEncontrado = buscarModuloRecursivo(modulos, id);
         
         if (moduloEncontrado) {
           console.log('✅ Módulo encontrado:', moduloEncontrado.nombre);
           console.log('🔹 tieneSubmodulos:', moduloEncontrado.tieneSubmodulos);
+          console.log('🔹 submodulos:', moduloEncontrado.submodulos?.length || 0);
           
-          // ✅ Si es un módulo principal, redirigir al index genérico
-          if (moduloEncontrado.tieneSubmodulos) {
-            console.log('📁 Redirigiendo a index de módulo principal...');
-            router.replace(`/modulos/index-modulo-principal?id=${id}` as any);
-            return;
+          // ✅ Verificación de consistencia: Si tiene submódulos pero tieneSubmodulos es false, corregir
+          const tieneSubmodulosReal = !!(moduloEncontrado.submodulos && moduloEncontrado.submodulos.length > 0);
+          if (tieneSubmodulosReal !== moduloEncontrado.tieneSubmodulos) {
+            console.warn('⚠️ INCONSISTENCIA DETECTADA:');
+            console.warn(`   tieneSubmodulos: ${moduloEncontrado.tieneSubmodulos}`);
+            console.warn(`   submodulos.length: ${moduloEncontrado.submodulos?.length || 0}`);
+            console.warn('   🔧 Corrigiendo en memoria...');
+            moduloEncontrado.tieneSubmodulos = tieneSubmodulosReal;
           }
           
-          console.log('🔹 usaConsultasMultiples:', moduloEncontrado.usaConsultasMultiples);
-          console.log('🔹 consultasSQL:', moduloEncontrado.consultasSQL?.length || 0, 'consultas');
-          console.log('🔹 queryIdPrincipal:', moduloEncontrado.queryIdPrincipal);
           setModulo(moduloEncontrado);
+          
+          // ⚠️ NO redirigir - mostrar submódulos en esta misma pantalla
+          // La lógica de renderizado se encargará de mostrar submódulos o datos
         } else {
           console.error('❌ Módulo no encontrado con ID:', id);
           setError('Módulo no encontrado');
@@ -509,21 +561,6 @@ export default function ModuloDetalleScreen() {
         role={usuario?.rol || usuario?.role || '—'}
       />
 
-      {/* Botones de acción */}
-      <View style={styles.actionButtonsContainer}>
-        <TouchableOpacity 
-          onPress={() => router.push(`/modulos/configurarModulo?id=${id}`)} 
-          style={styles.actionButton}
-        >
-          <Ionicons name="settings-outline" size={24} color="#2e78b7" />
-          <Text style={styles.actionButtonText}>Configurar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={eliminarModulo} style={[styles.actionButton, styles.deleteButton]}>
-          <Ionicons name="trash-outline" size={24} color="#e53e3e" />
-          <Text style={[styles.actionButtonText, styles.deleteButtonText]}>Eliminar</Text>
-        </TouchableOpacity>
-      </View>
-
       <View style={styles.content}>
 
         {/* Contenido - Si tiene submódulos, mostrar vista de índice */}
@@ -569,9 +606,16 @@ export default function ModuloDetalleScreen() {
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle-outline" size={64} color="#e53e3e" />
             <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={cargarDatos}>
-              <Text style={styles.retryButtonText}>Reintentar</Text>
-            </TouchableOpacity>
+            {error.includes('no tiene configurada') ? (
+              <TouchableOpacity style={styles.configureButton} onPress={() => router.push(`/modulos/configurar/${id}` as any)}>
+                <Ionicons name="settings-outline" size={20} color="#fff" />
+                <Text style={styles.configureButtonText}>Configurar Módulo</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.retryButton} onPress={cargarDatos}>
+                <Text style={styles.retryButtonText}>Reintentar</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : datos.length === 0 ? (
           <View style={styles.emptyContainer}>
@@ -622,6 +666,24 @@ export default function ModuloDetalleScreen() {
           </ScrollView>
         )}
       </View>
+
+      {/* Botón de agregar submódulo fijo arriba del botón de configuraciones */}
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={() => router.push(`/modulos/agregarModulo?parentId=${id}` as any)}
+      >
+        <Ionicons name="add-outline" size={24} color="#1976d2" />
+      </TouchableOpacity>
+
+      {/* Botón de configuraciones fijo abajo a la derecha (solo si NO tiene submódulos) */}
+      {!modulo?.tieneSubmodulos && (
+        <TouchableOpacity
+          style={styles.configButton}
+          onPress={() => router.push(`/modulos/configurarModulo?id=${id}` as any)}
+        >
+          <Ionicons name="settings-outline" size={24} color="#1976d2" />
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 }
@@ -747,34 +809,52 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#1f2937',
   },
-  actionButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  actionButton: {
+  configureButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    marginTop: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: '#f0f9ff',
+    backgroundColor: '#2e78b7',
     gap: 8,
   },
-  actionButtonText: {
-    fontSize: 14,
+  configureButtonText: {
+    fontSize: 16,
     fontWeight: '600',
-    color: '#2e78b7',
+    color: '#fff',
   },
-  deleteButton: {
-    backgroundColor: '#fee',
+  addButton: {
+    position: 'absolute',
+    bottom: 86,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#e3eafc',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
-  deleteButtonText: {
-    color: '#e53e3e',
+  configButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#e3eafc',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
   // Estilos para submódulos
   submodulosContainer: {

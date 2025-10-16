@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Switch,
@@ -89,6 +90,61 @@ const iconosDisponibles: { name: IconName; label: string }[] = [
   { name: 'trending-up-outline', label: 'Tendencia' },
 ];
 
+// ✅ Función auxiliar para buscar un módulo de forma recursiva
+const buscarModuloRecursivo = (modulos: CustomModule[], id: string): CustomModule | null => {
+  for (const modulo of modulos) {
+    if (modulo.id === id) {
+      return modulo;
+    }
+    if (modulo.submodulos && modulo.submodulos.length > 0) {
+      const encontrado = buscarModuloRecursivo(modulo.submodulos, id);
+      if (encontrado) return encontrado;
+    }
+  }
+  return null;
+};
+
+// ✅ Función auxiliar para agregar un submódulo de forma recursiva
+const agregarSubmoduloRecursivo = (modulos: CustomModule[], parentId: string, nuevoModulo: CustomModule): boolean => {
+  console.log('🔍 Buscando padre con ID:', parentId);
+  console.log('📊 Analizando', modulos.length, 'módulos en este nivel');
+  
+  for (let i = 0; i < modulos.length; i++) {
+    console.log('  🔎 Revisando módulo:', modulos[i].nombre, '(ID:', modulos[i].id, ')');
+    
+    if (modulos[i].id === parentId) {
+      console.log('  ✅ ¡Padre encontrado!:', modulos[i].nombre);
+      console.log('  🔹 tieneSubmodulos ANTES:', modulos[i].tieneSubmodulos);
+      
+      // ✅ Inicializar array si no existe
+      if (!modulos[i].submodulos) {
+        modulos[i].submodulos = [];
+        console.log('  📁 Array de submódulos inicializado');
+      }
+      
+      // ✅ Agregar el nuevo submódulo
+      modulos[i].submodulos!.push(nuevoModulo);
+      
+      // ✅ ¡IMPORTANTE! Actualizar tieneSubmodulos a true
+      modulos[i].tieneSubmodulos = true;
+      
+      console.log('  🔹 tieneSubmodulos DESPUÉS:', modulos[i].tieneSubmodulos);
+      console.log('  ✅ Submódulo agregado. Total submódulos ahora:', modulos[i].submodulos!.length);
+      return true;
+    }
+    
+    if (modulos[i].submodulos && modulos[i].submodulos!.length > 0) {
+      console.log('  📂 Módulo tiene', modulos[i].submodulos!.length, 'submódulos. Buscando recursivamente...');
+      if (agregarSubmoduloRecursivo(modulos[i].submodulos!, parentId, nuevoModulo)) {
+        return true;
+      }
+    }
+  }
+  
+  console.log('❌ Padre NO encontrado en este nivel');
+  return false;
+};
+
 // Lista de roles disponibles (esto debería venir del backend)
 const rolesDisponibles = [
   'Administrador',
@@ -111,9 +167,9 @@ export default function AgregarModuloScreen() {
   const [mostrarSelectorIcono, setMostrarSelectorIcono] = useState(false);
   const [mostrarSelectorRoles, setMostrarSelectorRoles] = useState(false);
 
-  // ✅ Estado para el paso inicial: pregunta si será módulo principal (solo si NO es submódulo)
-  const [pasoInicial, setPasoInicial] = useState(!parentId); // Si tiene parentId, no muestra paso inicial
-  const [esModuloPrincipal, setEsModuloPrincipal] = useState<boolean | null>(parentId ? false : null);
+  // ✅ Estado para el paso inicial: SIEMPRE pregunta si será módulo principal o con datos
+  const [pasoInicial, setPasoInicial] = useState(true); // Siempre mostrar selección
+  const [esModuloPrincipal, setEsModuloPrincipal] = useState<boolean | null>(null); // null = no ha seleccionado
 
   // Estados básicos del formulario
   const [nombreModulo, setNombreModulo] = useState('');
@@ -296,27 +352,48 @@ export default function AgregarModuloScreen() {
       let modulos: CustomModule[] = modulosJSON ? JSON.parse(modulosJSON) : [];
       
       console.log('💾 Módulos existentes:', modulos.length);
+      console.log('📋 Estructura antes de agregar:');
+      modulos.forEach((m, idx) => {
+        console.log(`  ${idx + 1}. ${m.nombre} (ID: ${m.id}) - tieneSubmodulos: ${m.tieneSubmodulos} - Submódulos: ${m.submodulos?.length || 0}`);
+        if (m.submodulos && m.submodulos.length > 0) {
+          m.submodulos.forEach((sub, subIdx) => {
+            console.log(`    ${subIdx + 1}. ${sub.nombre} (ID: ${sub.id}) - tieneSubmodulos: ${sub.tieneSubmodulos} - Submódulos: ${sub.submodulos?.length || 0}`);
+          });
+        }
+      });
       
-      // ✅ Si es un submódulo, agregarlo al módulo padre
+      // ✅ Si es un submódulo, agregarlo al módulo padre (búsqueda recursiva)
       if (parentId) {
         console.log('📁 Agregando como submódulo al módulo padre:', parentId);
-        const moduloPadreIndex = modulos.findIndex(m => m.id === parentId);
+        console.log('📝 Nombre del nuevo submódulo:', nuevoModulo.nombre);
+        console.log('🆔 ID del nuevo submódulo:', nuevoModulo.id);
+        const agregado = agregarSubmoduloRecursivo(modulos, parentId, nuevoModulo);
         
-        if (moduloPadreIndex !== -1) {
-          if (!modulos[moduloPadreIndex].submodulos) {
-            modulos[moduloPadreIndex].submodulos = [];
-          }
-          modulos[moduloPadreIndex].submodulos!.push(nuevoModulo);
-          console.log('✅ Submódulo agregado al módulo padre');
+        if (agregado) {
+          console.log('✅ Submódulo agregado al módulo padre de forma recursiva');
+          console.log('📋 Estructura después de agregar:');
+          modulos.forEach((m, idx) => {
+            console.log(`  ${idx + 1}. ${m.nombre} (ID: ${m.id}) - tieneSubmodulos: ${m.tieneSubmodulos} - Submódulos: ${m.submodulos?.length || 0}`);
+            if (m.submodulos && m.submodulos.length > 0) {
+              m.submodulos.forEach((sub, subIdx) => {
+                console.log(`    ${subIdx + 1}. ${sub.nombre} (ID: ${sub.id}) - tieneSubmodulos: ${sub.tieneSubmodulos} - Submódulos: ${sub.submodulos?.length || 0}`);
+              });
+            }
+          });
         } else {
-          console.error('❌ Módulo padre no encontrado');
+          console.error('❌ Módulo padre no encontrado en la estructura');
           Alert.alert('Error', 'No se encontró el módulo padre');
           return;
         }
       } else {
         // Si no es submódulo, agregarlo a la lista principal
+        console.log('📁 Agregando módulo a la lista principal');
         modulos.push(nuevoModulo);
       }
+      
+      // ✅ Log del JSON completo antes de guardar
+      console.log('💾 JSON que se guardará en AsyncStorage:');
+      console.log(JSON.stringify(modulos, null, 2));
       
       await AsyncStorage.setItem('customModules', JSON.stringify(modulos));
 
@@ -327,36 +404,57 @@ export default function AgregarModuloScreen() {
       // ✅ Mensajes según el tipo de módulo
       if (parentId) {
         // Es un submódulo
-        Alert.alert(
-          '✅ Submódulo Creado',
-          `El submódulo "${nombreModulo}" ha sido agregado exitosamente.`,
-          [{ 
-            text: 'OK', 
-            onPress: () => {
-              router.back();
-              // Volver al módulo padre
-              setTimeout(() => {
-                router.push(`/modulos/index-modulo-principal?id=${parentId}` as any);
-              }, 300);
-            }
-          }]
-        );
+        const tipoSubmodoulo = esModuloPrincipal ? 'contenedor' : 'con datos';
+        // ✅ Rutas diferentes para web y mobile
+        const routeDestino = esModuloPrincipal 
+          ? (Platform.OS === 'web' ? `/modulos/${moduleId}` : `/(tabs)/modulos/${moduleId}`)
+          : (Platform.OS === 'web' ? `/modulos/${parentId}` : `/(tabs)/modulos/${parentId}`);
+        
+        console.log(`🌐 Navegando a: ${routeDestino} (Platform: ${Platform.OS})`);
+        
+        if (Platform.OS === 'web') {
+          // En web, navegar directamente sin Alert (Alert.alert no soporta botones en web)
+          router.replace(routeDestino as any);
+        } else {
+          // En mobile, mostrar Alert con botón
+          Alert.alert(
+            '✅ Submódulo Creado',
+            `El submódulo ${tipoSubmodoulo} "${nombreModulo}" ha sido agregado exitosamente.${
+              esModuloPrincipal ? '\n\nPuedes seguir agregando más submódulos dentro de este.' : ''
+            }`,
+            [{ 
+              text: 'OK', 
+              onPress: () => {
+                router.replace(routeDestino as any);
+              }
+            }]
+          );
+        }
       } else if (esModuloPrincipal) {
         // Es un módulo principal
-        Alert.alert(
-          '✅ Módulo Principal Creado',
-          `El módulo "${nombreModulo}" ha sido creado exitosamente.\n\nAhora puedes agregar submódulos desde la vista del módulo.`,
-          [{ 
-            text: 'Ver Módulo', 
-            onPress: () => {
-              router.back();
-              // Navegar al módulo recién creado
-              setTimeout(() => {
-                router.push(`/modulos/index-modulo-principal?id=${moduleId}` as any);
-              }, 300);
-            }
-          }]
-        );
+        // ✅ Rutas diferentes para web y mobile
+        const routeDestino = Platform.OS === 'web' 
+          ? `/modulos/${moduleId}` 
+          : `/(tabs)/modulos/${moduleId}`;
+        
+        console.log(`🌐 Navegando a módulo principal: ${routeDestino} (Platform: ${Platform.OS})`);
+        
+        if (Platform.OS === 'web') {
+          // En web, navegar directamente sin Alert
+          router.replace(routeDestino as any);
+        } else {
+          // En mobile, mostrar Alert con botón
+          Alert.alert(
+            '✅ Módulo Principal Creado',
+            `El módulo "${nombreModulo}" ha sido creado exitosamente.\n\nAhora puedes agregar submódulos desde la vista del módulo.`,
+            [{ 
+              text: 'Ver Módulo', 
+              onPress: () => {
+                router.replace(routeDestino as any);
+              }
+            }]
+          );
+        }
       } else {
         // Es un módulo normal con datos
         Alert.alert(
@@ -475,17 +573,24 @@ export default function AgregarModuloScreen() {
             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
               <Ionicons name="arrow-back-outline" size={24} color="#2e78b7" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Nuevo Módulo</Text>
+            <Text style={styles.headerTitle}>
+              {parentId ? 'Nuevo Submódulo' : 'Nuevo Módulo'}
+            </Text>
             <View style={styles.placeholder} />
           </View>
 
           {/* Selección del tipo de módulo */}
           <View style={styles.selectionContainer}>
             <View style={styles.selectionHeader}>
-              <Ionicons name="help-circle-outline" size={48} color="#2e78b7" />
-              <Text style={styles.selectionTitle}>¿Qué tipo de módulo deseas crear?</Text>
+              <Text style={styles.selectionTitle}>
+                {parentId 
+                  ? '¿Qué tipo de submódulo deseas crear?' 
+                  : '¿Qué tipo de módulo deseas crear?'}
+              </Text>
               <Text style={styles.selectionSubtitle}>
-                Selecciona el tipo de módulo según tus necesidades
+                {parentId
+                  ? 'Un submódulo puede contener otros submódulos o mostrar datos'
+                  : 'Selecciona el tipo de módulo según tus necesidades'}
               </Text>
             </View>
 
@@ -499,17 +604,22 @@ export default function AgregarModuloScreen() {
                 }}
               >
                 <View style={styles.optionIcon}>
-                  <Ionicons name="folder-outline" size={40} color="#2e78b7" />
+                  <Ionicons name="folder-outline" size={32} color="#2e78b7" />
                 </View>
-                <Text style={styles.optionTitle}>Módulo Principal</Text>
+                <Text style={styles.optionTitle}>
+                  {parentId ? 'Submódulo Contenedor' : 'Módulo Principal'}
+                </Text>
                 <Text style={styles.optionDescription}>
-                  Módulo contenedor que agrupa varios submódulos relacionados.
-                  Ideal para organizar módulos por categorías.
+                  {parentId
+                    ? 'Submódulo que agrupa otros submódulos relacionados. Permite seguir anidando niveles.'
+                    : 'Módulo contenedor que agrupa varios submódulos relacionados. Ideal para organizar módulos por categorías.'}
                 </Text>
                 <View style={styles.optionFeatures}>
                   <View style={styles.featureItem}>
                     <Ionicons name="checkmark-circle" size={16} color="#10b981" />
-                    <Text style={styles.featureText}>Contiene submódulos</Text>
+                    <Text style={styles.featureText}>
+                      {parentId ? 'Contiene submódulos' : 'Contiene submódulos'}
+                    </Text>
                   </View>
                   <View style={styles.featureItem}>
                     <Ionicons name="checkmark-circle" size={16} color="#10b981" />
@@ -517,7 +627,9 @@ export default function AgregarModuloScreen() {
                   </View>
                   <View style={styles.featureItem}>
                     <Ionicons name="checkmark-circle" size={16} color="#10b981" />
-                    <Text style={styles.featureText}>Vista de índice</Text>
+                    <Text style={styles.featureText}>
+                      {parentId ? 'Anidación ilimitada' : 'Vista de índice'}
+                    </Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -531,12 +643,15 @@ export default function AgregarModuloScreen() {
                 }}
               >
                 <View style={styles.optionIcon}>
-                  <Ionicons name="document-text-outline" size={40} color="#2e78b7" />
+                  <Ionicons name="document-text-outline" size={32} color="#2e78b7" />
                 </View>
-                <Text style={styles.optionTitle}>Módulo con Datos</Text>
+                <Text style={styles.optionTitle}>
+                  {parentId ? 'Submódulo con Datos' : 'Módulo con Datos'}
+                </Text>
                 <Text style={styles.optionDescription}>
-                  Módulo que muestra datos desde una consulta SQL.
-                  Requiere configuración de conexión y consulta.
+                  {parentId
+                    ? 'Submódulo que muestra datos desde una consulta SQL o API REST.'
+                    : 'Módulo que muestra datos desde una consulta SQL.'}
                 </Text>
                 <View style={styles.optionFeatures}>
                   <View style={styles.featureItem}>
@@ -1507,34 +1622,33 @@ const styles = StyleSheet.create({
   // ✅ Estilos para la pantalla de selección inicial
   selectionContainer: {
     flex: 1,
-    padding: 20,
+    padding: 16,
     justifyContent: 'center',
   },
   selectionHeader: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 24,
   },
   selectionTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: '#1f2937',
     textAlign: 'center',
-    marginTop: 16,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   selectionSubtitle: {
-    fontSize: 15,
+    fontSize: 13,
     color: '#6b7280',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 18,
   },
   optionsContainer: {
-    gap: 20,
+    gap: 12,
   },
   optionCard: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 24,
+    borderRadius: 12,
+    padding: 16,
     borderWidth: 2,
     borderColor: '#e5e7eb',
     shadowColor: '#000',
@@ -1544,36 +1658,36 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   optionIcon: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#e3eafc',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   optionTitle: {
-    fontSize: 20,
+    fontSize: 17,
     fontWeight: '700',
     color: '#1f2937',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   optionDescription: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#6b7280',
-    lineHeight: 20,
-    marginBottom: 16,
+    lineHeight: 18,
+    marginBottom: 12,
   },
   optionFeatures: {
-    gap: 8,
+    gap: 6,
   },
   featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
   },
   featureText: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#4b5563',
   },
 });

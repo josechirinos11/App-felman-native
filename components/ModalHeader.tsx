@@ -27,6 +27,8 @@ interface CustomModule {
   consultaSQL: string;
   apiRestUrl: string;
   fechaCreacion: string;
+  tieneSubmodulos?: boolean;
+  submodulos?: CustomModule[];
 }
 
 // MenúItems de Moncada (de app/moncada/index.tsx)
@@ -79,7 +81,14 @@ type MenuSection = {
   title: string;
   route?: string;
   subMenus?: SubMenu[];
-  menuItems?: { id: number | string; title: string; route: string; icon?: string }[];
+  menuItems?: { 
+    id: number | string; 
+    title: string; 
+    route: string; 
+    icon?: string; 
+    hasSubmodules?: boolean; // ✅ Flag para indicar si tiene más submódulos
+  }[];
+  modulo?: CustomModule; // ✅ Referencia al módulo completo
 };
 
 const MENU_BASE: MenuSection[] = [
@@ -152,6 +161,10 @@ export default function ModalHeader({ visible, onClose, userName, role }: ModalH
   const isMobile = !isWeb && screenWidth < 600;
   const [subMenuVisible, setSubMenuVisible] = React.useState<number | null>(null);
   const subMenuAnim = React.useRef(new Animated.Value(0)).current;
+  
+  // ✅ Estado para navegación de submódulos anidados
+  const [menuStack, setMenuStack] = React.useState<Array<{ sectionIndex: number; submodulo?: CustomModule }>>([]);
+  const [currentSubmodules, setCurrentSubmodules] = React.useState<CustomModule[] | null>(null);
 
   // ✅ Estado para menú dinámico con módulos personalizados
   const [MENU, setMENU] = React.useState<MenuSection[]>(MENU_BASE);
@@ -171,15 +184,61 @@ export default function ModalHeader({ visible, onClose, userName, role }: ModalH
         const modulosCustom: CustomModule[] = JSON.parse(modulosJSON);
         
         if (modulosCustom.length > 0) {
-          // Convertir cada módulo personalizado en una sección individual del menú principal
-          const seccionesModulosPersonalizados: MenuSection[] = modulosCustom.map(modulo => ({
-            title: modulo.nombre,
-            route: `/modulos/${modulo.id}`,
-          }));
+          // ✅ Función recursiva para convertir módulos a secciones de menú
+          const convertirModuloASeccion = (modulo: CustomModule): MenuSection & { modulo?: CustomModule } => {
+            // Verificar si tiene submódulos realmente (array no vacío)
+            const tieneSubmodulosReal = !!(modulo.submodulos && modulo.submodulos.length > 0);
+            
+            // Si tiene submódulos, crear sección con menuItems incluyendo info completa
+            if (tieneSubmodulosReal) {
+              return {
+                title: modulo.nombre,
+                modulo: modulo, // ✅ Guardar el módulo completo para acceder a submódulos anidados
+                menuItems: modulo.submodulos!.map(sub => {
+                  const subTieneSubmodulos = !!(sub.submodulos && sub.submodulos.length > 0);
+                  return {
+                    id: sub.id,
+                    title: sub.nombre,
+                    route: `/modulos/${sub.id}`,
+                    icon: sub.icono,
+                    // ✅ Agregar flag para indicar si tiene más submódulos
+                    ...(subTieneSubmodulos && { hasSubmodules: true })
+                  };
+                }),
+              };
+            }
+            
+            // Si no tiene submódulos, crear sección simple con ruta directa
+            return {
+              title: modulo.nombre,
+              route: `/modulos/${modulo.id}`,
+              modulo: modulo,
+            };
+          };
+          
+          // Convertir cada módulo personalizado en una sección del menú
+          const seccionesModulosPersonalizados = modulosCustom.map(convertirModuloASeccion);
 
-          // Combinar menú base con módulos personalizados (uno tras otro)
+          // Combinar menú base con módulos personalizados
           setMENU([...MENU_BASE, ...seccionesModulosPersonalizados]);
           console.log('✅ Módulos personalizados cargados en ModalHeader:', modulosCustom.length);
+          
+          // Log de la estructura cargada
+          seccionesModulosPersonalizados.forEach((seccion, idx) => {
+            console.log(`  ${idx + 1}. ${seccion.title}`);
+            if (seccion.menuItems) {
+              console.log(`     → ${seccion.menuItems.length} submódulos`);
+              seccion.menuItems.forEach((item: any) => {
+                if (item.hasSubmodules) {
+                  console.log(`       • ${item.title} (tiene submódulos) ✓`);
+                } else {
+                  console.log(`       • ${item.title}`);
+                }
+              });
+            } else {
+              console.log(`     → Ruta directa: ${seccion.route}`);
+            }
+          });
         } else {
           setMENU(MENU_BASE);
         }
@@ -224,7 +283,13 @@ export default function ModalHeader({ visible, onClose, userName, role }: ModalH
 
   const handleCloseWithAnimation = () => {
     Animated.timing(anim, { toValue: 0, duration: 200, useNativeDriver: true }).start(({ finished }) => {
-      if (finished) onClose();
+      if (finished) {
+        // Resetear estado del menú al cerrar
+        setSubMenuVisible(null);
+        setMenuStack([]);
+        setCurrentSubmodules(null);
+        onClose();
+      }
     });
   };
 
@@ -335,22 +400,65 @@ export default function ModalHeader({ visible, onClose, userName, role }: ModalH
                 </View>
                 <ScrollView contentContainerStyle={styles.cardContent} showsVerticalScrollIndicator={false}>
                   <View style={{ width: '100%', marginTop: 8 }}>
-                    {MENU[subMenuVisible].menuItems && MENU[subMenuVisible].menuItems.map((item) => (
+                    {/* ✅ Botón INICIO para ir al index del módulo principal */}
+                    {MENU[subMenuVisible].modulo && MENU[subMenuVisible].modulo.tieneSubmodulos && (
                       <Pressable
-                        key={item.id}
-                        style={styles.subMenuBtn}
+                        style={[styles.subMenuBtn, { backgroundColor: '#e3eafc', marginBottom: 12 }]}
                         onPress={() => {
                           setSubMenuVisible(null);
+                          setMenuStack([]);
+                          setCurrentSubmodules(null);
                           onClose();
-                          router.push(item.route as any);
+                          router.push(`/modulos/${MENU[subMenuVisible].modulo!.id}` as any);
                         }}
                       >
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          <Ionicons name={item.icon as any} size={20} color={COLORS.primary} />
-                          <Text style={styles.subMenuBtnTextBlue}>{item.title}</Text>
+                          <Ionicons name="home-outline" size={20} color={COLORS.primary} />
+                          <Text style={[styles.subMenuBtnTextBlue, { fontWeight: '600' }]}>
+                            Inicio - {MENU[subMenuVisible].title}
+                          </Text>
                         </View>
                       </Pressable>
-                    ))}
+                    )}
+                    
+                    {MENU[subMenuVisible].menuItems && MENU[subMenuVisible].menuItems.map((item) => {
+                      // Buscar el submódulo completo para verificar si tiene submódulos
+                      const moduloPadre = MENU[subMenuVisible].modulo;
+                      const submoduloCompleto = moduloPadre?.submodulos?.find(sub => sub.id === item.id);
+                      const tieneSubmodulos = !!(submoduloCompleto?.submodulos && submoduloCompleto.submodulos.length > 0);
+                      
+                      return (
+                        <Pressable
+                          key={item.id}
+                          style={styles.subMenuBtn}
+                          onPress={() => {
+                            // ✅ Si tiene submódulos, navegar a ese nivel en el menú
+                            if (tieneSubmodulos && submoduloCompleto) {
+                              setMenuStack([...menuStack, { sectionIndex: subMenuVisible, submodulo: submoduloCompleto }]);
+                              setCurrentSubmodules(submoduloCompleto.submodulos || null);
+                            } else {
+                              // Si no tiene submódulos, navegar al componente
+                              setSubMenuVisible(null);
+                              setMenuStack([]);
+                              setCurrentSubmodules(null);
+                              onClose();
+                              router.push(item.route as any);
+                            }
+                          }}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                              <Ionicons name={item.icon as any} size={20} color={COLORS.primary} />
+                              <Text style={styles.subMenuBtnTextBlue}>{item.title}</Text>
+                            </View>
+                            {/* ✅ Mostrar chevron si tiene submódulos */}
+                            {tieneSubmodulos && (
+                              <Ionicons name="chevron-forward-outline" size={18} color={COLORS.primary} />
+                            )}
+                          </View>
+                        </Pressable>
+                      );
+                    })}
                     {MENU[subMenuVisible].subMenus && MENU[subMenuVisible].subMenus!.map((item) => (
                       <Pressable
                         key={item.label}
@@ -382,6 +490,103 @@ export default function ModalHeader({ visible, onClose, userName, role }: ModalH
                     <Text style={styles.configBtnText}>Configuraciones</Text>
                   </Pressable>
                 </View>
+              </Animated.View>
+            )}
+            
+            {/* ✅ Vista para submódulos anidados (tercer nivel y más) */}
+            {currentSubmodules && menuStack.length > 0 && (
+              <Animated.View style={{ 
+                flex: 1, 
+                position: 'absolute', 
+                width: '100%', 
+                height: '100%', 
+                backgroundColor: '#fff', 
+                zIndex: 400,
+                left: 0, 
+                top: 0 
+              }}>
+                <View style={styles.headerRowLogo}>
+                  <Pressable onPress={() => {
+                    // Volver al nivel anterior
+                    const newStack = [...menuStack];
+                    newStack.pop();
+                    setMenuStack(newStack);
+                    
+                    if (newStack.length === 0) {
+                      setCurrentSubmodules(null);
+                    } else {
+                      const previous = newStack[newStack.length - 1];
+                      setCurrentSubmodules(previous.submodulo?.submodulos || null);
+                    }
+                  }} style={styles.backBtn}>
+                    <Ionicons name="arrow-back" size={22} color={COLORS.primary} />
+                  </Pressable>
+                  <View style={styles.userInfoContainer}>
+                    <Text style={styles.subMenuTitle}>
+                      {menuStack[menuStack.length - 1].submodulo?.nombre || 'Submódulos'}
+                    </Text>
+                  </View>
+                </View>
+                <ScrollView contentContainerStyle={styles.cardContent} showsVerticalScrollIndicator={false}>
+                  <View style={{ width: '100%', marginTop: 8 }}>
+                    {/* ✅ Botón INICIO para ir al index del módulo anidado actual */}
+                    {menuStack.length > 0 && menuStack[menuStack.length - 1].submodulo && (
+                      <Pressable
+                        style={[styles.subMenuBtn, { backgroundColor: '#e3eafc', marginBottom: 12 }]}
+                        onPress={() => {
+                          const moduloActual = menuStack[menuStack.length - 1].submodulo!;
+                          setSubMenuVisible(null);
+                          setMenuStack([]);
+                          setCurrentSubmodules(null);
+                          onClose();
+                          router.push(`/modulos/${moduloActual.id}` as any);
+                        }}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Ionicons name="home-outline" size={20} color={COLORS.primary} />
+                          <Text style={[styles.subMenuBtnTextBlue, { fontWeight: '600' }]}>
+                            Inicio - {menuStack[menuStack.length - 1].submodulo?.nombre}
+                          </Text>
+                        </View>
+                      </Pressable>
+                    )}
+                    
+                    {currentSubmodules.map((submodulo) => {
+                      const tieneSubmodulos = !!(submodulo.submodulos && submodulo.submodulos.length > 0);
+                      
+                      return (
+                        <Pressable
+                          key={submodulo.id}
+                          style={styles.subMenuBtn}
+                          onPress={() => {
+                            if (tieneSubmodulos) {
+                              // Navegar a otro nivel más profundo
+                              setMenuStack([...menuStack, { sectionIndex: -1, submodulo }]);
+                              setCurrentSubmodules(submodulo.submodulos || null);
+                            } else {
+                              // Navegar al componente
+                              setSubMenuVisible(null);
+                              setMenuStack([]);
+                              setCurrentSubmodules(null);
+                              onClose();
+                              router.push(`/modulos/${submodulo.id}` as any);
+                            }
+                          }}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                              <Ionicons name={submodulo.icono as any} size={20} color={COLORS.primary} />
+                              <Text style={styles.subMenuBtnTextBlue}>{submodulo.nombre}</Text>
+                            </View>
+                            {tieneSubmodulos && (
+                              <Ionicons name="chevron-forward-outline" size={18} color={COLORS.primary} />
+                            )}
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </ScrollView>
               </Animated.View>
             )}
           </View>

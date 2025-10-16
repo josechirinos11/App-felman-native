@@ -4,15 +4,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AppHeader from '../../components/AppHeader';
+import ModalHeader from '../../components/ModalHeader';
+import { useAuth } from '../../hooks/useAuth';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -34,6 +37,20 @@ interface MenuItem {
   route: string;
 }
 
+// ✅ Función auxiliar para buscar un módulo de forma recursiva
+const buscarModuloRecursivo = (modulos: CustomModule[], id: string): CustomModule | null => {
+  for (const modulo of modulos) {
+    if (modulo.id === id) {
+      return modulo;
+    }
+    if (modulo.submodulos && modulo.submodulos.length > 0) {
+      const encontrado = buscarModuloRecursivo(modulo.submodulos, id);
+      if (encontrado) return encontrado;
+    }
+  }
+  return null;
+};
+
 export default function IndexModuloPrincipalScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -42,6 +59,12 @@ export default function IndexModuloPrincipalScreen() {
   const [loading, setLoading] = useState(true);
   const [moduloPrincipal, setModuloPrincipal] = useState<CustomModule | null>(null);
   const [submodulos, setSubmodulos] = useState<MenuItem[]>([]);
+  
+  // ✅ Hook de autenticación
+  const { authenticated, usuario } = useAuth();
+
+  // ✅ Estados para ModalHeader (modal de usuario)
+  const [userModalVisible, setUserModalVisible] = useState(false);
 
   // Cargar módulo principal y sus submódulos
   useFocusEffect(
@@ -57,7 +80,9 @@ export default function IndexModuloPrincipalScreen() {
       
       if (modulosJSON) {
         const modulos: CustomModule[] = JSON.parse(modulosJSON);
-        const modulo = modulos.find(m => m.id === moduloId);
+        
+        // ✅ Buscar de forma recursiva
+        const modulo = buscarModuloRecursivo(modulos, moduloId);
         
         if (modulo) {
           setModuloPrincipal(modulo);
@@ -109,40 +134,23 @@ export default function IndexModuloPrincipalScreen() {
   return (
     <View style={styles.container}>
       <SafeAreaView style={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name="arrow-back-outline" size={24} color="#2e78b7" />
-          </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Ionicons 
-              name={moduloPrincipal?.icono || 'folder-outline'} 
-              size={24} 
-              color="#2e78b7" 
-            />
-            <Text style={styles.headerTitle}>{moduloPrincipal?.nombre || 'Módulo'}</Text>
-          </View>
-          <View style={styles.placeholder} />
-        </View>
+        {/* ✅ AppHeader con ModalHeader */}
+        <AppHeader
+          titleOverride={moduloPrincipal?.nombre || 'Módulo Principal'}
+          onRefresh={cargarModuloPrincipal}
+          serverReachableOverride={true}
+          onUserPress={() => setUserModalVisible(true)}
+          userNameProp={usuario?.nombre || usuario?.name || ''}
+          roleProp={usuario?.rol || usuario?.role || ''}
+        />
 
-        {/* Información del módulo */}
-        <View style={styles.moduleInfo}>
-          <View style={styles.moduleInfoCard}>
-            <Ionicons name="file-tray-outline" size={32} color="#2e78b7" />
-            <Text style={styles.moduleInfoTitle}>Módulo Principal</Text>
-            <Text style={styles.moduleInfoDescription}>
-              Organiza tus submódulos relacionados en un solo lugar
-            </Text>
-            <View style={styles.statsContainer}>
-              <View style={styles.statItem}>
-                <Ionicons name="albums-outline" size={20} color="#6b7280" />
-                <Text style={styles.statText}>
-                  {submodulos.length} {submodulos.length === 1 ? 'Submódulo' : 'Submódulos'}
-                </Text>
-              </View>
-            </View>
-          </View>
-        </View>
+        {/* ✅ ModalHeader */}
+        <ModalHeader
+          visible={userModalVisible}
+          onClose={() => setUserModalVisible(false)}
+          userName={usuario?.nombre || usuario?.name || ''}
+          role={usuario?.rol || usuario?.role || ''}
+        />
 
         {/* Panel principal con submódulos */}
         <View style={styles.mainPanel}>
@@ -210,74 +218,6 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     flexDirection: 'column',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  backButton: {
-    padding: 8,
-  },
-  headerCenter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1f2937',
-  },
-  placeholder: {
-    width: 40,
-  },
-  moduleInfo: {
-    backgroundColor: '#f3f4f6',
-    padding: 16,
-  },
-  moduleInfoCard: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 12,
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  moduleInfoTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginTop: 8,
-  },
-  moduleInfoDescription: {
-    fontSize: 13,
-    color: '#6b7280',
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    marginTop: 12,
-    gap: 16,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  statText: {
-    fontSize: 13,
-    color: '#6b7280',
-    fontWeight: '500',
   },
   mainPanel: {
     flex: 1,
