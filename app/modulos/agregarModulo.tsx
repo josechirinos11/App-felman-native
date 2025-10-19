@@ -18,6 +18,23 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+// ✅ Función auxiliar para mostrar alertas compatibles con Web y Mobile
+const showAlert = (title: string, message?: string, onOk?: () => void) => {
+  if (Platform.OS === 'web') {
+    // En web, usar alert nativo del navegador
+    const fullMessage = message ? `${title}\n\n${message}` : title;
+    alert(fullMessage);
+    if (onOk) onOk();
+  } else {
+    // En mobile, usar Alert.alert de React Native
+    if (onOk) {
+      Alert.alert(title, message, [{ text: 'OK', onPress: onOk }]);
+    } else {
+      Alert.alert(title, message);
+    }
+  }
+};
+
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 interface QuerySQL {
@@ -221,7 +238,7 @@ export default function AgregarModuloScreen() {
   const validarFormulario = (): boolean => {
     // ✅ SOLO EL NOMBRE ES OBLIGATORIO
     if (!nombreModulo.trim()) {
-      Alert.alert('Error', 'El nombre del módulo es obligatorio');
+      showAlert('Error', 'El nombre del módulo es obligatorio');
       return false;
     }
     
@@ -239,7 +256,7 @@ export default function AgregarModuloScreen() {
         // Validar que todas las consultas tengan ID
         for (let i = 0; i < consultasSQL.length; i++) {
           if (!consultasSQL[i].id.trim()) {
-            Alert.alert('Error', `La consulta #${i + 1} debe tener un ID`);
+            showAlert('Error', `La consulta #${i + 1} debe tener un ID`);
             return false;
           }
         }
@@ -248,13 +265,13 @@ export default function AgregarModuloScreen() {
         const ids = consultasSQL.map(c => c.id);
         const idsUnicos = new Set(ids);
         if (ids.length !== idsUnicos.size) {
-          Alert.alert('Error', 'Los IDs de las consultas deben ser únicos');
+          showAlert('Error', 'Los IDs de las consultas deben ser únicos');
           return false;
         }
 
         // Validar que se haya seleccionado un query principal si hay consultas
         if (!queryIdPrincipal) {
-          Alert.alert('Error', 'Debe seleccionar una consulta principal para mostrar');
+          showAlert('Error', 'Debe seleccionar una consulta principal para mostrar');
           return false;
         }
       }
@@ -264,7 +281,7 @@ export default function AgregarModuloScreen() {
         try {
           new URL(apiRestUrl);
         } catch (e) {
-          Alert.alert('Error', 'La URL de la API REST no tiene un formato válido');
+          showAlert('Error', 'La URL de la API REST no tiene un formato válido');
           return false;
         }
       }
@@ -273,7 +290,7 @@ export default function AgregarModuloScreen() {
       if (tipoConexion === 'directa') {
         const camposLlenos = [hostDB.trim(), nombreDB.trim(), usuarioDB.trim()].filter(c => c).length;
         if (camposLlenos > 0 && camposLlenos < 3) {
-          Alert.alert('Error', 'Si configuras conexión directa, debes llenar Host, Base de Datos y Usuario');
+          showAlert('Error', 'Si configuras conexión directa, debes llenar Host, Base de Datos y Usuario');
           return false;
         }
       }
@@ -382,7 +399,7 @@ export default function AgregarModuloScreen() {
           });
         } else {
           console.error('❌ Módulo padre no encontrado en la estructura');
-          Alert.alert('Error', 'No se encontró el módulo padre');
+          showAlert('Error', 'No se encontró el módulo padre');
           return;
         }
       } else {
@@ -405,10 +422,10 @@ export default function AgregarModuloScreen() {
       if (parentId) {
         // Es un submódulo
         const tipoSubmodoulo = esModuloPrincipal ? 'contenedor' : 'con datos';
-        // ✅ Rutas diferentes para web y mobile
+        // ✅ La ruta es la misma para web y mobile: /modulos/{id}
         const routeDestino = esModuloPrincipal 
-          ? (Platform.OS === 'web' ? `/modulos/${moduleId}` : `/(tabs)/modulos/${moduleId}`)
-          : (Platform.OS === 'web' ? `/modulos/${parentId}` : `/(tabs)/modulos/${parentId}`);
+          ? `/modulos/${moduleId}` 
+          : `/modulos/${parentId}`;
         
         console.log(`🌐 Navegando a: ${routeDestino} (Platform: ${Platform.OS})`);
         
@@ -432,10 +449,8 @@ export default function AgregarModuloScreen() {
         }
       } else if (esModuloPrincipal) {
         // Es un módulo principal
-        // ✅ Rutas diferentes para web y mobile
-        const routeDestino = Platform.OS === 'web' 
-          ? `/modulos/${moduleId}` 
-          : `/(tabs)/modulos/${moduleId}`;
+        // ✅ La ruta es la misma para web y mobile: /modulos/{id}
+        const routeDestino = `/modulos/${moduleId}`;
         
         console.log(`🌐 Navegando a módulo principal: ${routeDestino} (Platform: ${Platform.OS})`);
         
@@ -457,11 +472,24 @@ export default function AgregarModuloScreen() {
         }
       } else {
         // Es un módulo normal con datos
-        Alert.alert(
-          '✅ Módulo Creado',
-          `El módulo "${nombreModulo}" ha sido creado correctamente con su consulta SQL.`,
-          [{ text: 'OK', onPress: () => router.back() }]
-        );
+        // ✅ La ruta es la misma para web y mobile: /modulos/{id}
+        const routeDestino = `/modulos/${moduleId}`;
+        
+        console.log(`🌐 Navegando a módulo con datos creado: ${routeDestino} (Platform: ${Platform.OS})`);
+        console.log(`📋 ID del módulo creado: ${moduleId}`);
+        
+        if (Platform.OS === 'web') {
+          // En web, navegar directamente sin Alert
+          console.log('✅ Módulo con datos creado exitosamente (Web)');
+          router.replace(routeDestino as any);
+        } else {
+          // En mobile, mostrar Alert con botón
+          Alert.alert(
+            '✅ Módulo Creado',
+            `El módulo "${nombreModulo}" ha sido creado correctamente con su consulta SQL.`,
+            [{ text: 'Ver Módulo', onPress: () => router.replace(routeDestino as any) }]
+          );
+        }
       }
     } catch (error: any) {
       console.error('❌ ========================================');
@@ -471,7 +499,7 @@ export default function AgregarModuloScreen() {
       console.error('❌ Mensaje:', error.message);
       console.error('❌ Stack:', error.stack);
       console.error('❌ ========================================\n');
-      Alert.alert('Error', 'No se pudo guardar el módulo: ' + error.message);
+      showAlert('Error', 'No se pudo guardar el módulo: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -482,13 +510,13 @@ export default function AgregarModuloScreen() {
     const rolTrimmed = rolPersonalizado.trim();
     
     if (!rolTrimmed) {
-      Alert.alert('Error', 'Debes escribir un nombre de rol');
+      showAlert('Error', 'Debes escribir un nombre de rol');
       return;
     }
     
     // Verificar que no exista ya
     if (rolesSeleccionados.includes(rolTrimmed)) {
-      Alert.alert('Atención', 'Este rol ya está agregado');
+      showAlert('Atención', 'Este rol ya está agregado');
       return;
     }
     
@@ -504,7 +532,7 @@ export default function AgregarModuloScreen() {
     setRolesSeleccionados(nuevosRoles);
     setRolPersonalizado(''); // Limpiar el campo
     
-    Alert.alert('Éxito', `Rol "${rolTrimmed}" agregado correctamente`);
+    showAlert('Éxito', `Rol "${rolTrimmed}" agregado correctamente`);
   };
 
   // Toggle de rol
@@ -545,7 +573,7 @@ export default function AgregarModuloScreen() {
 
   const eliminarConsulta = (index: number) => {
     if (consultasSQL.length === 1) {
-      Alert.alert('Atención', 'Debe haber al menos una consulta');
+      showAlert('Atención', 'Debe haber al menos una consulta');
       return;
     }
     const nuevasConsultas = consultasSQL.filter((_, i) => i !== index);

@@ -38,7 +38,7 @@ interface MenuItem {
 }
 
 // ✅ Función auxiliar para buscar un módulo de forma recursiva
-const buscarModuloRecursivo = (modulos: CustomModule[], id: string): CustomModule | null => {
+export const buscarModuloRecursivo = (modulos: CustomModule[], id: string): CustomModule | null => {
   for (const modulo of modulos) {
     if (modulo.id === id) {
       return modulo;

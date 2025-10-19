@@ -421,60 +421,66 @@ export default function ModalHeader({ visible, onClose, userName, role }: ModalH
                       </Pressable>
                     )}
                     
-                    {MENU[subMenuVisible].menuItems && MENU[subMenuVisible].menuItems.map((item) => {
-                      // Buscar el submódulo completo para verificar si tiene submódulos
-                      const moduloPadre = MENU[subMenuVisible].modulo;
-                      const submoduloCompleto = moduloPadre?.submodulos?.find(sub => sub.id === item.id);
-                      const tieneSubmodulos = !!(submoduloCompleto?.submodulos && submoduloCompleto.submodulos.length > 0);
-                      
-                      return (
+                    {/* ✅ CAMBIO: Solo renderizar menuItems SI existe, sino renderizar subMenus */}
+                    {MENU[subMenuVisible].menuItems && MENU[subMenuVisible].menuItems.length > 0 ? (
+                      // Renderizar menuItems (módulos personalizados)
+                      MENU[subMenuVisible].menuItems.map((item) => {
+                        // Buscar el submódulo completo para verificar si tiene submódulos
+                        const moduloPadre = MENU[subMenuVisible].modulo;
+                        const submoduloCompleto = moduloPadre?.submodulos?.find(sub => sub.id === item.id);
+                        const tieneSubmodulos = !!(submoduloCompleto?.submodulos && submoduloCompleto.submodulos.length > 0);
+                        
+                        return (
+                          <Pressable
+                            key={item.id}
+                            style={styles.subMenuBtn}
+                            onPress={() => {
+                              // ✅ Si tiene submódulos, navegar a ese nivel en el menú
+                              if (tieneSubmodulos && submoduloCompleto) {
+                                setMenuStack([...menuStack, { sectionIndex: subMenuVisible, submodulo: submoduloCompleto }]);
+                                setCurrentSubmodules(submoduloCompleto.submodulos || null);
+                              } else {
+                                // Si no tiene submódulos, navegar al componente
+                                setSubMenuVisible(null);
+                                setMenuStack([]);
+                                setCurrentSubmodules(null);
+                                onClose();
+                                router.push(item.route as any);
+                              }
+                            }}
+                          >
+                            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                <Ionicons name={item.icon as any} size={20} color={COLORS.primary} />
+                                <Text style={styles.subMenuBtnTextBlue}>{item.title}</Text>
+                              </View>
+                              {/* ✅ Mostrar chevron si tiene submódulos */}
+                              {tieneSubmodulos && (
+                                <Ionicons name="chevron-forward-outline" size={18} color={COLORS.primary} />
+                              )}
+                            </View>
+                          </Pressable>
+                        );
+                      })
+                    ) : (
+                      // Renderizar subMenus (módulos genéricos: Moncada, Logística, etc.)
+                      MENU[subMenuVisible].subMenus && MENU[subMenuVisible].subMenus!.map((item) => (
                         <Pressable
-                          key={item.id}
+                          key={item.label}
                           style={styles.subMenuBtn}
                           onPress={() => {
-                            // ✅ Si tiene submódulos, navegar a ese nivel en el menú
-                            if (tieneSubmodulos && submoduloCompleto) {
-                              setMenuStack([...menuStack, { sectionIndex: subMenuVisible, submodulo: submoduloCompleto }]);
-                              setCurrentSubmodules(submoduloCompleto.submodulos || null);
-                            } else {
-                              // Si no tiene submódulos, navegar al componente
-                              setSubMenuVisible(null);
-                              setMenuStack([]);
-                              setCurrentSubmodules(null);
-                              onClose();
-                              router.push(item.route as any);
-                            }
+                            setSubMenuVisible(null);
+                            onClose();
+                            router.push(item.route as any);
                           }}
                         >
-                          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flex: 1 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                              <Ionicons name={item.icon as any} size={20} color={COLORS.primary} />
-                              <Text style={styles.subMenuBtnTextBlue}>{item.title}</Text>
-                            </View>
-                            {/* ✅ Mostrar chevron si tiene submódulos */}
-                            {tieneSubmodulos && (
-                              <Ionicons name="chevron-forward-outline" size={18} color={COLORS.primary} />
-                            )}
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            {item.icon ? <Ionicons name={item.icon as any} size={20} color={COLORS.primary} /> : null}
+                            <Text style={styles.subMenuBtnTextBlue}>{item.label}</Text>
                           </View>
                         </Pressable>
-                      );
-                    })}
-                    {MENU[subMenuVisible].subMenus && MENU[subMenuVisible].subMenus!.map((item) => (
-                      <Pressable
-                        key={item.label}
-                        style={styles.subMenuBtn}
-                        onPress={() => {
-                          setSubMenuVisible(null);
-                          onClose();
-                          router.push(item.route as any);
-                        }}
-                      >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          {item.icon ? <Ionicons name={item.icon as any} size={20} color={COLORS.primary} /> : null}
-                          <Text style={styles.subMenuBtnTextBlue}>{item.label}</Text>
-                        </View>
-                      </Pressable>
-                    ))}
+                      ))
+                    )}
                   </View>
                 </ScrollView>
                 {/* Configuración fijo abajo */}

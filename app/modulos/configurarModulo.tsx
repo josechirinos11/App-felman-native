@@ -4,15 +4,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -53,11 +53,17 @@ interface CustomModule {
   usaConsultasMultiples?: boolean;
   consultasSQL?: QuerySQL[];
   queryIdPrincipal?: string;
+  // Campos para submódulos (corrección para búsqueda recursiva)
+  submodulos?: CustomModule[];
 }
 
 export default function ConfigurarModuloScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  
+  console.log('🔧 ConfigurarModuloScreen - Componente montado');
+  console.log('🔧 ID recibido desde params:', id);
+  console.log('🔧 Tipo de ID:', typeof id);
   
   const [modulo, setModulo] = useState<CustomModule | null>(null);
   const [loading, setLoading] = useState(true);
@@ -96,34 +102,56 @@ export default function ConfigurarModuloScreen() {
   const [mostrarSelectorIcono, setMostrarSelectorIcono] = useState(false);
   const [mostrarSelectorRoles, setMostrarSelectorRoles] = useState(false);
   const [mostrarSelectorQueryPrincipal, setMostrarSelectorQueryPrincipal] = useState(false);
+  const [nombreConfirmacion, setNombreConfirmacion] = useState('');
 
   useEffect(() => {
+    console.log('🔧 useEffect [id] - Ejecutando cargarModulo');
+    console.log('🔧 ID actual:', id);
     cargarModulo();
   }, [id]);
 
   useEffect(() => {
+    console.log('🔧 useEffect [modulo] - Módulo cambió:', modulo?.nombre);
     if (modulo) {
       cargarConfiguracion();
     }
   }, [modulo]);
 
+  // Búsqueda recursiva igual que en [id].tsx
+  function buscarModuloRecursivo(modulos: CustomModule[], id: string): CustomModule | null {
+    for (const modulo of modulos) {
+      if (modulo.id === id) return modulo;
+      if (modulo.submodulos && modulo.submodulos.length > 0) {
+        const encontrado = buscarModuloRecursivo(modulo.submodulos, id);
+        if (encontrado) return encontrado;
+      }
+    }
+    return null;
+  }
+
   const cargarModulo = async () => {
+    console.log('🔧 cargarModulo - Iniciando...');
+    console.log('🔧 Buscando módulo con ID:', id);
     try {
       const modulosJSON = await AsyncStorage.getItem('customModules');
       if (modulosJSON) {
         const modulos: CustomModule[] = JSON.parse(modulosJSON);
-        const moduloEncontrado = modulos.find(m => m.id === id);
-        
+        console.log('🔧 Total módulos en storage:', modulos.length);
+        // Usar búsqueda recursiva
+        const moduloEncontrado = buscarModuloRecursivo(modulos, id);
+
+        console.log('🔧 Módulo encontrado?:', !!moduloEncontrado);
         if (moduloEncontrado) {
+          console.log('🔧 Cargando módulo:', moduloEncontrado.nombre);
           setModulo(moduloEncontrado);
-          
+
           // Cargar todos los datos en los estados para edición
           setNombre(moduloEncontrado.nombre);
           setIcono(moduloEncontrado.icono);
           setConsultaSQL(moduloEncontrado.consultaSQL);
           setTipoConexion(moduloEncontrado.tipoConexion);
           setApiRestUrl(moduloEncontrado.apiRestUrl);
-          
+
           // Cargar config DB si existe
           if (moduloEncontrado.dbConfig) {
             setDbTipo(moduloEncontrado.dbConfig.tipo);
@@ -133,17 +161,18 @@ export default function ConfigurarModuloScreen() {
             setDbUsuario(moduloEncontrado.dbConfig.usuario);
             setDbPassword(moduloEncontrado.dbConfig.password);
           }
-          
+
           // Cargar roles
           setRolesSeleccionados(moduloEncontrado.rolesPermitidos || []);
-          
+
           // Cargar configuración de consultas múltiples
           setUsaConsultasMultiples(moduloEncontrado.usaConsultasMultiples || false);
           setConsultasSQL(moduloEncontrado.consultasSQL || []);
           setQueryIdPrincipal(moduloEncontrado.queryIdPrincipal || '');
         } else {
+          // Mostrar error en pantalla, no hacer router.back()
           Alert.alert('Error', 'Módulo no encontrado');
-          router.back();
+          setModulo(null);
         }
       }
     } catch (error) {
@@ -153,6 +182,35 @@ export default function ConfigurarModuloScreen() {
       setLoading(false);
     }
   };
+
+// Estado y función para confirmación y borrado seguro (mover aquí para que esté antes del render)
+
+
+const eliminarModulo = async () => {
+  try {
+    const modulosJSON = await AsyncStorage.getItem('customModules');
+    if (!modulosJSON) return;
+    let modulos: CustomModule[] = JSON.parse(modulosJSON);
+
+    // Función recursiva para eliminar el módulo por id
+    function eliminarModuloRecursivo(arr: CustomModule[], id: string): CustomModule[] {
+      return arr.filter(m => {
+        if (m.id === id) return false;
+        if (m.submodulos && m.submodulos.length > 0) {
+          m.submodulos = eliminarModuloRecursivo(m.submodulos, id);
+        }
+        return true;
+      });
+    }
+
+    const nuevosModulos = eliminarModuloRecursivo(modulos, id);
+    await AsyncStorage.setItem('customModules', JSON.stringify(nuevosModulos));
+    // Navegar fuera de la pantalla de configuración
+  router.push('/' as any);
+  } catch (err) {
+    Alert.alert('Error', 'No se pudo eliminar el módulo.');
+  }
+};
 
   const cargarConfiguracion = async () => {
     if (!modulo) return;
@@ -331,58 +389,52 @@ export default function ConfigurarModuloScreen() {
       const modulos: CustomModule[] = JSON.parse(modulosJSON);
       console.log('💾 Total de módulos en storage:', modulos.length);
       
-      const index = modulos.findIndex(m => m.id === id);
-      
-      if (index === -1) {
-        console.error('❌ Módulo no encontrado en el array. ID buscado:', id);
-        Alert.alert('Error', 'Módulo no encontrado');
-        return;
+      // Actualización recursiva del módulo editado
+      function actualizarModuloRecursivo(modulosArr: CustomModule[]): boolean {
+        for (let i = 0; i < modulosArr.length; i++) {
+          if (modulosArr[i].id === id) {
+            // Actualizar datos del módulo
+            modulosArr[i] = {
+              ...modulosArr[i],
+              nombre: nombre.trim(),
+              icono,
+              consultaSQL: consultaSQL.trim(),
+              tipoConexion,
+              apiRestUrl: apiRestUrl.trim(),
+              dbConfig: tipoConexion === 'directa' ? {
+                tipo: dbTipo,
+                host: dbHost.trim(),
+                port: parseInt(dbPort),
+                database: dbDatabase.trim(),
+                usuario: dbUsuario.trim(),
+                password: dbPassword.trim(),
+              } : undefined,
+              rolesPermitidos: rolesSeleccionados,
+              configuracionVista: {
+                columnasVisibles,
+                ordenColumnas: columnasVisibles,
+                mostrarNumeroRegistro,
+                registrosPorPagina: parseInt(registrosPorPagina) || 50,
+              },
+              usaConsultasMultiples,
+              consultasSQL: usaConsultasMultiples ? consultasSQL : undefined,
+              queryIdPrincipal: usaConsultasMultiples ? queryIdPrincipal : undefined,
+            };
+            return true;
+          }
+          if (modulosArr[i].submodulos && modulosArr[i].submodulos!.length > 0) {
+            const actualizado = actualizarModuloRecursivo(modulosArr[i].submodulos!);
+            if (actualizado) return true;
+          }
+        }
+        return false;
       }
 
-      console.log('📍 Módulo encontrado en índice:', index);
-      console.log('📝 Cambios a aplicar:');
-      console.log('   Nombre:', modulo.nombre, '→', nombre.trim());
-      console.log('   Consulta SQL actualizada:', consultaSQL.trim().substring(0, 50) + '...');
-      console.log('   Tipo Conexión:', tipoConexion);
-      console.log('   URL API:', apiRestUrl.trim());
-      console.log('   Roles:', rolesSeleccionados.join(', '));
-
-      // Actualizar TODOS los datos del módulo
-      modulos[index] = {
-        ...modulos[index],
-        nombre: nombre.trim(),
-        icono,
-        consultaSQL: consultaSQL.trim(),
-        tipoConexion,
-        apiRestUrl: apiRestUrl.trim(),
-        dbConfig: tipoConexion === 'directa' ? {
-          tipo: dbTipo,
-          host: dbHost.trim(),
-          port: parseInt(dbPort),
-          database: dbDatabase.trim(),
-          usuario: dbUsuario.trim(),
-          password: dbPassword.trim(),
-        } : undefined,
-        rolesPermitidos: rolesSeleccionados,
-        configuracionVista: {
-          columnasVisibles,
-          ordenColumnas: columnasVisibles,
-          mostrarNumeroRegistro,
-          registrosPorPagina: parseInt(registrosPorPagina) || 50,
-        },
-        // Guardar configuración de consultas múltiples
-        usaConsultasMultiples,
-        consultasSQL: usaConsultasMultiples ? consultasSQL : undefined,
-        queryIdPrincipal: usaConsultasMultiples ? queryIdPrincipal : undefined,
-      };
-
-      if (tipoConexion === 'directa' && modulos[index].dbConfig) {
-        console.log('💾 Configuración BD actualizada:');
-        console.log('   Tipo:', modulos[index].dbConfig?.tipo);
-        console.log('   Host:', modulos[index].dbConfig?.host);
-        console.log('   Puerto:', modulos[index].dbConfig?.port);
-        console.log('   Database:', modulos[index].dbConfig?.database);
-        console.log('   Usuario:', modulos[index].dbConfig?.usuario);
+      const actualizado = actualizarModuloRecursivo(modulos);
+      if (!actualizado) {
+        console.error('❌ Módulo no encontrado en el array (ni en submodulos). ID buscado:', id);
+        Alert.alert('Error', 'Módulo no encontrado');
+        return;
       }
 
       console.log('👁️ Configuración de vista:');
@@ -394,11 +446,8 @@ export default function ConfigurarModuloScreen() {
       console.log('✅ Módulo actualizado exitosamente en AsyncStorage');
       console.log('✅ ========================================\n');
 
-      Alert.alert(
-        'Éxito',
-        'Módulo actualizado correctamente',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
+  // Navegar automáticamente al detalle del módulo editado
+  router.push(`/modulos/${id}`);
     } catch (error: any) {
       console.error('❌ ========================================');
       console.error('❌ ERROR AL ACTUALIZAR MÓDULO');
@@ -969,6 +1018,40 @@ export default function ConfigurarModuloScreen() {
                 ) : (
                   <Text style={styles.saveButtonText}>Guardar Cambios</Text>
                 )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Botón para eliminar el módulo con confirmación por nombre */}
+            <View style={{ marginTop: 32, padding: 16, backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#e53e3e' }}>
+              <Text style={{ color: '#e53e3e', fontWeight: 'bold', fontSize: 16, marginBottom: 8 }}>
+                Eliminar módulo
+              </Text>
+              <Text style={{ color: '#e53e3e', marginBottom: 8 }}>
+                Para eliminar este módulo, escribe el nombre exacto: <Text style={{ fontWeight: 'bold' }}>{nombre}</Text>
+              </Text>
+              <TextInput
+                style={[styles.input, { borderColor: '#e53e3e', marginBottom: 8 }]}
+                placeholder={`Escribe: ${nombre}`}
+                placeholderTextColor="#fca5a5"
+                value={nombreConfirmacion}
+                onChangeText={setNombreConfirmacion}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <TouchableOpacity
+                style={{
+                  backgroundColor: nombreConfirmacion === nombre && nombre.length > 0 ? '#e53e3e' : '#fca5a5',
+                  paddingVertical: 14,
+                  borderRadius: 8,
+                  alignItems: 'center',
+                  opacity: nombreConfirmacion === nombre && nombre.length > 0 ? 1 : 0.6,
+                }}
+                disabled={nombreConfirmacion !== nombre || nombre.length === 0}
+                onPress={eliminarModulo}
+              >
+                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 15 }}>
+                  Eliminar módulo
+                </Text>
               </TouchableOpacity>
             </View>
           </View>

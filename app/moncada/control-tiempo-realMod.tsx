@@ -284,8 +284,32 @@ const [userData, setUserData] = useState<UserData | null>(null);
     return () => clearInterval(id);
   }, []);
 
-  // Constante de jornada reutilizable
-  const JORNADA_SECONDS = 7.5 * 3600; // 27000
+  // 📅 Helper: Obtener horas laborales según el día de la semana
+  // Lunes-Jueves (1-4): 7.5h | Viernes (5): 6.5h
+  const getHorasLaboralesPorDia = (fecha?: string | null): number => {
+    try {
+      // Si estamos en modo test, usar testDate; si no, usar fecha del registro o hoy
+      const fechaAUsar = testDate || fecha || new Date().toISOString().split('T')[0];
+      const date = new Date(fechaAUsar + 'T12:00:00'); // Mediodía para evitar problemas de zona horaria
+      const dayOfWeek = date.getDay(); // 0=Dom, 1=Lun, ..., 5=Vie, 6=Sáb
+      
+      // Viernes (5) = 6.5h, Lunes-Jueves (1-4) = 7.5h
+      const horas = dayOfWeek === 5 ? 6.5 : 7.5;
+      
+      if (debugLogs) {
+        const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+        console.log(`📅 [getHorasLaboralesPorDia] ${fechaAUsar} (${dias[dayOfWeek]}): ${horas}h`);
+      }
+      
+      return horas * 3600; // Convertir a segundos
+    } catch (e) {
+      console.error('❌ Error calculando horas laborales:', e);
+      return 7.5 * 3600; // Fallback
+    }
+  };
+
+  // Constante de jornada reutilizable (ahora dinámica)
+  const JORNADA_SECONDS = getHorasLaboralesPorDia(); // Usa testDate o fecha actual
 
   // Detectar plataforma web para layout específico
   const isWeb = Platform.OS === 'web';
@@ -638,6 +662,193 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
     return { hasOpenTime, overlapsBreak, breakOverlapSeconds };
   };
 
+  // 🕐 Helper para verificar si un momento del día está fuera del horario laboral
+  const isOutsideWorkHours = (timeStr: string, fecha?: string): boolean => {
+    try {
+      if (!timeStr) return false;
+
+      const parseTime = (ts: string): number => {
+        const parts = ts.trim().split(':');
+        if (parts.length < 2) return 0;
+        const h = parseInt(parts[0]);
+        const m = parseInt(parts[1]);
+        return isNaN(h) || isNaN(m) ? 0 : h * 60 + m;
+      };
+
+      const totalMinutos = parseTime(timeStr);
+      if (totalMinutos === 0) return false;
+
+      // Determinar si es viernes
+      let esViernes = false;
+      if (fecha) {
+        try {
+          const date = new Date(fecha);
+          esViernes = date.getDay() === 5;
+        } catch {
+          esViernes = false;
+        }
+      }
+
+      // Horario laboral:
+      // Turno 1: 6:30 (390 min) - 9:30 (570 min)
+      // Descanso: 9:30 (570 min) - 10:00 (600 min)
+      // Turno 2: 10:00 (600 min) - 14:30 (870 min) / 13:30 (810 min) viernes
+
+      const turno1Inicio = 6 * 60 + 30;   // 390
+      const turno1Fin = 9 * 60 + 30;      // 570
+      const turno2Inicio = 10 * 60;       // 600
+      const turno2Fin = esViernes ? 13 * 60 + 30 : 14 * 60 + 30; // 810 viernes, 870 resto
+
+      // Fuera de turno si está antes de 6:30, entre 9:30-10:00, o después de 14:30 (o 13:30 viernes)
+      const dentroTurno1 = totalMinutos >= turno1Inicio && totalMinutos <= turno1Fin;
+      const dentroTurno2 = totalMinutos >= turno2Inicio && totalMinutos <= turno2Fin;
+
+      return !(dentroTurno1 || dentroTurno2);
+    } catch {
+      return false;
+    }
+  };
+
+  // 🕐 Calcular tiempo trabajado fuera de horario para un registro
+  const calculateOutsideWorkTime = (record: TiempoRealRecord): number => {
+    const horaInicio = record.HoraInicio;
+    const horaFin = record.HoraFin;
+
+    if (!horaInicio || !horaFin) return 0;
+
+    try {
+      const parseTime = (timeStr: string): number => {
+        const parts = timeStr.trim().split(':');
+        if (parts.length < 2) return 0;
+        const h = parseInt(parts[0]);
+        const m = parseInt(parts[1]);
+        return isNaN(h) || isNaN(m) ? 0 : h * 60 + m;
+      };
+
+      const inicioMin = parseTime(horaInicio);
+      let finMin = parseTime(horaFin);
+
+      if (inicioMin === 0 || finMin === 0) return 0;
+
+      // ✅ DETECTAR FICHAJE ABIERTO: Si finMin < inicioMin, significa que cruzó la medianoche
+      if (finMin < inicioMin) {
+        // Determinar si es viernes
+        let esViernes = false;
+        if (record.FechaInicio || record.Fecha) {
+          try {
+            const fecha = new Date(record.FechaInicio || record.Fecha || '');
+            esViernes = fecha.getDay() === 5;
+          } catch {
+            esViernes = false;
+          }
+        }
+
+        // Ajustar finMin a la hora de cierre del turno 2
+        const horaCierre = esViernes ? 13 * 60 + 30 : 14 * 60 + 30;
+        finMin = horaCierre;
+      }
+
+      if (finMin <= inicioMin) return 0;
+
+      // Determinar si es viernes
+      let esViernes = false;
+      if (record.FechaInicio || record.Fecha) {
+        try {
+          const fecha = new Date(record.FechaInicio || record.Fecha || '');
+          esViernes = fecha.getDay() === 5;
+        } catch {
+          esViernes = false;
+        }
+      }
+
+      // Definir turnos
+      const turno1Inicio = 6 * 60 + 30;  // 6:30 = 390
+      const turno1Fin = 9 * 60 + 30;     // 9:30 = 570
+      const turno2Inicio = 10 * 60;      // 10:00 = 600
+      const turno2Fin = esViernes ? 13 * 60 + 30 : 14 * 60 + 30;
+
+      let tiempoFueraTurno = 0;
+
+      // Calcular minutos fuera de turno (simplificado)
+      if (finMin <= turno1Inicio) {
+        tiempoFueraTurno = finMin - inicioMin;
+      } else if (inicioMin < turno1Inicio && finMin > turno1Inicio && finMin <= turno1Fin) {
+        tiempoFueraTurno = turno1Inicio - inicioMin;
+      } else if (inicioMin < turno1Inicio && finMin > turno1Fin) {
+        tiempoFueraTurno = turno1Inicio - inicioMin;
+        if (finMin > turno1Fin && finMin <= turno2Inicio) {
+          tiempoFueraTurno += finMin - turno1Fin;
+        } else if (finMin > turno2Inicio) {
+          tiempoFueraTurno += turno2Inicio - turno1Fin;
+        }
+      } else if (inicioMin >= turno1Inicio && inicioMin <= turno1Fin && finMin > turno1Fin) {
+        if (finMin <= turno2Inicio) {
+          tiempoFueraTurno = finMin - turno1Fin;
+        } else {
+          tiempoFueraTurno = turno2Inicio - turno1Fin;
+        }
+      } else if (inicioMin >= turno1Fin && finMin <= turno2Inicio) {
+        tiempoFueraTurno = finMin - inicioMin;
+      } else if (inicioMin >= turno1Fin && inicioMin < turno2Inicio && finMin > turno2Inicio) {
+        tiempoFueraTurno = turno2Inicio - inicioMin;
+      } else if (inicioMin >= turno2Inicio && inicioMin <= turno2Fin && finMin > turno2Fin) {
+        tiempoFueraTurno = finMin - turno2Fin;
+      } else if (inicioMin >= turno2Fin) {
+        tiempoFueraTurno = finMin - inicioMin;
+      }
+
+      return tiempoFueraTurno * 60; // Convertir a segundos
+    } catch {
+      return 0;
+    }
+  };
+
+  // 🔴 Analizar tiempos fuera de turno para un operario
+  const analyzeOperarioOutsideTime = (records: TiempoRealRecord[]): {
+    totalOutsideTime: number;
+    hasOutsideTime: boolean;
+    outsideRecordsCount: number;
+    hasOpenShift: boolean;
+    openShiftCount: number;
+  } => {
+    let totalOutsideTime = 0;
+    let outsideRecordsCount = 0;
+    let openShiftCount = 0;
+
+    const parseTime = (timeStr: string): number => {
+      const parts = timeStr.trim().split(':');
+      if (parts.length < 2) return 0;
+      const h = parseInt(parts[0]);
+      const m = parseInt(parts[1]);
+      return isNaN(h) || isNaN(m) ? 0 : h * 60 + m;
+    };
+
+    for (const record of records) {
+      const outsideTime = calculateOutsideWorkTime(record);
+      if (outsideTime > 0) {
+        totalOutsideTime += outsideTime;
+        outsideRecordsCount++;
+      }
+
+      // ✅ Detectar fichajes abiertos
+      if (record.HoraInicio && record.HoraFin) {
+        const inicioMin = parseTime(record.HoraInicio);
+        const finMin = parseTime(record.HoraFin);
+        if (inicioMin > 0 && finMin > 0 && finMin < inicioMin) {
+          openShiftCount++;
+        }
+      }
+    }
+
+    return {
+      totalOutsideTime,
+      hasOutsideTime: totalOutsideTime > 0 || openShiftCount > 0,
+      outsideRecordsCount,
+      hasOpenShift: openShiftCount > 0,
+      openShiftCount
+    };
+  };
+
   // 🚨 Helper para detectar si un grupo tiene algún problema
   const groupHasIssues = (records: TiempoRealRecord[]): boolean => {
     return records.some(r => {
@@ -655,7 +866,7 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
   // 1. Usar useMemo para cachear resultados por grupo
   // 2. O mejor aún, que el backend envíe estas estadísticas pre-calculadas
   // ⚙️ IMPORTANTE: El parámetro 'mode' determina si se aplica el límite de jornada
-  //    - 'operador': Aplica límite de 7.5h (un operario no puede superar su jornada)
+  //    - 'operador': Aplica límite dinámico (6.5h viernes, 7.5h lun-jue)
   //    - 'tarea'|'pedido'|'serie': NO aplica límite (múltiples operarios pueden trabajar)
   const computeEstadisticaForArray = (arr: TiempoRealRecord[], mode?: 'operador'|'tarea'|'pedido'|'serie') => {
     // Devuelve lo acumulado (activo/status/remaining). El cálculo dependiente del tiempo
@@ -698,13 +909,30 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
       }
     }
     
-    const jornadaSeconds = JORNADA_SECONDS || 7.5 * 3600; // 27000 segundos = 7.5 horas
+    // 📅 CLAVE: Calcular jornada dinámica según la fecha del primer registro
+    // ⚠️ IMPORTANTE: La jornada YA es el tiempo efectivo de trabajo (NO incluye descanso)
+    //    - Lunes-Jueves: 7.5h de trabajo efectivo
+    //    - Viernes: 6.5h de trabajo efectivo
+    const primeraFecha = arr.length > 0 ? (arr[0].FechaInicio || arr[0].Fecha) : null;
+    const jornadaSeconds = getHorasLaboralesPorDia(primeraFecha);
     
-    // ⚠️ VALIDACIÓN: Verificar si el tiempo activo supera la jornada
-    // 🔑 CLAVE: Solo validar límite si es agrupación por OPERADOR
-    const excedeLimite = mode === 'operador' ? active > jornadaSeconds : false;
+    //  LOG BACKEND: Datos que vienen del backend (tiempos brutos)
+    if (debugLogs && arr.length > 0 && mode === 'operador') {
+      const primeraKey = arr[0]?.OperarioNombre || arr[0]?.CodigoOperario || 'OPERADOR';
+      const fecha = primeraFecha || new Date().toISOString().split('T')[0];
+      const date = new Date(fecha + 'T12:00:00');
+      const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+      console.log(`🔵 [BACKEND DATA] ${primeraKey} (${dias[date.getDay()]}):`, {
+        tiempoActivoSegundos: active,
+        tiempoActivoHoras: (active / 3600).toFixed(2) + 'h',
+        jornadaSegundos: jornadaSeconds,
+        jornadaHoras: (jornadaSeconds / 3600).toFixed(1) + 'h',
+        pausaDescontada: totalBreakTimeDeducted,
+        pausaDescontadaMin: Math.floor(totalBreakTimeDeducted / 60) + 'min',
+      });
+    }
     
-    // 🔍 DEBUG: Log detallado de la suma
+    // 🔍 DEBUG: Log detallado de la suma (solo si debugLogs está activado)
     if (debugLogs && arr.length > 0) {
       const primeraKey = arr[0]?.OperarioNombre || arr[0]?.CodigoOperario || arr[0]?.CodigoTarea || 'GRUPO';
       const registrosConPausa = detallesSuma.filter(d => d.breakOverlap > 0).length;
@@ -714,8 +942,7 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
         sumaTotal: active,
         sumaTotalHoras: (active / 3600).toFixed(2) + 'h',
         jornadaMaxima: mode === 'operador' ? jornadaSeconds : 'sin límite',
-        jornadaMaximaHoras: mode === 'operador' ? (jornadaSeconds / 3600).toFixed(2) + 'h' : 'sin límite',
-        excedeLimite: mode === 'operador' ? excedeLimite : 'no aplica',
+        jornadaMaximaHoras: mode === 'operador' ? (jornadaSeconds / 3600).toFixed(1) + 'h' : 'sin límite',
         aplicaLimiteJornada: mode === 'operador',
         // 🍽️ Información de pausa de comida
         pausaDescontada: totalBreakTimeDeducted,
@@ -732,11 +959,6 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
       if (totalBreakTimeDeducted > 0) {
         console.log(`🍽️ [INFO] ${primeraKey} - Descontados ${Math.floor(totalBreakTimeDeducted / 60)} minutos de pausa de comida en ${registrosConPausa} fichaje(s)`);
       }
-      
-      // ⚠️ ALERTA: Si excede el límite (solo para operadores)
-      if (excedeLimite && mode === 'operador') {
-        console.warn(`⚠️ [ALERTA] ${primeraKey} EXCEDE LA JORNADA: ${(active / 3600).toFixed(2)}h > 7.5h`);
-      }
     }
     
     // 🔑 CLAVE: Solo calcular "tiempo restante" si es agrupación por OPERADOR
@@ -748,7 +970,6 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
       activeSeconds: Math.floor(active),
       status,
       remainingSeconds: Math.floor(remaining),
-      excedeLimite, // ⚠️ Campo para detectar excesos (solo relevante en modo operador)
       breakTimeDeducted: Math.floor(totalBreakTimeDeducted), // 🍽️ Tiempo de pausa descontado
       recordsWithBreak: detallesSuma.filter(d => d.breakOverlap > 0).length, // 🍽️ Registros con pausa
       mode, // 🔑 Guardar el modo para referencia posterior
@@ -766,6 +987,7 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
 
   // Calcular elapsed desde 06:30 hasta `now`, capear por jornada y excluir solapamiento con la pausa de comida 09:30-10:00 (30 minutos)
   // 🔧 CORREGIDO: Si estamos viendo datos históricos (testDate), usar la jornada completa
+  // 📅 ACTUALIZADO: Usar jornada dinámica (6.5h viernes, 7.5h lun-jue)
   const computeEffectiveElapsed = (nowDate?: Date) => {
     const now = nowDate ? new Date(nowDate) : new Date();
     
@@ -774,22 +996,26 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
     const todayStr = today.toISOString().split('T')[0];
     const isHistoricalData = testDate && testDate !== todayStr;
     
-    // 🔍 DEBUG: Log para verificar si es histórico
+    // � Calcular jornada dinámica según fecha
+    const fechaAUsar = testDate || todayStr;
+    const jornadaCompleta = getHorasLaboralesPorDia(fechaAUsar);
+    
+    // �🔍 DEBUG: Log para verificar si es histórico
     if (debugLogs && testDate) {
       console.log('[DEBUG computeEffectiveElapsed] Verificando fecha:', {
         testDate,
         todayStr,
-        isHistoricalData
+        isHistoricalData,
+        jornadaCompleta: (jornadaCompleta / 3600).toFixed(1) + 'h'
       });
     }
     
     if (isHistoricalData) {
       // Para datos históricos, retornar la jornada completa (ya finalizó)
-      const jornadaCompleta = JORNADA_SECONDS || 7.5 * 3600;
       const breakDuration = 30 * 60; // 30 minutos de pausa
       if (debugLogs) {
         console.log('[DEBUG computeEffectiveElapsed] Usando jornada histórica completa:', {
-          jornadaCompleta,
+          jornadaCompleta: (jornadaCompleta / 3600).toFixed(1) + 'h',
           breakDuration,
           effective: jornadaCompleta - breakDuration
         });
@@ -805,7 +1031,7 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 6, 30, 0);
     let total = Math.floor((now.getTime() - start.getTime()) / 1000);
     if (total < 0) total = 0;
-    if (total > (JORNADA_SECONDS || 7.5 * 3600)) total = JORNADA_SECONDS || 7.5 * 3600;
+    if (total > jornadaCompleta) total = jornadaCompleta;
 
     const breakStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 9, 30, 0);
     const breakEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 0, 0);
@@ -822,6 +1048,7 @@ const allowed = ['admin', 'developer', 'administrador'].includes(normalizedRole)
       console.log('[DEBUG computeEffectiveElapsed] Cálculo normal (hoy):', {
         nowTime: now.toLocaleTimeString(),
         startTime: start.toLocaleTimeString(),
+        jornadaCompleta: (jornadaCompleta / 3600).toFixed(1) + 'h',
         total,
         breakOverlap,
         effective
@@ -1878,6 +2105,9 @@ if (!allowed) {
                 });
               }
               
+              // 🚨 Analizar tiempos fuera de turno (solo para modo operador)
+              const outsideAnalysis = filterMode === 'operador' ? analyzeOperarioOutsideTime(item.items || []) : null;
+              
               return (
                 <TouchableOpacity key={item.key} style={[styles.card, isHighlighted ? { backgroundColor: '#fff7e6' } : undefined]} onPress={() => {
                   // abrir modal con todos los items del grupo
@@ -1899,13 +2129,30 @@ if (!allowed) {
                   setModalGroupBy(defaultGroup);
                   setDetailModalVisible(true);
                 }}>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
                           {/* 🚨 Icono de alerta si hay problemas */}
                           {item.hasIssues && (
                             <Text style={{ fontSize: 18, color: '#ef4444' }}>⚠️</Text>
                           )}
                           <Text style={{ fontWeight: '700', color: COLORS.primary }}>{title}</Text>
+                          {/* 🔴 Badge de fichajes abiertos */}
+                          {outsideAnalysis?.hasOpenShift && (
+                            <View style={styles.openShiftBadge}>
+                              <Text style={styles.openShiftText}>
+                                🔴 {outsideAnalysis.openShiftCount} abierto{outsideAnalysis.openShiftCount > 1 ? 's' : ''}
+                              </Text>
+                            </View>
+                          )}
+                          {/* ⚠️ Badge de tiempo fuera de turno */}
+                          {outsideAnalysis && outsideAnalysis.totalOutsideTime > 0 && (
+                            <View style={styles.outsideTimeBadge}>
+                              <Ionicons name="warning" size={14} color="#dc2626" />
+                              <Text style={styles.outsideTimeText}>
+                                {formatHoursMinutes(outsideAnalysis.totalOutsideTime)}
+                              </Text>
+                            </View>
+                          )}
                         </View>
                         <View style={{ alignItems: 'flex-end' }}>
                           <Text style={{ color: '#6b7280', fontWeight: '600' }}>{item.count}</Text>
@@ -1967,61 +2214,39 @@ if (!allowed) {
                             }
 
                             // Caso normal OPERADOR: mostrar Act/Inac/Estado/Valor
-                            // 🔧 CORRECCIÓN: Calcular correctamente inactivo y exceso
-                            // ⚠️ IMPORTANTE: Inactivo se calcula contra JORNADA_SECONDS (7.5h), NO contra elapsed (7h efectivas)
-                            const jornadaTotalSeconds = JORNADA_SECONDS || 7.5 * 3600; // 27,000 seg = 7h 30m
+                            // 🔧 CORRECCIÓN: Calcular correctamente inactivo
+                            // 📅 Obtener jornada específica del día del registro
+                            const primeraFecha = item.items && item.items.length > 0 ? (item.items[0].FechaInicio || item.items[0].Fecha) : null;
+                            const jornadaTotalSeconds = getHorasLaboralesPorDia(primeraFecha);
                             const rawInactive = jornadaTotalSeconds - (item.estadistica.activeSeconds || 0);
                             const inactive = Math.max(0, rawInactive);
-                            const exceso = rawInactive < 0 ? Math.abs(rawInactive) : 0; // Tiempo que excede la jornada
-                            // Porcentaje de actividad contra elapsed (7h efectivas para mostrar % realista)
-                            const percentActivity = elapsed > 0 ? Math.max(0, Math.min(100, Math.round(((item.estadistica.activeSeconds || 0) / elapsed) * 100))) : 0;
+                            // Porcentaje de actividad contra jornada total
+                            const percentActivity = jornadaTotalSeconds > 0 ? Math.max(0, Math.min(100, Math.round(((item.estadistica.activeSeconds || 0) / jornadaTotalSeconds) * 100))) : 0;
                             
-                            // ⚠️ Verificar si excede la jornada (acceder al nuevo campo excedeLimite)
-                            const excedeLimite = (item.estadistica as any).excedeLimite || false;
-                            
-                            // 🔍 DEBUG: Log para verificar cálculos finales con validación
-                            // ✅ Solo log si el componente está montado y polling habilitado
-                            if (debugLogs && isMountedRef.current && pollingEnabledRef.current) {
-                              console.log(`[DEBUG ${filterMode}] ${item.key} - Cálculos finales:`, {
-                                jornadaTotal: jornadaTotalSeconds,
-                                jornadaTotalHoras: (jornadaTotalSeconds / 3600).toFixed(2) + 'h',
-                                elapsed,
-                                elapsedHoras: (elapsed / 3600).toFixed(2) + 'h',
-                                activeSeconds: item.estadistica.activeSeconds,
-                                rawInactive,
-                                inactive,
-                                exceso,
-                                percentActivity,
-                                excedeLimite,
-                                formatted_active: formatHoursMinutes(item.estadistica.activeSeconds),
-                                formatted_inactive: formatHoursMinutes(inactive),
-                                formatted_exceso: formatHoursMinutes(exceso),
-                                horasActivo: (item.estadistica.activeSeconds / 3600).toFixed(2) + 'h'
-                              });
-                            }
+                            // 🟢 LOG PANTALLA: Valores que se muestran al usuario
+                            const fecha = primeraFecha || new Date().toISOString().split('T')[0];
+                            const date = new Date(fecha + 'T12:00:00');
+                            const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+                            console.log(`🟢 [PANTALLA] ${item.key} (${dias[date.getDay()]}):`, {
+                              actividad: formatHoursMinutes(item.estadistica.activeSeconds),
+                              inactividad: formatHoursMinutes(inactive),
+                              valor: `${percentActivity}%`,
+                              jornadaUsada: (jornadaTotalSeconds / 3600).toFixed(1) + 'h',
+                              statusFichaje: item.estadistica.status,
+                              pausaDescontada: (item.estadistica as any).breakTimeDeducted ? Math.floor((item.estadistica as any).breakTimeDeducted / 60) + 'min' : '0min',
+                            });
                             
                             return (
-                              <View style={[styles.estadisticaContainerInline, excedeLimite && { backgroundColor: '#fee2e2', borderColor: '#ef4444', borderWidth: 2 }]}>
+                              <View style={styles.estadisticaContainerInline}>
                                 <View style={styles.estadisticaInlineBlock}>
                                   <Text style={styles.estadisticaLabel}>Act</Text>
-                                  <Text style={[styles.estadisticaValue, excedeLimite && { color: '#dc2626', fontWeight: '900' }]}>
-                                    {excedeLimite && '⚠️ '}{formatHoursMinutes(item.estadistica.activeSeconds)}
+                                  <Text style={styles.estadisticaValue}>
+                                    {formatHoursMinutes(item.estadistica.activeSeconds)}
                                   </Text>
                                 </View>
                                 <View style={styles.estadisticaInlineBlock}>
-                                  {excedeLimite && exceso > 0 ? (
-                                    <>
-                                      <Text style={[styles.estadisticaLabel, { color: '#dc2626' }]}>Exceso</Text>
-                                      <Text style={[styles.estadisticaValue, { color: '#dc2626', fontWeight: '900' }]}>
-                                        +{formatHoursMinutes(exceso)}
-                                      </Text>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Text style={styles.estadisticaLabel}>Inac</Text>
-                                      <Text style={styles.estadisticaValue}>{formatHoursMinutes(inactive)}</Text>
-                                    </>
-                                  )}
+                                  <Text style={styles.estadisticaLabel}>Inac</Text>
+                                  <Text style={styles.estadisticaValue}>{formatHoursMinutes(inactive)}</Text>
                                 </View>
                                 <Text style={item.estadistica.status === 'parcial' ? styles.estadisticaStatusParcial : styles.estadisticaStatus}>{item.estadistica.status.toUpperCase()}</Text>
                                 <View style={styles.estadisticaInlineBlock}>
@@ -2038,14 +2263,14 @@ if (!allowed) {
                         </View>
                       </View>
                       
-                      {/* ⚠️ ALERTA: Mostrar mensaje si excede la jornada (SOLO para modo operador) */}
-                      {filterMode === 'operador' && item.estadistica && (item.estadistica as any).excedeLimite && (
-                        <View style={{ backgroundColor: '#fef2f2', borderLeftWidth: 4, borderLeftColor: '#dc2626', padding: 8, marginTop: 8, borderRadius: 6 }}>
-                          <Text style={{ color: '#dc2626', fontWeight: '700', fontSize: 12 }}>
-                            ⚠️ ALERTA: Tiempo activo excede jornada laboral (máx 7.5h)
+                      {/* ⚠️ ALERTA: Mostrar mensaje si hay fichajes abiertos que afectan el total (SOLO para modo operador) */}
+                      {filterMode === 'operador' && item.estadistica && item.estadistica.status === 'parcial' && (
+                        <View style={{ backgroundColor: '#fffbeb', borderLeftWidth: 4, borderLeftColor: '#f59e0b', padding: 8, marginTop: 8, borderRadius: 6 }}>
+                          <Text style={{ color: '#d97706', fontWeight: '700', fontSize: 12 }}>
+                            ⚠️ Fichaje abierto detectado (descontado del total)
                           </Text>
-                          <Text style={{ color: '#991b1b', fontSize: 11, marginTop: 2 }}>
-                            Total registrado: {formatHoursMinutes(item.estadistica.activeSeconds)} - Revisa posibles duplicados o errores
+                          <Text style={{ color: '#92400e', fontSize: 11, marginTop: 2 }}>
+                            Se ha descontado automáticamente el tiempo durante el descanso (9:30-10:00)
                           </Text>
                         </View>
                       )}
@@ -2299,6 +2524,21 @@ if (!allowed) {
                           </View>
                         );
                       })()}
+                      
+                      {/* 🚨 Alerta de fichajes fuera de turno / abiertos (solo modo operador) */}
+                      {outsideAnalysis && outsideAnalysis.hasOutsideTime && (
+                        <View style={styles.warningContainer}>
+                          <Ionicons name="alert-circle" size={20} color="#dc2626" />
+                          <Text style={styles.warningText}>
+                            {outsideAnalysis.hasOpenShift && (
+                              <>🔴 {outsideAnalysis.openShiftCount} fichaje{outsideAnalysis.openShiftCount > 1 ? 's quedaron' : ' quedó'} abierto{outsideAnalysis.openShiftCount > 1 ? 's' : ''}{' '}</>
+                            )}
+                            {outsideAnalysis.totalOutsideTime > 0 && (
+                              <>⚠️ {formatHoursMinutes(outsideAnalysis.totalOutsideTime)} fuera del horario laboral (6:30-9:30, 10:00-14:30{testDate && new Date(testDate).getDay() === 5 ? ' - vie 13:30' : ''})</>
+                            )}
+                          </Text>
+                        </View>
+                      )}
                 </TouchableOpacity>
               );
             }}
@@ -2840,5 +3080,55 @@ searchInput: {
     color: '#92400e',
     fontWeight: '900',
     marginLeft: 6,
+  },
+  // 🚨 Estilos para alertas de tiempo fuera de turno y fichajes abiertos
+  outsideTimeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fee2e2',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+    marginLeft: 8,
+  },
+  outsideTimeText: {
+    color: '#dc2626',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  openShiftBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: '#dc2626',
+  },
+  openShiftText: {
+    color: '#dc2626',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  warningContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    padding: 8,
+    borderRadius: 8,
+    marginTop: 8,
+    gap: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: '#dc2626',
+  },
+  warningText: {
+    color: '#dc2626',
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
   }
 });
