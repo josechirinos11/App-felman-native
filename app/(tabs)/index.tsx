@@ -34,6 +34,7 @@ const menuItemsBase: MenuItem[] = [
   { id: 2, title: 'Almassera', icon: 'business-outline', route: '/optima' },
   { id: 3, title: 'Almacén', icon: 'cube-outline', route: '/almacen' },
   { id: 4, title: 'Logistica', icon: 'map-outline', route: '/logistica' },
+ { id: 5, title: 'Instaladores', icon: 'map-outline', route: '/instaladores' }
 ];
 
 
