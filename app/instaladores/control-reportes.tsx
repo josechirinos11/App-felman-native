@@ -1,10 +1,12 @@
 // app/control/control-reportes.tsx
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Modal,
   Platform,
@@ -47,17 +49,21 @@ export type Reporte = {
   id?: number;
   fecha: string;                 // yyyy-mm-dd
   nombre_instalador: string;
+  equipo_montador?: string;
   obra: string;
+  cliente?: string;
   direccion: string;
+  tipo_trabajo?: string;
   descripcion: string;
   status: string;
   incidencia: string;
-
-  // NUEVOS CAMPOS
   geo_lat?: number | null;
   geo_lng?: number | null;
   geo_address?: string | null;   // calle/dirección humana
-  hora_modal?: string;           // HH:mm:ss al abrir el modal
+  hora_inicio?: string;
+  hora_fin?: string;
+  hora_modal_final?: string;
+  unidades?: number;
 };
 
 const isoDate = (d: Date) => {
@@ -201,13 +207,62 @@ export default function ControlReportesScreen() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loadingBoot, setLoadingBoot] = useState(true);
 
-  // Filtro de fechas
-  const [desde, setDesde] = useState<Date | null>(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 7);
-    return d;
-  });
-  const [hasta, setHasta] = useState<Date | null>(() => new Date());
+  // Estado para usuarios obtenidos del backend
+  const [usuarios, setUsuarios] = useState<Array<{
+    nombre: string;
+    rol: string;
+    grupo_instaladores: 'Alfa' | 'Bravo' | 'Beta' | 'Felman';
+    telefono?: string | null;
+  }>>([]);
+  const [loadingUsuarios, setLoadingUsuarios] = useState(false);
+
+  // Fetch usuarios al montar
+  useEffect(() => {
+    const fetchUsuarios = async () => {
+      setLoadingUsuarios(true);
+      try {
+        const res = await fetch(`${API_URL}/control-almacen/control-instaladores/obtenerinformacionUsuario`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        // Acepta {data:[...]} o lista directa
+        const data = Array.isArray(json) ? json : (json?.data ?? []);
+        setUsuarios(data);
+        // Opcional: log para depuración
+        // console.log('[CONTROL-REPORTES] Usuarios:', data);
+      } catch (e) {
+        setUsuarios([]);
+        // console.log('Error obteniendo usuarios:', e);
+      } finally {
+        setLoadingUsuarios(false);
+      }
+    };
+    fetchUsuarios();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
+
+  // Filtro de fechas: semana actual (lunes a domingo)
+  const getMonday = (d: Date) => {
+    const date = new Date(d);
+    const day = date.getDay();
+    const diff = day === 0 ? -6 : 1 - day; // Si es domingo, retrocede 6 días
+    date.setDate(date.getDate() + diff);
+    date.setHours(0, 0, 0, 0);
+    return date;
+  };
+  const getSunday = (d: Date) => {
+    const monday = getMonday(d);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    return sunday;
+  };
+  const [desde, setDesde] = useState<Date | null>(() => getMonday(new Date()));
+  const [hasta, setHasta] = useState<Date | null>(() => getSunday(new Date()));
 
   // Datos
   const [items, setItems] = useState<Reporte[]>([]);
@@ -236,16 +291,21 @@ export default function ControlReportesScreen() {
   const [form, setForm] = useState<Reporte>({
     fecha: isoDate(new Date()),
     nombre_instalador: '',
+    equipo_montador: '',
     obra: '',
+    cliente: '',
     direccion: '',
+    tipo_trabajo: '',
     descripcion: '',
     status: '',
     incidencia: '',
-    // nuevos
     geo_lat: null,
     geo_lng: null,
     geo_address: null,
-    hora_modal: undefined,
+    hora_inicio: '',
+    hora_fin: '',
+    hora_modal_final: '',
+    unidades: undefined,
   });
   const [saving, setSaving] = useState(false);
 
@@ -283,7 +343,7 @@ export default function ControlReportesScreen() {
 
   const normalizedRole =
     ((userData?.rol ?? userData?.role) ?? '').toString().trim().toLowerCase();
-  const allowed = ['admin', 'developer', 'administrador', 'instalador'].includes(normalizedRole);
+  const allowed = ['admin', 'developer', 'administrador', 'supervisor', 'instalador'].includes(normalizedRole);
 
   // Leer lista
   const fetchReportes = useCallback(async () => {
@@ -304,11 +364,20 @@ export default function ControlReportesScreen() {
         }
       );
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const json = await res.json();
+
+      // LOG: mostrar la respuesta cruda del backend
+      console.log('[CONTROL-REPORTES] Respuesta backend (raw):', JSON.stringify(json));
 
       // Acepta {data:[...]} o lista directa
-      const data: Reporte[] = Array.isArray(json) ? json : (json?.data ?? []);
+      let data: Reporte[] = Array.isArray(json) ? json : (json?.data ?? []);
+      // Convertir geo_lat y geo_lng a number si vienen como string
+      data = data.map((item) => ({
+        ...item,
+        geo_lat: item.geo_lat != null ? Number(item.geo_lat) : null,
+        geo_lng: item.geo_lng != null ? Number(item.geo_lng) : null,
+      }));
       setItems(data ?? []);
     } catch (e: any) {
       console.log('read-reportes error:', e?.message ?? e);
@@ -421,10 +490,23 @@ export default function ControlReportesScreen() {
   // Abrir/Reset editor (CREAR)
   const openCreate = () => {
     const now = new Date();
+    let nombre_instalador = '';
+    let equipo_montador = '';
+    // Buscar coincidencia de usuario autenticado en la lista de usuarios
+    if (userData && usuarios && usuarios.length > 0) {
+      // Normalizar nombre para comparar
+      const nombreAuth = (userData.nombre || userData.name || '').toString().trim().toLowerCase();
+      const usuarioEncontrado = usuarios.find(u => (u.nombre || '').toString().trim().toLowerCase() === nombreAuth);
+      if (usuarioEncontrado) {
+        nombre_instalador = usuarioEncontrado.nombre;
+        equipo_montador = usuarioEncontrado.grupo_instaladores;
+      }
+    }
     setEditingId(null);
     setForm({
       fecha: isoDate(now),
-      nombre_instalador: '',
+      nombre_instalador,
+      equipo_montador,
       obra: '',
       direccion: '',
       descripcion: '',
@@ -433,7 +515,7 @@ export default function ControlReportesScreen() {
       geo_lat: null,
       geo_lng: null,
       geo_address: null,
-      hora_modal: isoTime(now), // hora fija al abrir modal (solo lectura)
+      hora_modal_final: isoTime(now), // hora fija al abrir modal (solo lectura)
     });
     setEditorVisible(true);
     // Capturar ubicación al abrir
@@ -456,7 +538,7 @@ export default function ControlReportesScreen() {
       geo_lng: r.geo_lng ?? null,
       geo_address: r.geo_address ?? null,
       // si el registro no la tiene, fija hora al abrir por primera vez
-      hora_modal: r.hora_modal ?? isoTime(now),
+      hora_modal_final: r.hora_modal_final ?? isoTime(now),
     });
     setEditorVisible(true);
     // También intentamos refrescar geolocalización cuando se edita
@@ -485,11 +567,35 @@ export default function ControlReportesScreen() {
   };
 
   const onSave = async () => {
+    // Validación de campos obligatorios
+    const requiredFields: { key: keyof Reporte; label: string }[] = [
+      { key: 'fecha', label: 'Fecha' },
+      { key: 'nombre_instalador', label: 'Nombre del instalador' },
+      { key: 'obra', label: 'Obra' },
+      { key: 'direccion', label: 'Dirección' },
+      { key: 'descripcion', label: 'Descripción' },
+      { key: 'status', label: 'Status' },
+      { key: 'unidades', label: 'Unidades' },
+      { key: 'cliente', label: 'Cliente' },
+      { key: 'tipo_trabajo', label: 'Tipo de trabajo' },
+      { key: 'equipo_montador', label: 'Equipo montador' },
+    ];
+    const missing = requiredFields.filter(f => !form[f.key] || (typeof form[f.key] === 'string' && (form[f.key] as string).trim() === ''));
+    if (missing.length > 0) {
+      Alert.alert(
+        'Campos obligatorios',
+        `Por favor complete los siguientes campos:\n- ${missing.map(f => f.label).join('\n- ')}`
+      );
+      return;
+    }
     try {
       setSaving(true);
+      // Asegurar que incidencia tenga valor por defecto
+      const incidenciaValue = form.incidencia && form.incidencia.trim() !== '' ? form.incidencia : 'sin incidencia';
       const payload: Reporte & { id?: number } = {
         ...(editingId ? { id: editingId } : {}),
         ...form,
+        incidencia: incidenciaValue,
       };
 
       const url = editingId
@@ -526,10 +632,44 @@ export default function ControlReportesScreen() {
   const setFormField = (k: keyof Reporte, v: any) =>
     setForm((prev) => ({ ...prev, [k]: v }));
 
+  // Cerrar salida: actualiza hora_modal_final
+  const cerrarSalida = async (item: Reporte) => {
+    if (!item.id) return;
+    try {
+      setSaving(true);
+      const now = new Date();
+      const hora_modal_final = isoTime(now);
+      // Asegurar que fecha esté en formato YYYY-MM-DD
+      const payload = {
+        ...item,
+        fecha: item.fecha ? item.fecha.slice(0, 10) : undefined,
+        hora_modal_final,
+      };
+      console.log('[CONTROL-REPORTES] Payload cerrarSalida:', JSON.stringify(payload));
+      const url = `${API_URL}/control-almacen/control-instaladores/update-reportes`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+      const resText = await res.text();
+      console.log('[CONTROL-REPORTES] Cerrar salida:', res.status, resText);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await fetchReportes();
+    } catch (e: any) {
+      console.log('cerrarSalida error:', e?.message ?? e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const headerCount = useMemo(() => items.length, [items]);
 
-  // Cargando auth/storage
-  if (authLoading || loadingBoot) {
+  // Cargando auth/storage o usuarios
+  if (authLoading || loadingBoot || loadingUsuarios) {
     return (
       <View style={styles.center}>
         <ActivityIndicator />
@@ -545,6 +685,9 @@ export default function ControlReportesScreen() {
     );
   }
 
+  // Ejemplo de uso: mostrar cantidad de usuarios obtenidos (puedes eliminar esto si no lo necesitas)
+  // console.log('Usuarios obtenidos:', usuarios.length);
+
   return (
     <SafeAreaView style={styles.container}>
       <AppHeader
@@ -552,11 +695,12 @@ export default function ControlReportesScreen() {
         count={headerCount}
         userNameProp={userData?.nombre || userData?.name || '—'}
         roleProp={userData?.rol || userData?.role || '—'}
-        serverReachableOverride={serverReachable ?? undefined}
+        {...(typeof serverReachable === 'boolean' ? { serverReachableOverride: serverReachable } : {})}
         onUserPress={({ userName, role }) => {
           setModalUser({ userName, role });
           setUserModalVisible(true);
         }}
+        onRefresh={fetchReportes}
       />
 
       <ModalHeader
@@ -581,19 +725,37 @@ export default function ControlReportesScreen() {
       )}
 
       {/* Filtro rango de fechas + botón agregar */}
-      <View style={styles.filtersRow}>
-        <DateField label="Desde" value={desde} onChange={setDesde} />
-        <DateField label="Hasta" value={hasta} onChange={setHasta} />
-        <TouchableOpacity style={styles.filterAction} onPress={fetchReportes}>
-          <Ionicons name="funnel-outline" size={18} color="#fff" />
-          <Text style={styles.filterActionText}>Filtrar</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.addButton} onPress={openCreate}>
-          <Ionicons name="add-circle-outline" size={20} color="#fff" />
-          <Text style={styles.addButtonText}>Agregar reporte</Text>
-        </TouchableOpacity>
-      </View>
+      {Platform.OS === 'web' ? (
+        <View style={styles.filtersRowWeb}>
+          <DateField label="Desde" value={desde} onChange={setDesde} />
+          <DateField label="Hasta" value={hasta} onChange={setHasta} />
+          <TouchableOpacity style={styles.filterActionWeb} onPress={fetchReportes}>
+            <Ionicons name="funnel-outline" size={18} color="#fff" />
+            <Text style={styles.filterActionText}>Filtrar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.addButton} onPress={openCreate}>
+            <Ionicons name="add-circle-outline" size={20} color="#fff" />
+            <Text style={styles.addButtonText}>Agregar reporte</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={styles.filtersRowMobile}>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <DateField label="Desde" value={desde} onChange={setDesde} />
+            <DateField label="Hasta" value={hasta} onChange={setHasta} />
+          </View>
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 10 }}>
+            <TouchableOpacity style={styles.filterAction} onPress={fetchReportes}>
+              <Ionicons name="funnel-outline" size={18} color="#fff" />
+              <Text style={styles.filterActionText}>Filtrar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.addButton} onPress={openCreate}>
+              <Ionicons name="add-circle-outline" size={20} color="#fff" />
+              <Text style={styles.addButtonText}>Agregar reporte</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Lista */}
       {loadingList ? (
@@ -618,33 +780,29 @@ export default function ControlReportesScreen() {
                 Platform.OS === 'web' ? styles.cardWeb : undefined,
               ]}
             >
-              <View style={styles.mainRowContainer}>
-                <View style={styles.leftColumn}>
+              {/* Primer renglón: info a la izquierda, mapa a la derecha */}
+              <View style={{ flexDirection: 'row', alignItems: 'stretch', gap: 12 }}>
+                <View style={{ flex: 2, paddingRight: 8 }}>
                   <Text style={styles.cardTitle}>{item.obra || 'Obra sin nombre'}</Text>
                   <Text style={styles.cardText}>Fecha: {niceDate(item.fecha)}</Text>
                   <Text style={styles.cardText}>Instalador: {item.nombre_instalador || '—'}</Text>
                   <Text style={styles.cardText}>Dirección: {item.direccion || '—'}</Text>
                   <Text style={styles.cardText}>Status: {item.status || '—'}</Text>
-                  <Text style={styles.cardText}>Incidencia: {item.incidencia || '—'}</Text>
-                  {/* Mini-mapa con pin */}
-                  {typeof item.geo_lat === 'number' && isFinite(item.geo_lat) &&
-                   typeof item.geo_lng === 'number' && isFinite(item.geo_lng) ? (
-                    <MiniMap lat={item.geo_lat} lng={item.geo_lng} />
-                  ) : null}
-                  {item.geo_address || item.geo_lat ? (
-                    <View style={styles.geoBadge}>
-                      <Ionicons name="location-outline" size={16} color="#2563EB" />
-                      <Text style={styles.geoBadgeText}>
-                        {item.geo_address ? item.geo_address : 'Ubicación capturada'}
-                        {typeof item.geo_lat === 'number' && isFinite(item.geo_lat) && typeof item.geo_lng === 'number' && isFinite(item.geo_lng)
-                          ? `  ·  (${item.geo_lat.toFixed(6)}, ${item.geo_lng.toFixed(6)})`
-                          : ''}
-                      </Text>
-                    </View>
-                  ) : null}
-                  {item.hora_modal ? (
+                  {/* Solo mostrar incidencia si tiene valor relevante */}
+                  {item.incidencia && item.incidencia.trim() !== '' && item.incidencia.trim().toLowerCase() !== 'sin incidencia' && (
+                    <Text style={styles.cardText}>Incidencia: {item.incidencia}</Text>
+                  )}
+                  {/* Calle correspondiente a las coordenadas */}
+                  {item.geo_address && (
+                    (() => { console.log('[CONTROL-REPORTES] geo_address:', item.geo_address); return null; })()
+                  )}
+                  {item.geo_address && (
+                    <Text style={[styles.cardText, { color: '#1E40AF', fontStyle: 'italic' }]}>Calle: {item.geo_address}</Text>
+                  )}
+                  {/* Ya no se muestran coordenadas en el informativo */}
+                  {item.hora_modal_final ? (
                     <Text style={[styles.cardText, { marginTop: 6 }]}> 
-                      Hora (apertura modal): {item.hora_modal}
+                      Hora salida: {item.hora_modal_final}
                     </Text>
                   ) : null}
                   {item.descripcion ? (
@@ -653,28 +811,58 @@ export default function ControlReportesScreen() {
                     </Text>
                   ) : null}
                 </View>
-
-                {/* Botonera CRUD (sin crear) */}
-                <View style={styles.rightColumn}>
-                  <View style={styles.buttonContainer}>
-                    <TouchableOpacity
-                      style={[styles.smallBtn, styles.btnInfo]}
-                      onPress={() => openEdit(item)}
-                    >
-                      <Ionicons name="create-outline" size={16} color="#fff" />
-                      <Text style={styles.smallBtnText}>Editar</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={[styles.smallBtn, styles.btnDanger]}
-                      onPress={() => onDelete(item.id)}
-                      disabled={saving}
-                    >
-                      <Ionicons name="trash-outline" size={16} color="#fff" />
-                      <Text style={styles.smallBtnText}>Eliminar</Text>
-                    </TouchableOpacity>
-                  </View>
+                <View style={{ flex: 1, minWidth: 140, maxWidth: 220, justifyContent: 'center', alignItems: 'center' }}>
+                  <MiniMap
+                    lat={typeof item.geo_lat === 'number' && isFinite(item.geo_lat) ? item.geo_lat : 0}
+                    lng={typeof item.geo_lng === 'number' && isFinite(item.geo_lng) ? item.geo_lng : 0}
+                  />
+                  {!(Number.isFinite(item.geo_lat) && Number.isFinite(item.geo_lng)) && (
+                    <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 4, textAlign: 'center' }}>
+                      No se ubican las coordenadas, intentar más tarde
+                    </Text>
+                  )}
                 </View>
+              </View>
+              {/* Segundo renglón: botones editar y eliminar */}
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
+                <TouchableOpacity
+                  style={[styles.smallBtn, styles.btnInfo]}
+                  onPress={() => openEdit(item)}
+                >
+                  <Ionicons name="create-outline" size={16} color="#374151" />
+                  <Text style={[styles.smallBtnText, { color: '#374151' }]}>Editar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.smallBtn,
+                    { backgroundColor: '#D1D5DB' },
+                    (saving || !!item.hora_modal_final) && styles.btnDisabled
+                  ]}
+                  onPress={() => cerrarSalida(item)}
+                  disabled={saving || !!item.hora_modal_final}
+                >
+                  <Ionicons name="exit-outline" size={16} color={(saving || !!item.hora_modal_final) ? '#9CA3AF' : '#374151'} />
+                  <Text style={[styles.smallBtnText, { color: (saving || !!item.hora_modal_final) ? '#9CA3AF' : '#374151' }]}>Cerrar salida</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.smallBtn, styles.btnDanger]}
+                  onPress={() => {
+                    const allowedRoles = ['admin', 'developer', 'administrador', 'supervisor'];
+                    const userRole = (userData?.rol || userData?.role || '').toLowerCase();
+                    if (allowedRoles.includes(userRole)) {
+                      onDelete(item.id);
+                    } else {
+                      Alert.alert(
+                        'Sin permiso',
+                        'No puedes eliminar este registro. Habla con tu supervisor.'
+                      );
+                    }
+                  }}
+                  disabled={saving}
+                >
+                  <Ionicons name="trash-outline" size={16} color="#fff" />
+                  <Text style={styles.smallBtnText}>Eliminar</Text>
+                </TouchableOpacity>
               </View>
             </View>
           )}
@@ -704,14 +892,14 @@ export default function ControlReportesScreen() {
                       </View>
                     </Pressable>
                   </View>
-                  {/* Hora */}
+                  {/* Hora salida */}
                   <View style={{ flex: 1 }}>
                     <Pressable style={[styles.geoBadgeLarge, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}
                       disabled>
                       <Ionicons name="time-outline" size={18} color="#2563EB" />
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.geoBadgeTitle}>Hora</Text>
-                        <Text style={styles.geoBadgeSubtitle}>{form.hora_modal || '—'}</Text>
+                        <Text style={styles.geoBadgeTitle}>Hora salida</Text>
+                        <Text style={styles.geoBadgeSubtitle}>{form.hora_modal_final || '—'}</Text>
                       </View>
                     </Pressable>
                   </View>
@@ -761,14 +949,14 @@ export default function ControlReportesScreen() {
                         </View>
                       </Pressable>
                     </View>
-                    {/* Hora */}
+                    {/* Hora salida */}
                     <View style={{ flex: 1 }}>
                       <Pressable style={[styles.geoBadgeLarge, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}
                         disabled>
                         <Ionicons name="time-outline" size={18} color="#2563EB" />
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.geoBadgeTitle}>Hora</Text>
-                          <Text style={styles.geoBadgeSubtitle}>{form.hora_modal || '—'}</Text>
+                          <Text style={styles.geoBadgeTitle}>Hora salida</Text>
+                          <Text style={styles.geoBadgeSubtitle}>{form.hora_modal_final || '—'}</Text>
                         </View>
                       </Pressable>
                     </View>
@@ -805,15 +993,44 @@ export default function ControlReportesScreen() {
                 </>
               )}
 
-              {/* Nombre instalador */}
+              {/* Nombre instalador (Picker) */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Nombre del instalador</Text>
-                <TextInput
-                  value={form.nombre_instalador}
-                  onChangeText={(t) => setFormField('nombre_instalador', t)}
-                  style={styles.input}
-                  placeholder="Ej. Juan Pérez"
-                />
+                <View style={[styles.input, { padding: 0 }]}> 
+                  <Picker
+                    selectedValue={form.nombre_instalador}
+                    onValueChange={(v) => {
+                      setFormField('nombre_instalador', v);
+                      // Buscar el grupo correspondiente y setearlo automáticamente
+                      const usuario = usuarios.find(u => u.nombre === v);
+                      if (usuario) {
+                        setFormField('equipo_montador', usuario.grupo_instaladores);
+                      }
+                    }}
+                  >
+                    <Picker.Item label="Seleccione..." value="" />
+                    {usuarios.map((u, idx) => (
+                      <Picker.Item key={u.nombre + idx} label={u.nombre} value={u.nombre} />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+
+              {/* Equipo montador (Picker de grupo_instaladores) */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Equipo montador</Text>
+                <View style={[styles.input, { padding: 0 }]}> 
+                  <Picker
+                    selectedValue={form.equipo_montador}
+                    onValueChange={(v) => setFormField('equipo_montador', v)}
+                  >
+                    <Picker.Item label="Seleccione..." value="" />
+                    {/* Mostrar solo grupos únicos */}
+                    {[...new Set(usuarios.map(u => u.grupo_instaladores))].map((grupo, idx) => (
+                      <Picker.Item key={grupo + idx} label={grupo} value={grupo} />
+                    ))}
+                  </Picker>
+                </View>
               </View>
 
               {/* Obra */}
@@ -827,6 +1044,17 @@ export default function ControlReportesScreen() {
                 />
               </View>
 
+              {/* Cliente */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Cliente</Text>
+                <TextInput
+                  value={form.cliente}
+                  onChangeText={(t) => setFormField('cliente', t)}
+                  style={styles.input}
+                  placeholder="Nombre del cliente"
+                />
+              </View>
+
               {/* Dirección */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Dirección</Text>
@@ -837,6 +1065,40 @@ export default function ControlReportesScreen() {
                   placeholder="Calle, número, ciudad"
                 />
               </View>
+
+              {/* Tipo de trabajo */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Tipo de trabajo</Text>
+                <View style={[styles.input, { padding: 0 }]}> 
+                  <Picker
+                    selectedValue={form.tipo_trabajo}
+                    onValueChange={(v) => setFormField('tipo_trabajo', v)}
+                  >
+                    <Picker.Item label="Seleccione..." value="" />
+                    <Picker.Item label="Obra nueva" value="Obra nueva" />
+                    <Picker.Item label="Reforma" value="Reforma" />
+                    <Picker.Item label="Particular" value="Particular" />
+                    <Picker.Item label="Reparación" value="Reparación" />
+                    <Picker.Item label="Medición" value="Medición" />
+                    <Picker.Item label="Ajuste" value="Ajuste" />
+                    <Picker.Item label="Instalación" value="Instalación" />
+                    <Picker.Item label="Incidencia" value="Incidencia" />
+                  </Picker>
+                </View>
+              </View>
+
+              {/* Incidencia solo si tipo_trabajo es Incidencia */}
+              {form.tipo_trabajo === 'Incidencia' && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Incidencia</Text>
+                  <TextInput
+                    value={form.incidencia}
+                    onChangeText={(t) => setFormField('incidencia', t)}
+                    style={styles.input}
+                    placeholder="Describa la incidencia"
+                  />
+                </View>
+              )}
 
               {/* Descripción */}
               <View style={styles.inputGroup}>
@@ -861,14 +1123,15 @@ export default function ControlReportesScreen() {
                 />
               </View>
 
-              {/* Incidencia */}
+              {/* Unidades */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Incidencia</Text>
+                <Text style={styles.inputLabel}>Unidades</Text>
                 <TextInput
-                  value={form.incidencia}
-                  onChangeText={(t) => setFormField('incidencia', t)}
+                  value={form.unidades?.toString() || ''}
+                  onChangeText={(t) => setFormField('unidades', t.replace(/\D/g, ''))}
                   style={styles.input}
-                  placeholder="Ej. rotura vidrio, falta material"
+                  placeholder="Cantidad de unidades"
+                  keyboardType="numeric"
                 />
               </View>
             </ScrollView>
@@ -936,19 +1199,23 @@ const styles = StyleSheet.create({
   leftColumn: { flex: 1, paddingRight: 8 },
   rightColumn: { alignItems: 'flex-end', justifyContent: 'center' },
   buttonContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
-  smallBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8 },
+  smallBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, backgroundColor: '#E5E7EB' },
   smallBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  btnInfo: { backgroundColor: '#2563EB' },
+  btnInfo: { backgroundColor: '#D1D5DB' }, // gris claro
+  btnDisabled: { backgroundColor: 'rgba(229,231,235,0.4)' }, // gris claro/transparente
   btnDanger: { backgroundColor: '#DC2626' },
 
   connectionBannerText: { color: '#fff', fontSize: 14, fontWeight: '500' },
   
 
   // Header filtros
-  filtersRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, paddingHorizontal: 12, paddingVertical: 10 },
+  // Filtros (responsive)
+  filtersRowWeb: { flexDirection: 'row', alignItems: 'flex-end', gap: 24, paddingHorizontal: 12, paddingVertical: 10 },
+  filtersRowMobile: { flexDirection: 'column', alignItems: 'flex-start', gap: 0, paddingHorizontal: 12, paddingVertical: 10 },
   filterAction: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#111827', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10 },
+  filterActionWeb: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#111827', paddingHorizontal: 18, paddingVertical: 12, borderRadius: 10, marginRight: 8 },
   filterActionText: { color: '#fff', fontWeight: '700' },
-  addButton: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#10B981', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10 },
+  addButton: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#10B981', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10 },
   addButtonText: { color: '#fff', fontWeight: '700' },
 
   // Date field

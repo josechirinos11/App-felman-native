@@ -2,10 +2,10 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   FlatList,
   Modal,
   Pressable,
+  ActivityIndicator as RNActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -66,6 +66,7 @@ export default function ControlComercialesScreen() {
   // usuario
   const [userName, setUserName] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [loadingBoot, setLoadingBoot] = useState(true);
 
   // modal de usuario (AppHeader)
   const [userModalVisible, setUserModalVisible] = useState(false);
@@ -174,6 +175,8 @@ export default function ControlComercialesScreen() {
       } catch {
         setUserName(null);
         setUserRole(null);
+      } finally {
+        setLoadingBoot(false);
       }
     };
     getUserData();
@@ -191,11 +194,15 @@ export default function ControlComercialesScreen() {
   });
   let grupos = Object.values(pedidosAgrupados);
 
+  // Normalizar rol y verificar acceso permitido
+  const normalizedRole = (userRole ?? '').toString().trim().toLowerCase();
+  const allowed = ['admin', 'developer', 'administrador', 'supervisor', 'comercial'].includes(normalizedRole);
+
   // filtrar por rol/nombre
   let gruposFiltrados = grupos;
-  if (userRole === 'admin' || userRole === 'developer') {
+  if (normalizedRole === 'admin' || normalizedRole === 'developer') {
     gruposFiltrados = grupos;
-  } else if (userRole === 'Comercial' && userName) {
+  } else if (normalizedRole === 'comercial' && userName) {
     gruposFiltrados = grupos.filter(grupo => grupo[0]?.Comercial === userName);
   } else {
     gruposFiltrados = grupos;
@@ -268,11 +275,21 @@ export default function ControlComercialesScreen() {
     );
   };
 
-  if (!mounted) {
+  if (!mounted || loadingBoot) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f4f6' }}>
-        <ActivityIndicator size="large" color="#2e78b7" />
+        <RNActivityIndicator size="large" color="#2e78b7" />
         <Text style={{ textAlign: 'center', marginTop: 20, color: '#2e78b7' }}>Cargando...</Text>
+      </View>
+    );
+  }
+
+  if (!allowed) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f4f6' }}>
+        <Text style={{ color: 'red', fontSize: 16, textAlign: 'center' }}>
+          No tiene credenciales para ver esta información
+        </Text>
       </View>
     );
   }

@@ -41,6 +41,7 @@ export default function ControlIncidenciasScreen() {
 
   const [userName, setUserName] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [loadingBoot, setLoadingBoot] = useState(true);
 
   // Modal de usuario (AppHeader)
   const [userModalVisible, setUserModalVisible] = useState(false);
@@ -80,6 +81,8 @@ export default function ControlIncidenciasScreen() {
       } catch {
         setUserRole(null);
         setUserName(null);
+      } finally {
+        setLoadingBoot(false);
       }
     })();
   }, []);
@@ -99,6 +102,28 @@ export default function ControlIncidenciasScreen() {
   });
 
   const pagedPedidos = sorted.slice(0, currentPage * pageSize);
+
+  // Normalizar rol y verificar acceso permitido
+  const normalizedRole = (userRole ?? '').toString().trim().toLowerCase();
+  const allowed = ['admin', 'developer', 'administrador', 'supervisor', 'comercial'].includes(normalizedRole);
+
+  if (loadingBoot) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f4f6' }}>
+        <Text style={{ textAlign: 'center', marginTop: 20, color: '#2e78b7' }}>Cargando...</Text>
+      </View>
+    );
+  }
+
+  if (!allowed) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f4f6' }}>
+        <Text style={{ color: 'red', fontSize: 16, textAlign: 'center' }}>
+          No tiene credenciales para ver esta información
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1 }}>

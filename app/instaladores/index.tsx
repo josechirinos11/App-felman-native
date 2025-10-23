@@ -21,7 +21,7 @@ interface MenuItem {
 }
 const menuItems: MenuItem[] = [
   { id: 1, title: 'Atras', icon: 'arrow-back-outline', route: '/' },
-  { id: 2, title: 'Reporte', icon: 'location-outline', route: '/instaladores/control-reportes' },
+  { id: 2, title: 'Reporte', icon: 'document-text-outline', route: '/instaladores/control-reportes' },
 
 ];
 
