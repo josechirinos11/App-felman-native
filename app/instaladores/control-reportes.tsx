@@ -529,20 +529,22 @@ export default function ControlReportesScreen() {
     setForm({
       fecha: r.fecha ? isoDate(new Date(r.fecha)) : isoDate(now),
       nombre_instalador: r.nombre_instalador ?? '',
+      equipo_montador: r.equipo_montador ?? '',
       obra: r.obra ?? '',
+      cliente: r.cliente ?? '',
       direccion: r.direccion ?? '',
+      tipo_trabajo: r.tipo_trabajo ?? '',
       descripcion: r.descripcion ?? '',
       status: r.status ?? '',
       incidencia: r.incidencia ?? '',
       geo_lat: r.geo_lat ?? null,
       geo_lng: r.geo_lng ?? null,
       geo_address: r.geo_address ?? null,
-      // si el registro no la tiene, fija hora al abrir por primera vez
       hora_modal_final: r.hora_modal_final ?? isoTime(now),
+      unidades: r.unidades,
     });
     setEditorVisible(true);
-    // También intentamos refrescar geolocalización cuando se edita
-    captureGeolocation();
+    // Ya no se solicita geolocalización al editar
   };
 
   const onDelete = async (id?: number) => {
@@ -781,48 +783,73 @@ export default function ControlReportesScreen() {
               ]}
             >
               {/* Primer renglón: info a la izquierda, mapa a la derecha */}
-              <View style={{ flexDirection: 'row', alignItems: 'stretch', gap: 12 }}>
-                <View style={{ flex: 2, paddingRight: 8 }}>
-                  <Text style={styles.cardTitle}>{item.obra || 'Obra sin nombre'}</Text>
-                  <Text style={styles.cardText}>Fecha: {niceDate(item.fecha)}</Text>
-                  <Text style={styles.cardText}>Instalador: {item.nombre_instalador || '—'}</Text>
-                  <Text style={styles.cardText}>Dirección: {item.direccion || '—'}</Text>
-                  <Text style={styles.cardText}>Status: {item.status || '—'}</Text>
-                  {/* Solo mostrar incidencia si tiene valor relevante */}
-                  {item.incidencia && item.incidencia.trim() !== '' && item.incidencia.trim().toLowerCase() !== 'sin incidencia' && (
-                    <Text style={styles.cardText}>Incidencia: {item.incidencia}</Text>
-                  )}
-                  {/* Calle correspondiente a las coordenadas */}
-                  {item.geo_address && (
-                    (() => { console.log('[CONTROL-REPORTES] geo_address:', item.geo_address); return null; })()
-                  )}
-                  {item.geo_address && (
-                    <Text style={[styles.cardText, { color: '#1E40AF', fontStyle: 'italic' }]}>Calle: {item.geo_address}</Text>
-                  )}
-                  {/* Ya no se muestran coordenadas en el informativo */}
-                  {item.hora_modal_final ? (
-                    <Text style={[styles.cardText, { marginTop: 6 }]}> 
-                      Hora salida: {item.hora_modal_final}
-                    </Text>
-                  ) : null}
-                  {item.descripcion ? (
-                    <Text style={[styles.cardText, { marginTop: 6 }]}> 
-                      Descripción: {item.descripcion}
-                    </Text>
-                  ) : null}
+              {Platform.OS === 'web' ? (
+                <View style={{ flexDirection: 'row', alignItems: 'stretch', gap: 12 }}>
+                  <View style={{ flex: 2, paddingRight: 8 }}>
+                    <Text style={styles.cardTitle}>{item.obra || 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Fecha: {item.fecha ? niceDate(item.fecha) : 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Instalador: {item.nombre_instalador || 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Equipo montador: {item.equipo_montador || 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Cliente: {item.cliente || 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Dirección: {item.direccion || 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Tipo de trabajo: {item.tipo_trabajo || 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Status: {item.status || 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Unidades: {typeof item.unidades === 'number' ? item.unidades : 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Incidencia: {item.incidencia && item.incidencia.trim() !== '' ? item.incidencia : 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Descripción: {item.descripcion || 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Hora salida: {item.hora_modal_final || 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Hora inicio: {item.hora_inicio || 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Hora fin: {item.hora_fin || 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#1E40AF', fontStyle: 'italic' }]}>Calle: {item.geo_address || 'Sin Información'}</Text>
+                  </View>
+                  <View style={{ flex: 1, minWidth: 140, maxWidth: 220, justifyContent: 'center', alignItems: 'center' }}>
+                    <MiniMap
+                      lat={typeof item.geo_lat === 'number' && isFinite(item.geo_lat) ? item.geo_lat : 0}
+                      lng={typeof item.geo_lng === 'number' && isFinite(item.geo_lng) ? item.geo_lng : 0}
+                    />
+                    {!(Number.isFinite(item.geo_lat) && Number.isFinite(item.geo_lng)) && (
+                      <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 4, textAlign: 'center' }}>
+                        No se ubican las coordenadas, intentar más tarde
+                      </Text>
+                    )}
+                  </View>
                 </View>
-                <View style={{ flex: 1, minWidth: 140, maxWidth: 220, justifyContent: 'center', alignItems: 'center' }}>
-                  <MiniMap
-                    lat={typeof item.geo_lat === 'number' && isFinite(item.geo_lat) ? item.geo_lat : 0}
-                    lng={typeof item.geo_lng === 'number' && isFinite(item.geo_lng) ? item.geo_lng : 0}
-                  />
-                  {!(Number.isFinite(item.geo_lat) && Number.isFinite(item.geo_lng)) && (
-                    <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 4, textAlign: 'center' }}>
-                      No se ubican las coordenadas, intentar más tarde
-                    </Text>
-                  )}
-                </View>
-              </View>
+              ) : (
+                <>
+                  {/* Primer renglón: toda la información */}
+                  <View style={{ marginBottom: 8 }}>
+                    <Text style={styles.cardTitle}>{item.obra || 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Fecha: {item.fecha ? niceDate(item.fecha) : 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Instalador: {item.nombre_instalador || 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Equipo montador: {item.equipo_montador || 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Cliente: {item.cliente || 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Dirección: {item.direccion || 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Tipo de trabajo: {item.tipo_trabajo || 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Status: {item.status || 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Unidades: {typeof item.unidades === 'number' ? item.unidades : 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Incidencia: {item.incidencia && item.incidencia.trim() !== '' ? item.incidencia : 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Descripción: {item.descripcion || 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Hora salida: {item.hora_modal_final || 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Hora inicio: {item.hora_inicio || 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Hora fin: {item.hora_fin || 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#1E40AF', fontStyle: 'italic' }]}>Calle: {item.geo_address || 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Latitud: {typeof item.geo_lat === 'number' && isFinite(item.geo_lat) ? item.geo_lat : 'Sin Información'}</Text>
+                    <Text style={styles.cardText}>Longitud: {typeof item.geo_lng === 'number' && isFinite(item.geo_lng) ? item.geo_lng : 'Sin Información'}</Text>
+                  </View>
+                  {/* Segundo renglón: mapa rectangular más ancho que alto */}
+                  <View style={{ width: '100%', aspectRatio: 2.5, minHeight: 80, maxHeight: 160, marginBottom: 8, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#BFDBFE', backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center' }}>
+                    <MiniMap
+                      lat={typeof item.geo_lat === 'number' && isFinite(item.geo_lat) ? item.geo_lat : 0}
+                      lng={typeof item.geo_lng === 'number' && isFinite(item.geo_lng) ? item.geo_lng : 0}
+                    />
+                    {!(Number.isFinite(item.geo_lat) && Number.isFinite(item.geo_lng)) && (
+                      <Text style={{ color: '#ef4444', fontSize: 12, marginTop: 4, textAlign: 'center' }}>
+                        No se ubican las coordenadas, intentar más tarde
+                      </Text>
+                    )}
+                  </View>
+                </>
+              )}
               {/* Segundo renglón: botones editar y eliminar */}
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
                 <TouchableOpacity
