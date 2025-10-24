@@ -62,7 +62,6 @@ export type Reporte = {
   geo_address?: string | null;   // calle/dirección humana
   hora_inicio?: string;
   hora_fin?: string;
-  hora_modal_final?: string;
   unidades?: number;
 };
 
@@ -268,18 +267,33 @@ export default function ControlReportesScreen() {
   const [items, setItems] = useState<Reporte[]>([]);
   const [loadingList, setLoadingList] = useState(false);
 
-  // Filtrado local de fechas (solo parte yyyy-mm-dd)
+  // Filtrado local de fechas y por usuario/rol
   const filteredItems = useMemo(() => {
-    if (!desde && !hasta) return items;
-    return items.filter((item) => {
-      const itemDate = item.fecha?.slice(0, 10); // yyyy-mm-dd
-      const desdeStr = desde ? isoDate(desde) : null;
-      const hastaStr = hasta ? isoDate(hasta) : null;
-      if (desdeStr && itemDate < desdeStr) return false;
-      if (hastaStr && itemDate > hastaStr) return false;
-      return true;
-    });
-  }, [items, desde, hasta]);
+    // Primero filtrar por fechas
+    let filtered = items;
+    if (desde || hasta) {
+      filtered = filtered.filter((item) => {
+        const itemDate = item.fecha?.slice(0, 10); // yyyy-mm-dd
+        const desdeStr = desde ? isoDate(desde) : null;
+        const hastaStr = hasta ? isoDate(hasta) : null;
+        if (desdeStr && itemDate < desdeStr) return false;
+        if (hastaStr && itemDate > hastaStr) return false;
+        return true;
+      });
+    }
+
+    // Filtrar por usuario autenticado si es instalador
+    const role = (userData?.rol || userData?.role || '').toLowerCase();
+    if (role === 'instalador') {
+      const nombre = (userData?.nombre || userData?.name || '').toString().trim().toLowerCase();
+      filtered = filtered.filter((item) =>
+        (item.nombre_instalador || '').toString().trim().toLowerCase() === nombre
+      );
+    }
+    // Si es supervisor, administrador, admin o developer ve todos
+    // (ya está filtrado por fechas)
+    return filtered;
+  }, [items, desde, hasta, userData]);
 
   // Modal usuario / header
   const [userModalVisible, setUserModalVisible] = useState(false);
@@ -304,10 +318,13 @@ export default function ControlReportesScreen() {
     geo_address: null,
     hora_inicio: '',
     hora_fin: '',
-    hora_modal_final: '',
     unidades: undefined,
   });
   const [saving, setSaving] = useState(false);
+  // Estado para deshabilitar nombre_instalador y equipo_montador si se autocompletan
+  const [lockNombreEquipo, setLockNombreEquipo] = useState(false);
+  // Estado para deshabilitar dirección si se autocompleta por geolocalización
+  const [lockDireccion, setLockDireccion] = useState(false);
 
   // ====== GEOLOCATION STATE ======
   const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'ok' | 'denied' | 'error'>('idle');
@@ -488,10 +505,11 @@ export default function ControlReportesScreen() {
   }, []);
 
   // Abrir/Reset editor (CREAR)
-  const openCreate = () => {
+  const openCreate = async () => {
     const now = new Date();
     let nombre_instalador = '';
     let equipo_montador = '';
+    let lock = false;
     // Buscar coincidencia de usuario autenticado en la lista de usuarios
     if (userData && usuarios && usuarios.length > 0) {
       // Normalizar nombre para comparar
@@ -500,25 +518,50 @@ export default function ControlReportesScreen() {
       if (usuarioEncontrado) {
         nombre_instalador = usuarioEncontrado.nombre;
         equipo_montador = usuarioEncontrado.grupo_instaladores;
+        lock = true;
       }
     }
     setEditingId(null);
+    // Intentar capturar geolocalización y autocompletar dirección si es posible
+    let direccionGeo = '';
+    let lockDir = false;
+    try {
+      // WEB sin https -> no se puede pedir GPS (igual que seguimiento-web)
+      const canGeo = canUseWebGeo();
+      if (canGeo) {
+        const perm = await Location.requestForegroundPermissionsAsync();
+        if (perm.status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+          const lat = loc.coords.latitude;
+          const lng = loc.coords.longitude;
+          const address = await reverseAddressFromCoords(lat, lng);
+          if (address && address.trim() !== '') {
+            direccionGeo = address;
+            lockDir = true;
+          }
+        }
+      }
+    } catch {}
     setForm({
       fecha: isoDate(now),
       nombre_instalador,
       equipo_montador,
       obra: '',
-      direccion: '',
+      direccion: direccionGeo,
       descripcion: '',
       status: '',
       incidencia: '',
       geo_lat: null,
       geo_lng: null,
       geo_address: null,
-      hora_modal_final: isoTime(now), // hora fija al abrir modal (solo lectura)
+      hora_inicio: isoTime(now), // hora fija al abrir modal (hora de inicio)
+      hora_fin: '',
+      unidades: undefined,
     });
+    setLockNombreEquipo(lock);
+    setLockDireccion(lockDir);
     setEditorVisible(true);
-    // Capturar ubicación al abrir
+    // Capturar ubicación al abrir (para mantener la lógica previa, pero ya se usó arriba)
     captureGeolocation(); // reutiliza lógica de seguimiento móvil/web 
   };
 
@@ -540,7 +583,8 @@ export default function ControlReportesScreen() {
       geo_lat: r.geo_lat ?? null,
       geo_lng: r.geo_lng ?? null,
       geo_address: r.geo_address ?? null,
-      hora_modal_final: r.hora_modal_final ?? isoTime(now),
+      hora_inicio: r.hora_inicio ?? isoTime(now),
+      hora_fin: r.hora_fin ?? '',
       unidades: r.unidades,
     });
     setEditorVisible(true);
@@ -634,18 +678,18 @@ export default function ControlReportesScreen() {
   const setFormField = (k: keyof Reporte, v: any) =>
     setForm((prev) => ({ ...prev, [k]: v }));
 
-  // Cerrar salida: actualiza hora_modal_final
+  // Cerrar salida: actualiza hora_fin
   const cerrarSalida = async (item: Reporte) => {
     if (!item.id) return;
     try {
       setSaving(true);
       const now = new Date();
-      const hora_modal_final = isoTime(now);
+      const hora_fin = isoTime(now);
       // Asegurar que fecha esté en formato YYYY-MM-DD
       const payload = {
         ...item,
         fecha: item.fecha ? item.fecha.slice(0, 10) : undefined,
-        hora_modal_final,
+        hora_fin,
       };
       console.log('[CONTROL-REPORTES] Payload cerrarSalida:', JSON.stringify(payload));
       const url = `${API_URL}/control-almacen/control-instaladores/update-reportes`;
@@ -786,20 +830,20 @@ export default function ControlReportesScreen() {
               {Platform.OS === 'web' ? (
                 <View style={{ flexDirection: 'row', alignItems: 'stretch', gap: 12 }}>
                   <View style={{ flex: 2, paddingRight: 8 }}>
-                    <Text style={styles.cardTitle}>{item.obra || 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Fecha: {item.fecha ? niceDate(item.fecha) : 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Instalador: {item.nombre_instalador || 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Equipo montador: {item.equipo_montador || 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Cliente: {item.cliente || 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Dirección: {item.direccion || 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Tipo de trabajo: {item.tipo_trabajo || 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Status: {item.status || 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Unidades: {typeof item.unidades === 'number' ? item.unidades : 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Incidencia: {item.incidencia && item.incidencia.trim() !== '' ? item.incidencia : 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Descripción: {item.descripcion || 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Hora salida: {item.hora_modal_final || 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Hora inicio: {item.hora_inicio || 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Hora fin: {item.hora_fin || 'Sin Información'}</Text>
+                    <Text style={[styles.cardTitle, { color: '#111827' }]}>{item.obra || 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Fecha: {item.fecha ? niceDate(item.fecha) : 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Instalador: {item.nombre_instalador || 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Equipo montador: {item.equipo_montador || 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Cliente: {item.cliente || 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Dirección: {item.direccion || 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Tipo de trabajo: {item.tipo_trabajo || 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Status: {item.status || 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Unidades: {typeof item.unidades === 'number' ? item.unidades : 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Incidencia: {item.incidencia && item.incidencia.trim() !== '' ? item.incidencia : 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Descripción: {item.descripcion || 'Sin Información'}</Text>
+                    {/* <Text style={[styles.cardText, { color: '#111827' }]}>Hora salida: {item.hora_modal_final || 'Sin Información'}</Text> */}
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Hora inicio: {item.hora_inicio || 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Hora fin: {item.hora_fin || 'Sin Información'}</Text>
                     <Text style={[styles.cardText, { color: '#1E40AF', fontStyle: 'italic' }]}>Calle: {item.geo_address || 'Sin Información'}</Text>
                   </View>
                   <View style={{ flex: 1, minWidth: 140, maxWidth: 220, justifyContent: 'center', alignItems: 'center' }}>
@@ -818,23 +862,22 @@ export default function ControlReportesScreen() {
                 <>
                   {/* Primer renglón: toda la información */}
                   <View style={{ marginBottom: 8 }}>
-                    <Text style={styles.cardTitle}>{item.obra || 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Fecha: {item.fecha ? niceDate(item.fecha) : 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Instalador: {item.nombre_instalador || 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Equipo montador: {item.equipo_montador || 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Cliente: {item.cliente || 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Dirección: {item.direccion || 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Tipo de trabajo: {item.tipo_trabajo || 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Status: {item.status || 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Unidades: {typeof item.unidades === 'number' ? item.unidades : 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Incidencia: {item.incidencia && item.incidencia.trim() !== '' ? item.incidencia : 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Descripción: {item.descripcion || 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Hora salida: {item.hora_modal_final || 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Hora inicio: {item.hora_inicio || 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Hora fin: {item.hora_fin || 'Sin Información'}</Text>
+                    <Text style={[styles.cardTitle, { color: '#111827' }]}>{item.obra || 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Fecha: {item.fecha ? niceDate(item.fecha) : 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Instalador: {item.nombre_instalador || 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Equipo montador: {item.equipo_montador || 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Cliente: {item.cliente || 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Dirección: {item.direccion || 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Tipo de trabajo: {item.tipo_trabajo || 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Status: {item.status || 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Unidades: {typeof item.unidades === 'number' ? item.unidades : 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Incidencia: {item.incidencia && item.incidencia.trim() !== '' ? item.incidencia : 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Descripción: {item.descripcion || 'Sin Información'}</Text>
+                    {/* <Text style={[styles.cardText, { color: '#111827' }]}>Hora salida: {item.hora_modal_final || 'Sin Información'}</Text> */}
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Hora inicio: {item.hora_inicio || 'Sin Información'}</Text>
+                    <Text style={[styles.cardText, { color: '#111827' }]}>Hora fin: {item.hora_fin || 'Sin Información'}</Text>
                     <Text style={[styles.cardText, { color: '#1E40AF', fontStyle: 'italic' }]}>Calle: {item.geo_address || 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Latitud: {typeof item.geo_lat === 'number' && isFinite(item.geo_lat) ? item.geo_lat : 'Sin Información'}</Text>
-                    <Text style={styles.cardText}>Longitud: {typeof item.geo_lng === 'number' && isFinite(item.geo_lng) ? item.geo_lng : 'Sin Información'}</Text>
+                    {/* Latitud y Longitud eliminados del listado */}
                   </View>
                   {/* Segundo renglón: mapa rectangular más ancho que alto */}
                   <View style={{ width: '100%', aspectRatio: 2.5, minHeight: 80, maxHeight: 160, marginBottom: 8, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#BFDBFE', backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center' }}>
@@ -863,13 +906,25 @@ export default function ControlReportesScreen() {
                   style={[
                     styles.smallBtn,
                     { backgroundColor: '#D1D5DB' },
-                    (saving || !!item.hora_modal_final) && styles.btnDisabled
+                    (saving || (item.hora_fin && item.hora_fin !== '' && item.hora_fin !== 'Sin Información')) && styles.btnDisabled
                   ]}
                   onPress={() => cerrarSalida(item)}
-                  disabled={saving || !!item.hora_modal_final}
+                  disabled={
+                    !!saving ||
+                    (!!item.hora_fin && item.hora_fin !== '' && item.hora_fin !== 'Sin Información')
+                  }
                 >
-                  <Ionicons name="exit-outline" size={16} color={(saving || !!item.hora_modal_final) ? '#9CA3AF' : '#374151'} />
-                  <Text style={[styles.smallBtnText, { color: (saving || !!item.hora_modal_final) ? '#9CA3AF' : '#374151' }]}>Cerrar salida</Text>
+                  <Ionicons name="exit-outline" size={16} color={
+                    (saving || (item.hora_fin && item.hora_fin !== '' && item.hora_fin !== 'Sin Información'))
+                      ? '#9CA3AF'
+                      : '#374151'
+                  } />
+                  <Text style={[styles.smallBtnText, {
+                    color:
+                      (saving || (item.hora_fin && item.hora_fin !== '' && item.hora_fin !== 'Sin Información'))
+                        ? '#9CA3AF'
+                        : '#374151'
+                  }]}>Cerrar salida</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.smallBtn, styles.btnDanger]}
@@ -919,14 +974,14 @@ export default function ControlReportesScreen() {
                       </View>
                     </Pressable>
                   </View>
-                  {/* Hora salida */}
+                  {/* Hora inicio */}
                   <View style={{ flex: 1 }}>
                     <Pressable style={[styles.geoBadgeLarge, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}
                       disabled>
                       <Ionicons name="time-outline" size={18} color="#2563EB" />
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.geoBadgeTitle}>Hora salida</Text>
-                        <Text style={styles.geoBadgeSubtitle}>{form.hora_modal_final || '—'}</Text>
+                        <Text style={styles.geoBadgeTitle}>Hora inicio</Text>
+                        <Text style={styles.geoBadgeSubtitle}>{form.hora_inicio || '—'}</Text>
                       </View>
                     </Pressable>
                   </View>
@@ -976,14 +1031,14 @@ export default function ControlReportesScreen() {
                         </View>
                       </Pressable>
                     </View>
-                    {/* Hora salida */}
+                    {/* Hora inicio */}
                     <View style={{ flex: 1 }}>
                       <Pressable style={[styles.geoBadgeLarge, { flexDirection: 'row', alignItems: 'center', gap: 10 }]}
                         disabled>
                         <Ionicons name="time-outline" size={18} color="#2563EB" />
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.geoBadgeTitle}>Hora salida</Text>
-                          <Text style={styles.geoBadgeSubtitle}>{form.hora_modal_final || '—'}</Text>
+                          <Text style={styles.geoBadgeTitle}>Hora inicio</Text>
+                          <Text style={styles.geoBadgeSubtitle}>{form.hora_inicio || '—'}</Text>
                         </View>
                       </Pressable>
                     </View>
@@ -1022,8 +1077,8 @@ export default function ControlReportesScreen() {
 
               {/* Nombre instalador (Picker) */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Nombre del instalador</Text>
-                <View style={[styles.input, { padding: 0 }]}> 
+                <Text style={[styles.inputLabel, { color: '#111827' }]}>Nombre del instalador</Text>
+                <View style={[styles.input, { padding: 0, opacity: lockNombreEquipo ? 0.6 : 1 }]}> 
                   <Picker
                     selectedValue={form.nombre_instalador}
                     onValueChange={(v) => {
@@ -1033,11 +1088,14 @@ export default function ControlReportesScreen() {
                       if (usuario) {
                         setFormField('equipo_montador', usuario.grupo_instaladores);
                       }
+                      setLockNombreEquipo(false); // Si el usuario cambia manualmente, desbloquear
                     }}
+                    enabled={!lockNombreEquipo}
+                    style={{ color: '#111827' }}
                   >
-                    <Picker.Item label="Seleccione..." value="" />
+                    <Picker.Item label="Seleccione..." value="" color="#111827" />
                     {usuarios.map((u, idx) => (
-                      <Picker.Item key={u.nombre + idx} label={u.nombre} value={u.nombre} />
+                      <Picker.Item key={u.nombre + idx} label={u.nombre} value={u.nombre} color="#111827" />
                     ))}
                   </Picker>
                 </View>
@@ -1045,16 +1103,18 @@ export default function ControlReportesScreen() {
 
               {/* Equipo montador (Picker de grupo_instaladores) */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Equipo montador</Text>
-                <View style={[styles.input, { padding: 0 }]}> 
+                <Text style={[styles.inputLabel, { color: '#111827' }]}>Equipo montador</Text>
+                <View style={[styles.input, { padding: 0, opacity: lockNombreEquipo ? 0.6 : 1 }]}> 
                   <Picker
                     selectedValue={form.equipo_montador}
                     onValueChange={(v) => setFormField('equipo_montador', v)}
+                    enabled={!lockNombreEquipo}
+                    style={{ color: '#111827' }}
                   >
-                    <Picker.Item label="Seleccione..." value="" />
+                    <Picker.Item label="Seleccione..." value="" color="#111827" />
                     {/* Mostrar solo grupos únicos */}
                     {[...new Set(usuarios.map(u => u.grupo_instaladores))].map((grupo, idx) => (
-                      <Picker.Item key={grupo + idx} label={grupo} value={grupo} />
+                      <Picker.Item key={grupo + idx} label={grupo} value={grupo} color="#111827" />
                     ))}
                   </Picker>
                 </View>
@@ -1062,7 +1122,7 @@ export default function ControlReportesScreen() {
 
               {/* Obra */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Obra</Text>
+                <Text style={[styles.inputLabel, { color: '#111827' }]}>Obra</Text>
                 <TextInput
                   value={form.obra}
                   onChangeText={(t) => setFormField('obra', t)}
@@ -1073,7 +1133,7 @@ export default function ControlReportesScreen() {
 
               {/* Cliente */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Cliente</Text>
+                <Text style={[styles.inputLabel, { color: '#111827' }]}>Cliente</Text>
                 <TextInput
                   value={form.cliente}
                   onChangeText={(t) => setFormField('cliente', t)}
@@ -1084,32 +1144,34 @@ export default function ControlReportesScreen() {
 
               {/* Dirección */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Dirección</Text>
+                <Text style={[styles.inputLabel, { color: '#111827' }]}>Dirección</Text>
                 <TextInput
                   value={form.direccion}
                   onChangeText={(t) => setFormField('direccion', t)}
-                  style={styles.input}
+                  style={[styles.input, lockDireccion && styles.inputReadonly]}
                   placeholder="Calle, número, ciudad"
+                  editable={!lockDireccion}
                 />
               </View>
 
               {/* Tipo de trabajo */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Tipo de trabajo</Text>
+                <Text style={[styles.inputLabel, { color: '#111827' }]}>Tipo de trabajo</Text>
                 <View style={[styles.input, { padding: 0 }]}> 
                   <Picker
                     selectedValue={form.tipo_trabajo}
                     onValueChange={(v) => setFormField('tipo_trabajo', v)}
+                    style={{ color: '#111827' }}
                   >
-                    <Picker.Item label="Seleccione..." value="" />
-                    <Picker.Item label="Obra nueva" value="Obra nueva" />
-                    <Picker.Item label="Reforma" value="Reforma" />
-                    <Picker.Item label="Particular" value="Particular" />
-                    <Picker.Item label="Reparación" value="Reparación" />
-                    <Picker.Item label="Medición" value="Medición" />
-                    <Picker.Item label="Ajuste" value="Ajuste" />
-                    <Picker.Item label="Instalación" value="Instalación" />
-                    <Picker.Item label="Incidencia" value="Incidencia" />
+                    <Picker.Item label="Seleccione..." value="" color="#111827" />
+                    <Picker.Item label="Obra nueva" value="Obra nueva" color="#111827" />
+                    <Picker.Item label="Reforma" value="Reforma" color="#111827" />
+                    <Picker.Item label="Particular" value="Particular" color="#111827" />
+                    <Picker.Item label="Reparación" value="Reparación" color="#111827" />
+                    <Picker.Item label="Medición" value="Medición" color="#111827" />
+                    <Picker.Item label="Ajuste" value="Ajuste" color="#111827" />
+                    <Picker.Item label="Instalación" value="Instalación" color="#111827" />
+                    <Picker.Item label="Incidencia" value="Incidencia" color="#111827" />
                   </Picker>
                 </View>
               </View>
@@ -1117,7 +1179,7 @@ export default function ControlReportesScreen() {
               {/* Incidencia solo si tipo_trabajo es Incidencia */}
               {form.tipo_trabajo === 'Incidencia' && (
                 <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Incidencia</Text>
+                  <Text style={[styles.inputLabel, { color: '#111827' }]}>Incidencia</Text>
                   <TextInput
                     value={form.incidencia}
                     onChangeText={(t) => setFormField('incidencia', t)}
@@ -1129,7 +1191,7 @@ export default function ControlReportesScreen() {
 
               {/* Descripción */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Descripción</Text>
+                <Text style={[styles.inputLabel, { color: '#111827' }]}>Descripción</Text>
                 <TextInput
                   value={form.descripcion}
                   onChangeText={(t) => setFormField('descripcion', t)}
@@ -1141,7 +1203,7 @@ export default function ControlReportesScreen() {
 
               {/* Status */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Status</Text>
+                <Text style={[styles.inputLabel, { color: '#111827' }]}>Status</Text>
                 <TextInput
                   value={form.status}
                   onChangeText={(t) => setFormField('status', t)}
@@ -1152,7 +1214,7 @@ export default function ControlReportesScreen() {
 
               {/* Unidades */}
               <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Unidades</Text>
+                <Text style={[styles.inputLabel, { color: '#111827' }]}>Unidades</Text>
                 <TextInput
                   value={form.unidades?.toString() || ''}
                   onChangeText={(t) => setFormField('unidades', t.replace(/\D/g, ''))}
