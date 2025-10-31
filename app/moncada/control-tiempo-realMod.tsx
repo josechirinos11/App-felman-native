@@ -96,7 +96,7 @@ const { authenticated, loading: authLoading } = useAuth();
   const debugLogs = true;
   const log = (...args: any[]) => {
     if (debugLogs) {
-      console.log('[ControlPedidos]', ...args);
+  // ...existing code...
     }
   };
 
@@ -298,12 +298,12 @@ const [userData, setUserData] = useState<UserData | null>(null);
       
       if (debugLogs) {
         const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-        console.log(`📅 [getHorasLaboralesPorDia] ${fechaAUsar} (${dias[dayOfWeek]}): ${horas}h`);
+  // ...existing code...
       }
       
       return horas * 3600; // Convertir a segundos
     } catch (e) {
-      console.error('❌ Error calculando horas laborales:', e);
+  // ...existing code...
       return 7.5 * 3600; // Fallback
     }
   };

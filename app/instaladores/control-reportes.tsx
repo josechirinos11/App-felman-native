@@ -1,4 +1,5 @@
 // app/control/control-reportes.tsx
+// comentario 31/10/2025 actualizacion
 import Ionicons from '@expo/vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
