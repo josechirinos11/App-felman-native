@@ -364,46 +364,46 @@ export default function ControlReportesScreen() {
   const allowed = ['admin', 'developer', 'administrador', 'supervisor', 'instalador'].includes(normalizedRole);
 
   // Leer lista
-  const fetchReportes = useCallback(async () => {
-    try {
-      setLoadingList(true);
+const fetchReportes = useCallback(async () => {
+  try {
+    setLoadingList(true);
 
-      const params = new URLSearchParams();
-      if (desde) params.set('from', isoDate(desde));
-      if (hasta) params.set('to', isoDate(hasta));
+    const params = new URLSearchParams();
+    if (desde) params.set('from', isoDate(desde));
+    if (hasta) params.set('to', isoDate(hasta));
 
-      const res = await fetch(
-        `${API_URL}/control-almacen/control-instaladores/read-reportes?${params.toString()}`,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        }
-      );
+    const res = await fetch(
+      `${API_URL}/control-almacen/control-instaladores/read-reportes?${params.toString()}`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      }
+    );
 
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = await res.json();
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
 
-      // LOG: mostrar la respuesta cruda del backend
-      console.log('[CONTROL-REPORTES] Respuesta backend (raw):', JSON.stringify(json));
+    console.log('[CONTROL-REPORTES] Respuesta backend (raw):', JSON.stringify(json));
 
-      // Acepta {data:[...]} o lista directa
-      let data: Reporte[] = Array.isArray(json) ? json : (json?.data ?? []);
-      // Convertir geo_lat y geo_lng a number si vienen como string
-      data = data.map((item) => ({
-        ...item,
-        geo_lat: item.geo_lat != null ? Number(item.geo_lat) : null,
-        geo_lng: item.geo_lng != null ? Number(item.geo_lng) : null,
-      }));
-      setItems(data ?? []);
-    } catch (e: any) {
-      console.log('read-reportes error:', e?.message ?? e);
-      setItems([]);
-    } finally {
-      setLoadingList(false);
-    }
-  }, [token, desde, hasta]);
+    let data: Reporte[] = Array.isArray(json) ? json : (json?.data ?? []);
+    // Convertir geo_lat, geo_lng Y normalizar fecha a solo yyyy-mm-dd
+    data = data.map((item) => ({
+      ...item,
+      // CAMBIO CRÍTICO: Normalizar la fecha del backend a solo yyyy-mm-dd
+      fecha: item.fecha ? new Date(item.fecha).toISOString().slice(0, 10) : item.fecha,
+      geo_lat: item.geo_lat != null ? Number(item.geo_lat) : null,
+      geo_lng: item.geo_lng != null ? Number(item.geo_lng) : null,
+    }));
+    setItems(data ?? []);
+  } catch (e: any) {
+    console.log('read-reportes error:', e?.message ?? e);
+    setItems([]);
+  } finally {
+    setLoadingList(false);
+  }
+}, [token, desde, hasta]);
 
   useEffect(() => {
     fetchReportes();
@@ -542,7 +542,7 @@ export default function ControlReportesScreen() {
           }
         }
       }
-    } catch {}
+    } catch { }
     setForm({
       fecha: isoDate(now),
       nombre_instalador,
@@ -1005,10 +1005,10 @@ export default function ControlReportesScreen() {
                           {form.geo_address
                             ? form.geo_address
                             : geoStatus === 'denied'
-                            ? 'Permiso denegado'
-                            : geoStatus === 'error'
-                            ? 'Error al obtener la ubicación'
-                            : 'Toca para actualizar'}
+                              ? 'Permiso denegado'
+                              : geoStatus === 'error'
+                                ? 'Error al obtener la ubicación'
+                                : 'Toca para actualizar'}
                           {form.geo_lat && form.geo_lng
                             ? `  ·  (${form.geo_lat.toFixed(6)}, ${form.geo_lng.toFixed(6)})`
                             : ''}
@@ -1062,10 +1062,10 @@ export default function ControlReportesScreen() {
                         {form.geo_address
                           ? form.geo_address
                           : geoStatus === 'denied'
-                          ? 'Permiso denegado'
-                          : geoStatus === 'error'
-                          ? 'Error al obtener la ubicación'
-                          : 'Toca para actualizar'}
+                            ? 'Permiso denegado'
+                            : geoStatus === 'error'
+                              ? 'Error al obtener la ubicación'
+                              : 'Toca para actualizar'}
                         {form.geo_lat && form.geo_lng
                           ? `  ·  (${form.geo_lat.toFixed(6)}, ${form.geo_lng.toFixed(6)})`
                           : ''}
@@ -1079,7 +1079,7 @@ export default function ControlReportesScreen() {
               {/* Nombre instalador (Picker) */}
               <View style={styles.inputGroup}>
                 <Text style={[styles.inputLabel, { color: '#111827' }]}>Nombre del instalador</Text>
-                <View style={[styles.input, { padding: 0, opacity: lockNombreEquipo ? 0.6 : 1 }]}> 
+                <View style={[styles.input, { padding: 0, opacity: lockNombreEquipo ? 0.6 : 1 }]}>
                   <Picker
                     selectedValue={form.nombre_instalador}
                     onValueChange={(v) => {
@@ -1105,7 +1105,7 @@ export default function ControlReportesScreen() {
               {/* Equipo montador (Picker de grupo_instaladores) */}
               <View style={styles.inputGroup}>
                 <Text style={[styles.inputLabel, { color: '#111827' }]}>Equipo montador</Text>
-                <View style={[styles.input, { padding: 0, opacity: lockNombreEquipo ? 0.6 : 1 }]}> 
+                <View style={[styles.input, { padding: 0, opacity: lockNombreEquipo ? 0.6 : 1 }]}>
                   <Picker
                     selectedValue={form.equipo_montador}
                     onValueChange={(v) => setFormField('equipo_montador', v)}
@@ -1158,7 +1158,7 @@ export default function ControlReportesScreen() {
               {/* Tipo de trabajo */}
               <View style={styles.inputGroup}>
                 <Text style={[styles.inputLabel, { color: '#111827' }]}>Tipo de trabajo</Text>
-                <View style={[styles.input, { padding: 0 }]}> 
+                <View style={[styles.input, { padding: 0 }]}>
                   <Picker
                     selectedValue={form.tipo_trabajo}
                     onValueChange={(v) => setFormField('tipo_trabajo', v)}
@@ -1296,7 +1296,7 @@ const styles = StyleSheet.create({
   btnDanger: { backgroundColor: '#DC2626' },
 
   connectionBannerText: { color: '#fff', fontSize: 14, fontWeight: '500' },
-  
+
 
   // Header filtros
   // Filtros (responsive)

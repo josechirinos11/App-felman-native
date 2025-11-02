@@ -2,7 +2,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -18,7 +18,6 @@ interface MenuItem {
   icon: IconName;
   route: RouteNames;
   isCustom?: boolean;
-  allowedRoles?: string[]; // Roles permitidos para ver este item
 }
 
 interface CustomModule {
@@ -31,42 +30,13 @@ interface CustomModule {
 }
 
 const menuItemsBase: MenuItem[] = [
-  { 
-    id: 1, 
-    title: 'Moncada', 
-    icon: 'construct-outline', 
-    route: '/moncada',
-    allowedRoles: ['admin', 'developer', 'comercial', 'administrador']
-  },
-  { 
-    id: 2, 
-    title: 'Almassera', 
-    icon: 'business-outline', 
-    route: '/optima',
-    allowedRoles: ['admin', 'developer', 'administrador']
-  },
-  { 
-    id: 3, 
-    title: 'Almacén', 
-    icon: 'cube-outline', 
-    route: '/almacen',
-    allowedRoles: ['admin', 'developer', 'administrador']
-  },
-  { 
-    id: 4, 
-    title: 'Logistica', 
-    icon: 'map-outline', 
-    route: '/logistica',
-    allowedRoles: ['admin', 'developer', 'administrador']
-  },
-  { 
-    id: 5, 
-    title: 'Instaladores', 
-    icon: 'build-outline', 
-    route: '/instaladores',
-    allowedRoles: ['admin', 'developer', 'administrador', 'supervisor', 'instalador']
-  }
+  { id: 1, title: 'Moncada', icon: 'construct-outline', route: '/moncada' },
+  { id: 2, title: 'Almassera', icon: 'business-outline', route: '/optima' },
+  { id: 3, title: 'Almacén', icon: 'cube-outline', route: '/almacen' },
+  { id: 4, title: 'Logistica', icon: 'map-outline', route: '/logistica' },
+{ id: 5, title: 'Instaladores', icon: 'build-outline', route: '/instaladores' }
 ];
+
 
 interface UserData {
   id: number;
@@ -75,6 +45,7 @@ interface UserData {
   name?: string;
   role?: string;
 }
+
 
 export default function HomeScreen() {
   const [token, setToken] = useState<string | null>(null);
@@ -92,6 +63,7 @@ export default function HomeScreen() {
       router.replace('/login');
     }
   }, [authenticated, authLoading, router]);
+
 
   // Cargar módulos personalizados cuando la pantalla obtiene el foco
   useFocusEffect(
@@ -156,8 +128,6 @@ export default function HomeScreen() {
           icon: modulo.icono,
           route: `/modulos/${modulo.id}` as RouteNames,
           isCustom: true,
-          // Los módulos custom son visibles para todos por defecto, puedes cambiar esto
-          allowedRoles: ['admin', 'developer', 'administrador', 'supervisor', 'instalador', 'comercial']
         }));
 
         // Combinar menús base con personalizados
@@ -172,37 +142,12 @@ export default function HomeScreen() {
     }
   };
 
-  // Filtrar items del menú según el rol del usuario
-  const filteredMenuItems = useMemo(() => {
-    if (!userData) return [];
-    
-    const userRole = (userData.rol || userData.role || '').toString().trim().toLowerCase();
-    
-    // Si no tiene rol definido, no mostrar nada
-    if (!userRole) return [];
-
-    // Filtrar items según roles permitidos
-    return menuItems.filter(item => {
-      // Si el item no tiene allowedRoles definido, es visible para todos
-      if (!item.allowedRoles || item.allowedRoles.length === 0) return true;
-      
-      // Verificar si el rol del usuario está en la lista de roles permitidos
-      return item.allowedRoles.some(allowedRole => 
-        allowedRole.toLowerCase() === userRole
-      );
-    });
-  }, [menuItems, userData]);
-
-  if (loading || authLoading) {
+  if (loading) {
     return (
       <View style={styles.loader}>
         <ActivityIndicator size="large" color="#2e78b7" />
       </View>
     );
-  }
-
-  if (!authenticated) {
-    return null;
   }
 
   return (
@@ -229,49 +174,31 @@ export default function HomeScreen() {
         {/* Panel principal con menú */}
         <View style={styles.mainPanel}>
           <ScrollView style={styles.scrollView}>
-            {filteredMenuItems.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Ionicons name="lock-closed-outline" size={48} color="#9CA3AF" />
-                <Text style={styles.emptyText}>
-                  No tienes acceso a ningún módulo.
-                </Text>
-                <Text style={styles.emptySubtext}>
-                  Contacta con tu administrador.
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.menuGrid}>
-                {Array.from({ length: Math.ceil(filteredMenuItems.length / 2) }).map((_, rowIndex) => (
-                  <View key={rowIndex} style={styles.menuRow}>
-                    {filteredMenuItems.slice(rowIndex * 2, rowIndex * 2 + 2).map(item => (
-                      <TouchableOpacity
-                        key={item.id}
-                        style={styles.menuItem}
-                        onPress={() => router.push(item.route as any)}
-                      >
-                        <Ionicons name={item.icon} size={32} color="#2e78b7" />
-                        <Text style={styles.menuText}>{String(item.title || '')}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                ))}
-              </View>
-            )}
+            <View style={styles.menuGrid}>
+              {Array.from({ length: Math.ceil(menuItems.length / 2) }).map((_, rowIndex) => (                <View key={rowIndex} style={styles.menuRow}>
+                  {menuItems.slice(rowIndex * 2, rowIndex * 2 + 2).map(item => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.menuItem}
+                      onPress={() => router.push(item.route as any)}
+                    >
+                      <Ionicons name={item.icon} size={32} color="#2e78b7" />
+                      <Text style={styles.menuText}>{String(item.title || '')}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ))}
+            </View>
           </ScrollView>
         </View>
 
         {/* Botón de agregar fijo arriba del botón de configuraciones */}
-        {/* Solo visible para admin y developer */}
-        {['admin', 'developer', 'administrador'].includes(
-          (userData?.rol || userData?.role || '').toLowerCase()
-        ) && (
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => router.push('/modulos/agregarModulo')}
-          >
-            <Ionicons name="add-outline" size={24} color="#1976d2" />
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => router.push('/modulos/agregarModulo')}
+        >
+          <Ionicons name="add-outline" size={24} color="#1976d2" />
+        </TouchableOpacity>
 
         {/* Botón de configuraciones fijo abajo a la derecha */}
         <TouchableOpacity
@@ -286,11 +213,10 @@ export default function HomeScreen() {
   );
 }
 
+
 const styles = StyleSheet.create({
-  loader: {
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center'
+    loader: {
+    flex: 1, justifyContent: 'center', alignItems: 'center'
   },
   container: {
     flex: 1,
@@ -310,13 +236,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f3f4f6',
     paddingTop: 16,
-  },
-  userInfo: {
+  },  userInfo: {
     backgroundColor: '#fff',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     elevation: 3,
+    // Shadow for iOS and Web
     boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
   },
   welcomeText: {
@@ -346,14 +272,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 10,
-  },
-  menuItem: {
+  },  menuItem: {
     width: '48%',
     backgroundColor: '#fff',
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
     elevation: 3,
+    // Shadow for iOS and Web
     boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
   },
   menuText: {
@@ -369,26 +295,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginVertical: 12,
     fontWeight: '500',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 20,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#4B5563',
-    fontWeight: '600',
-    marginTop: 16,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    marginTop: 8,
-    textAlign: 'center',
   },
   addButton: {
     position: 'absolute',
