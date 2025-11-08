@@ -1,0 +1,17 @@
+# 1) Localiza el SDK (ajusta si tu SDK está en otra ruta)
+$Env:ANDROID_SDK_ROOT="$env:LOCALAPPDATA\Android\Sdk"
+# 2) Lista tus AVDs para copiar el nombre exacto
+& "$Env:ANDROID_SDK_ROOT\emulator\emulator.exe" -list-avds
+
+
+& "$Env:ANDROID_SDK_ROOT\emulator\emulator.exe" `
+   -avd Pixel_7a `
+   -no-snapshot -wipe-data `
+   -gpu swiftshader_indirect `
+   -accel on `
+   -no-boot-anim -verbose
+
+
+
+
+
