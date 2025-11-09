@@ -1,0 +1,51 @@
+
+entry-6a973ddab97150…28a9d13d5012.js:983 📦 [info-terminales] Pedido 2025_05_682 - Estructura completa: 
+{status: 'ok', clienteNombre: 'JOSE VICENTE MORA COSTA', totalModulos: 2, modulos: Array(2)}
+entry-6a973ddab97150…28a9d13d5012.js:983 🗺️ [info-terminales] Pedido 2025_05_682 - Mapa de módulos creado: 
+{totalModulos: 2, modulos: Array(2)}
+entry-6a973ddab97150…28a9d13d5012.js:983 🔍 [info-terminales] Pedido 2025_05_682 - Comparación de módulos: 
+{modulosEnRegistros: Array(1), totalEnRegistros: 1, modulosDelBackend: Array(2), totalEnBackend: 2, modulosSoloEnBackend: Array(1), …}
+entry-6a973ddab97150…28a9d13d5012.js:983 📦 [info-terminales] Pedido 2025_40_934 - Estructura completa: 
+{status: 'ok', clienteNombre: 'MIGUEL VICENTE MENGOD FRESNEDA', totalModulos: 3, modulos: Array(3)}
+entry-6a973ddab97150…28a9d13d5012.js:983 🗺️ [info-terminales] Pedido 2025_40_934 - Mapa de módulos creado: 
+{totalModulos: 3, modulos: Array(3)}
+entry-6a973ddab97150…28a9d13d5012.js:983 🔍 [info-terminales] Pedido 2025_40_934 - Comparación de módulos: 
+{modulosEnRegistros: Array(3), totalEnRegistros: 3, modulosDelBackend: Array(3), totalEnBackend: 3, modulosSoloEnBackend: Array(0), …}
+entry-6a973ddab97150…28a9d13d5012.js:983 📦 [info-terminales] Pedido 2025_42_503 - Estructura completa: 
+{status: 'ok', clienteNombre: 'JUAN LUIS PAREDES TORTOSA', totalModulos: 2, modulos: Array(2)}
+entry-6a973ddab97150…28a9d13d5012.js:983 🗺️ [info-terminales] Pedido 2025_42_503 - Mapa de módulos creado: 
+{totalModulos: 2, modulos: Array(2)}
+entry-6a973ddab97150…28a9d13d5012.js:983 🔍 [info-terminales] Pedido 2025_42_503 - Comparación de módulos: 
+{modulosEnRegistros: Array(2), totalEnRegistros: 2, modulosDelBackend: Array(2), totalEnBackend: 2, modulosSoloEnBackend: Array(0), …}
+entry-6a973ddab97150…28a9d13d5012.js:983 📦 [info-terminales] Pedido 2025_42_515 - Estructura completa: 
+{status: 'ok', clienteNombre: 'ALBAMORE DESARROLLOS URBANOS, S.L.', totalModulos: 9, modulos: Array(9)}
+entry-6a973ddab97150…28a9d13d5012.js:983 🗺️ [info-terminales] Pedido 2025_42_515 - Mapa de módulos creado: 
+{totalModulos: 9, modulos: Array(9)}
+entry-6a973ddab97150…28a9d13d5012.js:983 🔍 [info-terminales] Pedido 2025_42_515 - Comparación de módulos: 
+{modulosEnRegistros: Array(7), totalEnRegistros: 7, modulosDelBackend: Array(9), totalEnBackend: 9, modulosSoloEnBackend: Array(2), …}
+entry-6a973ddab97150…28a9d13d5012.js:983 📦 [info-terminales] Pedido 2025_42_522 - Estructura completa: 
+{status: 'ok', clienteNombre: 'HORMIGA FABRICACION DE VENTANAS, SL', totalModulos: 8, modulos: Array(8)}
+entry-6a973ddab97150…28a9d13d5012.js:983 🗺️ [info-terminales] Pedido 2025_42_522 - Mapa de módulos creado: 
+{totalModulos: 8, modulos: Array(8)}
+entry-6a973ddab97150…28a9d13d5012.js:983 🔍 [info-terminales] Pedido 2025_42_522 - Comparación de módulos: 
+{modulosEnRegistros: Array(1), totalEnRegistros: 1, modulosDelBackend: Array(8), totalEnBackend: 8, modulosSoloEnBackend: Array(7), …}
+entry-6a973ddab97150…28a9d13d5012.js:983 📦 [info-terminales] Pedido 2025_40_964 - Estructura completa: 
+{status: 'ok', clienteNombre: 'VICTOR TORMO, S.L.', totalModulos: 12, modulos: Array(12)}
+entry-6a973ddab97150…28a9d13d5012.js:983 🗺️ [info-terminales] Pedido 2025_40_964 - Mapa de módulos creado: 
+{totalModulos: 12, modulos: Array(12)}
+entry-6a973ddab97150…28a9d13d5012.js:983 🔍 [info-terminales] Pedido 2025_40_964 - Comparación de módulos: 
+{modulosEnRegistros: Array(1), totalEnRegistros: 1, modulosDelBackend: Array(12), totalEnBackend: 12, modulosSoloEnBackend: Array(11), …}
+entry-6a973ddab97150…28a9d13d5012.js:983 📦 [info-terminales] Pedido 2025_40_850 - Estructura completa: 
+{status: 'ok', clienteNombre: 'MS HOME DESIGN, S.L.', totalModulos: 2, modulos: Array(2)}
+entry-6a973ddab97150…28a9d13d5012.js:983 🗺️ [info-terminales] Pedido 2025_40_850 - Mapa de módulos creado: 
+{totalModulos: 2, modulos: Array(2)}
+entry-6a973ddab97150…28a9d13d5012.js:983 🔍 [info-terminales] Pedido 2025_40_850 - Comparación de módulos: 
+{modulosEnRegistros: Array(1), totalEnRegistros: 1, modulosDelBackend: Array(2), totalEnBackend: 2, modulosSoloEnBackend: Array(1), …}
+entry-6a973ddab97150…28a9d13d5012.js:983 📦 [info-terminales] Pedido 2025_40_961 - Estructura completa: 
+{status: 'ok', clienteNombre: 'VICTOR TORMO, S.L.', totalModulos: 11, modulos: Array(11)}
+entry-6a973ddab97150…28a9d13d5012.js:983 🗺️ [info-terminales] Pedido 2025_40_961 - Mapa de módulos creado: 
+{totalModulos: 11, modulos: Array(11)}
+entry-6a973ddab97150…28a9d13d5012.js:983 🔍 [info-terminales] Pedido 2025_40_961 - Comparación de módulos: 
+{modulosEnRegistros: Array(1), totalEnRegistros: 1, modulosDelBackend: Array(11), totalEnBackend: 11, modulosSoloEnBackend: Array(10), …}
+﻿
+

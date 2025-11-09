@@ -22,20 +22,12 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { id: 1, title: 'Atras', icon: 'arrow-back-outline', route: '/' },
   { id: 2, title: 'Terminales', icon: 'location-outline', route: '/moncada/control-terminalesMod' },
-    { id: 3, title: 'Tiempo real', icon: 'time-outline', route: '/moncada/control-tiempo-realMod' },
-
+  { id: 3, title: 'Tiempo real', icon: 'time-outline', route: '/moncada/control-tiempo-realMod' },
   { id: 4, title: 'Control Pedidos', icon: 'cube-outline', route: '/moncada/control-pedidos' },
   { id: 5, title: 'Control de Incidencias', icon: 'alert-circle-outline', route: '/moncada/control-incidencias' },
   { id: 6, title: 'Entregas Diarias', icon: 'calendar-outline', route: '/moncada/control-entregas-diarias' },
-  // { id: 7, title: 'Control Fabrica', icon: 'cog-outline', route: '/moncada/control-fabrica' },
-   { id: 7, title: 'Anàlisis Produccion', icon: 'bar-chart-outline', route: '/moncada/control-produccion-sonnet' },
-    
-  // { id: 9, title: 'Tiempo real Modificado', icon: 'time-outline', route: '/moncada/control-tiempo-realMod' },
-//  { id: 10, title: 'Terminales Modificado', icon: 'location-outline', route: '/moncada/control-terminalesMod' },
-  
-
-
-
+  { id: 7, title: 'Análisis Produccion', icon: 'bar-chart-outline', route: '/moncada/control-produccion-sonnet' },
+  { id: 8, title: 'Produccion Fabrica', icon: 'construct-outline', route: '/moncada/control-produccion-fabrica' },
 ];
 
 

@@ -1,0 +1,695 @@
+PS C:\Users\Jose Chirinos> curl http://85.59.105.234:3000/control-terminales/promedios-tareas-operarios |
+>>     ConvertFrom-Json |
+>>     ConvertTo-Json -Depth 10
+>>
+{
+    "status":  "success",
+    "resumen":  {
+                    "periodoAnalizado":  {
+                                             "dias":  30,
+                                             "fechaInicio":  "2025-10-10",
+                                             "fechaFin":  "2025-11-09"
+                                         },
+                    "totales":  {
+                                    "registros":  3266,
+                                    "tareasUnicas":  11,
+                                    "operariosUnicos":  19,
+                                    "pedidosUnicos":  18
+                                },
+                    "promediosPorTarea":  {
+                                              "ACRISTALADO":  {
+                                                                  "totalRegistros":  194,
+                                                                  "pedidosUnicos":  48,
+                                                                  "operarios":  [
+                                                                                    {
+                                                                                        "nombre":  "JESUS /COMPACTO/",
+                                                                                        "promedio":  "00:38:52",
+                                                                                        "registros":  19
+                                                                                    },
+                                                                                    {
+                                                                                        "nombre":  "ANTONIO SOBRINO",
+                                                                                        "promedio":  "00:33:54",
+                                                                                        "registros":  175
+                                                                                    }
+                                                                                ],
+                                                                  "promedioGeneral":  0
+                                                              },
+                                              "ARMADO":  {
+                                                             "totalRegistros":  472,
+                                                             "pedidosUnicos":  48,
+                                                             "operarios":  [
+                                                                               {
+                                                                                   "nombre":  "SANDRA ORTIZ",
+                                                                                   "promedio":  "01:19:20",
+                                                                                   "registros":  250
+                                                                               },
+                                                                               {
+                                                                                   "nombre":  "CRISTIAN /ARMADO/",
+                                                                                   "promedio":  "00:35:33",
+                                                                                   "registros":  222
+                                                                               }
+                                                                           ],
+                                                             "promedioGeneral":  0
+                                                         },
+                                              "COMPACTO":  {
+                                                               "totalRegistros":  487,
+                                                               "pedidosUnicos":  85,
+                                                               "operarios":  [
+                                                                                 {
+                                                                                     "nombre":  "JUAN /COMPACTO/",
+                                                                                     "promedio":  "00:32:56",
+                                                                                     "registros":  128
+                                                                                 },
+                                                                                 {
+                                                                                     "nombre":  "JESUS /COMPACTO/",
+                                                                                     "promedio":  "00:24:52",
+                                                                                     "registros":  157
+                                                                                 },
+                                                                                 {
+                                                                                     "nombre":  "DANIEL /COMPACTO/",
+                                                                                     "promedio":  "00:18:41",
+                                                                                     "registros":  202
+                                                                                 }
+                                                                             ],
+                                                               "promedioGeneral":  0
+                                                           },
+                                              "CORTE":  {
+                                                            "totalRegistros":  224,
+                                                            "pedidosUnicos":  130,
+                                                            "operarios":  [
+                                                                              {
+                                                                                  "nombre":  "ROBERTO ARCHENA",
+                                                                                  "promedio":  "04:54:13",
+                                                                                  "registros":  107
+                                                                              },
+                                                                              {
+                                                                                  "nombre":  "ALFREDO /CORTE/",
+                                                                                  "promedio":  "00:36:28",
+                                                                                  "registros":  117
+                                                                              }
+                                                                          ],
+                                                            "promedioGeneral":  0
+                                                        },
+                                              "ESPECIALES":  {
+                                                                 "totalRegistros":  14,
+                                                                 "pedidosUnicos":  6,
+                                                                 "operarios":  [
+                                                                                   {
+                                                                                       "nombre":  "TONI VILLEN",
+                                                                                       "promedio":  "08:47:38",
+                                                                                       "registros":  14
+                                                                                   }
+                                                                               ],
+                                                                 "promedioGeneral":  0
+                                                             },
+                                              "HERRAJEHOJA":  {
+                                                                  "totalRegistros":  590,
+                                                                  "pedidosUnicos":  96,
+                                                                  "operarios":  [
+                                                                                    {
+                                                                                        "nombre":  "TOMAS /HERRAJEHOJA/",
+                                                                                        "promedio":  "00:28:08",
+                                                                                        "registros":  205
+                                                                                    },
+                                                                                    {
+                                                                                        "nombre":  "JAVIER /HERRAJEHOJA/",
+                                                                                        "promedio":  "00:13:40",
+                                                                                        "registros":  385
+                                                                                    }
+                                                                                ],
+                                                                  "promedioGeneral":  0
+                                                              },
+                                              "HERRAJEMARCO":  {
+                                                                   "totalRegistros":  1,
+                                                                   "pedidosUnicos":  1,
+                                                                   "operarios":  [
+                                                                                     {
+                                                                                         "nombre":  "TOMAS /HERRAJEMARCO/",
+                                                                                         "promedio":  "01:03:31",
+                                                                                         "registros":  1
+                                                                                     }
+                                                                                 ],
+                                                                   "promedioGeneral":  0
+                                                               },
+                                              "MATRIMONIO":  {
+                                                                 "totalRegistros":  538,
+                                                                 "pedidosUnicos":  89,
+                                                                 "operarios":  [
+                                                                                   {
+                                                                                       "nombre":  "JOSE GRAU",
+                                                                                       "promedio":  "00:27:54",
+                                                                                       "registros":  404
+                                                                                   },
+                                                                                   {
+                                                                                       "nombre":  "TOMAS /MATRIMONIO/",
+                                                                                       "promedio":  "00:21:48",
+                                                                                       "registros":  134
+                                                                                   }
+                                                                               ],
+                                                                 "promedioGeneral":  0
+                                                             },
+                                              "OPTIMIZACION":  {
+                                                                   "totalRegistros":  182,
+                                                                   "pedidosUnicos":  102,
+                                                                   "operarios":  [
+                                                                                     {
+                                                                                         "nombre":  "CARLOS /OPTIMIZACION/",
+                                                                                         "promedio":  "01:47:04",
+                                                                                         "registros":  6
+                                                                                     },
+                                                                                     {
+                                                                                         "nombre":  "RAUL /OPTIMIZACION/",
+                                                                                         "promedio":  "00:34:43",
+                                                                                         "registros":  129
+                                                                                     },
+                                                                                     {
+                                                                                         "nombre":  "DANIEL /OPTIMIZACION/",
+                                                                                         "promedio":  "00:30:32",
+                                                                                         "registros":  47
+                                                                                     }
+                                                                                 ],
+                                                                   "promedioGeneral":  0
+                                                               },
+                                              "REBARBA":  {
+                                                              "totalRegistros":  262,
+                                                              "pedidosUnicos":  32,
+                                                              "operarios":  [
+                                                                                {
+                                                                                    "nombre":  "ALFREDO /REBARBA/",
+                                                                                    "promedio":  "00:01:34",
+                                                                                    "registros":  262
+                                                                                }
+                                                                            ],
+                                                              "promedioGeneral":  0
+                                                          },
+                                              "SOLDADURA":  {
+                                                                "totalRegistros":  302,
+                                                                "pedidosUnicos":  30,
+                                                                "operarios":  [
+                                                                                  {
+                                                                                      "nombre":  "ALFREDO /SOLDADURA/",
+                                                                                      "promedio":  "00:02:13",
+                                                                                      "registros":  302
+                                                                                  }
+                                                                              ],
+                                                                "promedioGeneral":  0
+                                                            }
+                                          },
+                    "promediosPorOperario":  {
+                                                 "JESUS /COMPACTO/":  {
+                                                                          "codigo":  "052",
+                                                                          "totalRegistros":  176,
+                                                                          "diasActivos":  7,
+                                                                          "tareas":  [
+                                                                                         {
+                                                                                             "tarea":  "ACRISTALADO",
+                                                                                             "promedio":  "00:38:52",
+                                                                                             "registros":  19
+                                                                                         },
+                                                                                         {
+                                                                                             "tarea":  "COMPACTO",
+                                                                                             "promedio":  "00:24:52",
+                                                                                             "registros":  157
+                                                                                         }
+                                                                                     ]
+                                                                      },
+                                                 "ANTONIO SOBRINO":  {
+                                                                         "codigo":  "034",
+                                                                         "totalRegistros":  175,
+                                                                         "diasActivos":  20,
+                                                                         "tareas":  [
+                                                                                        {
+                                                                                            "tarea":  "ACRISTALADO",
+                                                                                            "promedio":  "00:33:54",
+                                                                                            "registros":  175
+                                                                                        }
+                                                                                    ]
+                                                                     },
+                                                 "SANDRA ORTIZ":  {
+                                                                      "codigo":  "015",
+                                                                      "totalRegistros":  250,
+                                                                      "diasActivos":  19,
+                                                                      "tareas":  [
+                                                                                     {
+                                                                                         "tarea":  "ARMADO",
+                                                                                         "promedio":  "01:19:20",
+                                                                                         "registros":  250
+                                                                                     }
+                                                                                 ]
+                                                                  },
+                                                 "CRISTIAN /ARMADO/":  {
+                                                                           "codigo":  "054",
+                                                                           "totalRegistros":  222,
+                                                                           "diasActivos":  19,
+                                                                           "tareas":  [
+                                                                                          {
+                                                                                              "tarea":  "ARMADO",
+                                                                                              "promedio":  "00:35:33",
+                                                                                              "registros":  222
+                                                                                          }
+                                                                                      ]
+                                                                       },
+                                                 "JUAN /COMPACTO/":  {
+                                                                         "codigo":  "035",
+                                                                         "totalRegistros":  128,
+                                                                         "diasActivos":  14,
+                                                                         "tareas":  [
+                                                                                        {
+                                                                                            "tarea":  "COMPACTO",
+                                                                                            "promedio":  "00:32:56",
+                                                                                            "registros":  128
+                                                                                        }
+                                                                                    ]
+                                                                     },
+                                                 "DANIEL /COMPACTO/":  {
+                                                                           "codigo":  "058",
+                                                                           "totalRegistros":  202,
+                                                                           "diasActivos":  18,
+                                                                           "tareas":  [
+                                                                                          {
+                                                                                              "tarea":  "COMPACTO",
+                                                                                              "promedio":  "00:18:41",
+                                                                                              "registros":  202
+                                                                                          }
+                                                                                      ]
+                                                                       },
+                                                 "ROBERTO ARCHENA":  {
+                                                                         "codigo":  "030",
+                                                                         "totalRegistros":  107,
+                                                                         "diasActivos":  19,
+                                                                         "tareas":  [
+                                                                                        {
+                                                                                            "tarea":  "CORTE",
+                                                                                            "promedio":  "04:54:13",
+                                                                                            "registros":  107
+                                                                                        }
+                                                                                    ]
+                                                                     },
+                                                 "ALFREDO /CORTE/":  {
+                                                                         "codigo":  "038",
+                                                                         "totalRegistros":  117,
+                                                                         "diasActivos":  18,
+                                                                         "tareas":  [
+                                                                                        {
+                                                                                            "tarea":  "CORTE",
+                                                                                            "promedio":  "00:36:28",
+                                                                                            "registros":  117
+                                                                                        }
+                                                                                    ]
+                                                                     },
+                                                 "TONI VILLEN":  {
+                                                                     "codigo":  "013",
+                                                                     "totalRegistros":  14,
+                                                                     "diasActivos":  6,
+                                                                     "tareas":  [
+                                                                                    {
+                                                                                        "tarea":  "ESPECIALES",
+                                                                                        "promedio":  "08:47:38",
+                                                                                        "registros":  14
+                                                                                    }
+                                                                                ]
+                                                                 },
+                                                 "TOMAS /HERRAJEHOJA/":  {
+                                                                             "codigo":  "012",
+                                                                             "totalRegistros":  205,
+                                                                             "diasActivos":  20,
+                                                                             "tareas":  [
+                                                                                            {
+                                                                                                "tarea":  "HERRAJEHOJA",
+                                                                                                "promedio":  "00:28:08",
+                                                                                                "registros":  205
+                                                                                            }
+                                                                                        ]
+                                                                         },
+                                                 "JAVIER /HERRAJEHOJA/":  {
+                                                                              "codigo":  "004",
+                                                                              "totalRegistros":  385,
+                                                                              "diasActivos":  19,
+                                                                              "tareas":  [
+                                                                                             {
+                                                                                                 "tarea":  "HERRAJEHOJA",
+                                                                                                 "promedio":  "00:13:40",
+                                                                                                 "registros":  385
+                                                                                             }
+                                                                                         ]
+                                                                          },
+                                                 "TOMAS /HERRAJEMARCO/":  {
+                                                                              "codigo":  "051",
+                                                                              "totalRegistros":  1,
+                                                                              "diasActivos":  1,
+                                                                              "tareas":  [
+                                                                                             {
+                                                                                                 "tarea":  "HERRAJEMARCO",
+                                                                                                 "promedio":  "01:03:31",
+                                                                                                 "registros":  1
+                                                                                             }
+                                                                                         ]
+                                                                          },
+                                                 "JOSE GRAU":  {
+                                                                   "codigo":  "040",
+                                                                   "totalRegistros":  404,
+                                                                   "diasActivos":  20,
+                                                                   "tareas":  [
+                                                                                  {
+                                                                                      "tarea":  "MATRIMONIO",
+                                                                                      "promedio":  "00:27:54",
+                                                                                      "registros":  404
+                                                                                  }
+                                                                              ]
+                                                               },
+                                                 "TOMAS /MATRIMONIO/":  {
+                                                                            "codigo":  "050",
+                                                                            "totalRegistros":  134,
+                                                                            "diasActivos":  19,
+                                                                            "tareas":  [
+                                                                                           {
+                                                                                               "tarea":  "MATRIMONIO",
+                                                                                               "promedio":  "00:21:48",
+                                                                                               "registros":  134
+                                                                                           }
+                                                                                       ]
+                                                                        },
+                                                 "CARLOS /OPTIMIZACION/":  {
+                                                                               "codigo":  "036",
+                                                                               "totalRegistros":  6,
+                                                                               "diasActivos":  4,
+                                                                               "tareas":  [
+                                                                                              {
+                                                                                                  "tarea":  "OPTIMIZACION",
+                                                                                                  "promedio":  "01:47:04",
+                                                                                                  "registros":  6
+                                                                                              }
+                                                                                          ]
+                                                                           },
+                                                 "RAUL /OPTIMIZACION/":  {
+                                                                             "codigo":  "037",
+                                                                             "totalRegistros":  129,
+                                                                             "diasActivos":  20,
+                                                                             "tareas":  [
+                                                                                            {
+                                                                                                "tarea":  "OPTIMIZACION",
+                                                                                                "promedio":  "00:34:43",
+                                                                                                "registros":  129
+                                                                                            }
+                                                                                        ]
+                                                                         },
+                                                 "DANIEL /OPTIMIZACION/":  {
+                                                                               "codigo":  "056",
+                                                                               "totalRegistros":  47,
+                                                                               "diasActivos":  15,
+                                                                               "tareas":  [
+                                                                                              {
+                                                                                                  "tarea":  "OPTIMIZACION",
+                                                                                                  "promedio":  "00:30:32",
+                                                                                                  "registros":  47
+                                                                                              }
+                                                                                          ]
+                                                                           },
+                                                 "ALFREDO /REBARBA/":  {
+                                                                           "codigo":  "065",
+                                                                           "totalRegistros":  262,
+                                                                           "diasActivos":  12,
+                                                                           "tareas":  [
+                                                                                          {
+                                                                                              "tarea":  "REBARBA",
+                                                                                              "promedio":  "00:01:34",
+                                                                                              "registros":  262
+                                                                                          }
+                                                                                      ]
+                                                                       },
+                                                 "ALFREDO /SOLDADURA/":  {
+                                                                             "codigo":  "064",
+                                                                             "totalRegistros":  302,
+                                                                             "diasActivos":  12,
+                                                                             "tareas":  [
+                                                                                            {
+                                                                                                "tarea":  "SOLDADURA",
+                                                                                                "promedio":  "00:02:13",
+                                                                                                "registros":  302
+                                                                                            }
+                                                                                        ]
+                                                                         }
+                                             }
+                },
+    "detalles":  [
+                     {
+                         "CodigoTarea":  "ACRISTALADO",
+                         "TotalRegistros":  19,
+                         "PedidosUnicos":  14,
+                         "PromedioSegundos":  2332.16,
+                         "PromedioTiempo":  "00:38:52",
+                         "TiempoTotal":  "12:18:31",
+                         "TiempoMinimo":  "00:00:06",
+                         "TiempoMaximo":  "01:22:12",
+                         "OperarioNombre":  "JESUS /COMPACTO/",
+                         "CodigoOperario":  "052",
+                         "DiasActivos":  7
+                     },
+                     {
+                         "CodigoTarea":  "ACRISTALADO",
+                         "TotalRegistros":  175,
+                         "PedidosUnicos":  34,
+                         "PromedioSegundos":  2033.97,
+                         "PromedioTiempo":  "00:33:54",
+                         "TiempoTotal":  "98:52:25",
+                         "TiempoMinimo":  "00:00:05",
+                         "TiempoMaximo":  "17:10:56",
+                         "OperarioNombre":  "ANTONIO SOBRINO",
+                         "CodigoOperario":  "034",
+                         "DiasActivos":  20
+                     },
+                     {
+                         "CodigoTarea":  "ARMADO",
+                         "TotalRegistros":  250,
+                         "PedidosUnicos":  26,
+                         "PromedioSegundos":  4760.04,
+                         "PromedioTiempo":  "01:19:20",
+                         "TiempoTotal":  "330:33:31",
+                         "TiempoMinimo":  "00:00:01",
+                         "TiempoMaximo":  "19:45:38",
+                         "OperarioNombre":  "SANDRA ORTIZ",
+                         "CodigoOperario":  "015",
+                         "DiasActivos":  19
+                     },
+                     {
+                         "CodigoTarea":  "ARMADO",
+                         "TotalRegistros":  222,
+                         "PedidosUnicos":  22,
+                         "PromedioSegundos":  2133.34,
+                         "PromedioTiempo":  "00:35:33",
+                         "TiempoTotal":  "131:33:22",
+                         "TiempoMinimo":  "00:00:04",
+                         "TiempoMaximo":  "05:18:45",
+                         "OperarioNombre":  "CRISTIAN /ARMADO/",
+                         "CodigoOperario":  "054",
+                         "DiasActivos":  19
+                     },
+                     {
+                         "CodigoTarea":  "COMPACTO",
+                         "TotalRegistros":  128,
+                         "PedidosUnicos":  17,
+                         "PromedioSegundos":  1976.27,
+                         "PromedioTiempo":  "00:32:56",
+                         "TiempoTotal":  "70:16:03",
+                         "TiempoMinimo":  "00:00:04",
+                         "TiempoMaximo":  "02:12:37",
+                         "OperarioNombre":  "JUAN /COMPACTO/",
+                         "CodigoOperario":  "035",
+                         "DiasActivos":  14
+                     },
+                     {
+                         "CodigoTarea":  "COMPACTO",
+                         "TotalRegistros":  157,
+                         "PedidosUnicos":  28,
+                         "PromedioSegundos":  1492.24,
+                         "PromedioTiempo":  "00:24:52",
+                         "TiempoTotal":  "65:04:41",
+                         "TiempoMinimo":  "00:00:09",
+                         "TiempoMaximo":  "02:19:01",
+                         "OperarioNombre":  "JESUS /COMPACTO/",
+                         "CodigoOperario":  "052",
+                         "DiasActivos":  18
+                     },
+                     {
+                         "CodigoTarea":  "COMPACTO",
+                         "TotalRegistros":  202,
+                         "PedidosUnicos":  40,
+                         "PromedioSegundos":  1120.6,
+                         "PromedioTiempo":  "00:18:41",
+                         "TiempoTotal":  "62:52:41",
+                         "TiempoMinimo":  "00:00:01",
+                         "TiempoMaximo":  "01:09:34",
+                         "OperarioNombre":  "DANIEL /COMPACTO/",
+                         "CodigoOperario":  "058",
+                         "DiasActivos":  18
+                     },
+                     {
+                         "CodigoTarea":  "CORTE",
+                         "TotalRegistros":  107,
+                         "PedidosUnicos":  70,
+                         "PromedioSegundos":  17653.1,
+                         "PromedioTiempo":  "04:54:13",
+                         "TiempoTotal":  "524:41:22",
+                         "TiempoMinimo":  "00:00:01",
+                         "TiempoMaximo":  "95:39:57",
+                         "OperarioNombre":  "ROBERTO ARCHENA",
+                         "CodigoOperario":  "030",
+                         "DiasActivos":  19
+                     },
+                     {
+                         "CodigoTarea":  "CORTE",
+                         "TotalRegistros":  117,
+                         "PedidosUnicos":  60,
+                         "PromedioSegundos":  2188.28,
+                         "PromedioTiempo":  "00:36:28",
+                         "TiempoTotal":  "71:07:09",
+                         "TiempoMinimo":  "00:00:01",
+                         "TiempoMaximo":  "05:35:08",
+                         "OperarioNombre":  "ALFREDO /CORTE/",
+                         "CodigoOperario":  "038",
+                         "DiasActivos":  18
+                     },
+                     {
+                         "CodigoTarea":  "ESPECIALES",
+                         "TotalRegistros":  14,
+                         "PedidosUnicos":  6,
+                         "PromedioSegundos":  31658.14,
+                         "PromedioTiempo":  "08:47:38",
+                         "TiempoTotal":  "123:06:54",
+                         "TiempoMinimo":  "00:00:17",
+                         "TiempoMaximo":  "66:14:06",
+                         "OperarioNombre":  "TONI VILLEN",
+                         "CodigoOperario":  "013",
+                         "DiasActivos":  6
+                     },
+                     {
+                         "CodigoTarea":  "HERRAJEHOJA",
+                         "TotalRegistros":  205,
+                         "PedidosUnicos":  40,
+                         "PromedioSegundos":  1688.36,
+                         "PromedioTiempo":  "00:28:08",
+                         "TiempoTotal":  "96:08:34",
+                         "TiempoMinimo":  "00:00:01",
+                         "TiempoMaximo":  "03:09:18",
+                         "OperarioNombre":  "TOMAS /HERRAJEHOJA/",
+                         "CodigoOperario":  "012",
+                         "DiasActivos":  20
+                     },
+                     {
+                         "CodigoTarea":  "HERRAJEHOJA",
+                         "TotalRegistros":  385,
+                         "PedidosUnicos":  56,
+                         "PromedioSegundos":  820.31,
+                         "PromedioTiempo":  "00:13:40",
+                         "TiempoTotal":  "87:43:40",
+                         "TiempoMinimo":  "00:00:01",
+                         "TiempoMaximo":  "10:16:57",
+                         "OperarioNombre":  "JAVIER /HERRAJEHOJA/",
+                         "CodigoOperario":  "004",
+                         "DiasActivos":  19
+                     },
+                     {
+                         "CodigoTarea":  "HERRAJEMARCO",
+                         "TotalRegistros":  1,
+                         "PedidosUnicos":  1,
+                         "PromedioSegundos":  3811,
+                         "PromedioTiempo":  "01:03:31",
+                         "TiempoTotal":  "01:03:31",
+                         "TiempoMinimo":  "01:03:31",
+                         "TiempoMaximo":  "01:03:31",
+                         "OperarioNombre":  "TOMAS /HERRAJEMARCO/",
+                         "CodigoOperario":  "051",
+                         "DiasActivos":  1
+                     },
+                     {
+                         "CodigoTarea":  "MATRIMONIO",
+                         "TotalRegistros":  404,
+                         "PedidosUnicos":  58,
+                         "PromedioSegundos":  1673.71,
+                         "PromedioTiempo":  "00:27:54",
+                         "TiempoTotal":  "187:49:39",
+                         "TiempoMinimo":  "00:00:02",
+                         "TiempoMaximo":  "65:30:12",
+                         "OperarioNombre":  "JOSE GRAU",
+                         "CodigoOperario":  "040",
+                         "DiasActivos":  20
+                     },
+                     {
+                         "CodigoTarea":  "MATRIMONIO",
+                         "TotalRegistros":  134,
+                         "PedidosUnicos":  31,
+                         "PromedioSegundos":  1307.58,
+                         "PromedioTiempo":  "00:21:48",
+                         "TiempoTotal":  "48:40:16",
+                         "TiempoMinimo":  "00:00:05",
+                         "TiempoMaximo":  "02:33:30",
+                         "OperarioNombre":  "TOMAS /MATRIMONIO/",
+                         "CodigoOperario":  "050",
+                         "DiasActivos":  19
+                     },
+                     {
+                         "CodigoTarea":  "OPTIMIZACION",
+                         "TotalRegistros":  6,
+                         "PedidosUnicos":  6,
+                         "PromedioSegundos":  6424.17,
+                         "PromedioTiempo":  "01:47:04",
+                         "TiempoTotal":  "10:42:25",
+                         "TiempoMinimo":  "00:00:03",
+                         "TiempoMaximo":  "05:20:07",
+                         "OperarioNombre":  "CARLOS /OPTIMIZACION/",
+                         "CodigoOperario":  "036",
+                         "DiasActivos":  4
+                     },
+                     {
+                         "CodigoTarea":  "OPTIMIZACION",
+                         "TotalRegistros":  129,
+                         "PedidosUnicos":  61,
+                         "PromedioSegundos":  2083.32,
+                         "PromedioTiempo":  "00:34:43",
+                         "TiempoTotal":  "74:39:08",
+                         "TiempoMinimo":  "00:01:00",
+                         "TiempoMaximo":  "02:56:23",
+                         "OperarioNombre":  "RAUL /OPTIMIZACION/",
+                         "CodigoOperario":  "037",
+                         "DiasActivos":  20
+                     },
+                     {
+                         "CodigoTarea":  "OPTIMIZACION",
+                         "TotalRegistros":  47,
+                         "PedidosUnicos":  35,
+                         "PromedioSegundos":  1832.09,
+                         "PromedioTiempo":  "00:30:32",
+                         "TiempoTotal":  "23:55:08",
+                         "TiempoMinimo":  "00:00:33",
+                         "TiempoMaximo":  "02:47:20",
+                         "OperarioNombre":  "DANIEL /OPTIMIZACION/",
+                         "CodigoOperario":  "056",
+                         "DiasActivos":  15
+                     },
+                     {
+                         "CodigoTarea":  "REBARBA",
+                         "TotalRegistros":  262,
+                         "PedidosUnicos":  32,
+                         "PromedioSegundos":  94.34,
+                         "PromedioTiempo":  "00:01:34",
+                         "TiempoTotal":  "06:51:56",
+                         "TiempoMinimo":  "00:00:01",
+                         "TiempoMaximo":  "00:20:22",
+                         "OperarioNombre":  "ALFREDO /REBARBA/",
+                         "CodigoOperario":  "065",
+                         "DiasActivos":  12
+                     },
+                     {
+                         "CodigoTarea":  "SOLDADURA",
+                         "TotalRegistros":  302,
+                         "PedidosUnicos":  30,
+                         "PromedioSegundos":  133.44,
+                         "PromedioTiempo":  "00:02:13",
+                         "TiempoTotal":  "11:11:40",
+                         "TiempoMinimo":  "00:00:01",
+                         "TiempoMaximo":  "01:54:07",
+                         "OperarioNombre":  "ALFREDO /SOLDADURA/",
+                         "CodigoOperario":  "064",
+                         "DiasActivos":  12
+                     }
+                 ]

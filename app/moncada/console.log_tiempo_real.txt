@@ -1,0 +1,564 @@
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📤 [info-terminales] Request pedido 2025_05_682
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📤 [info-terminales] Request pedido 2025_42_503
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📤 [info-terminales] Request pedido 2025_42_522
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📤 [info-terminales] Request pedido 2025_40_961
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📤 [info-terminales] Request pedido 2025_40_850
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🚀 [enrichRecords] INICIO - Procesando 110 registros
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🔍 [enrichRecords] Agrupación: {totalRegistros: 110, registrosSinPedido: 0, pedidosUnicos: 14, pedidos: Array(5)}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📤 [info-terminales] Request pedido 2025_42_515
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📤 [info-terminales] Request pedido 2025_42_498
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📤 [info-terminales] Request pedido 2025_42_504
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📤 [info-terminales] Request pedido 2025_42_505
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📤 [info-terminales] Request pedido 2025_42_516
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📤 [info-terminales] Request pedido 2025_40_933
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📤 [info-terminales] Request pedido 2025_42_524
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📤 [info-terminales] Request pedido 2025_40_934
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📤 [info-terminales] Request pedido 2025_40_964
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📤 [info-terminales] Request pedido 2025_05_682
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📤 [info-terminales] Request pedido 2025_42_503
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📤 [info-terminales] Request pedido 2025_42_522
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📤 [info-terminales] Request pedido 2025_40_961
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📤 [info-terminales] Request pedido 2025_40_850
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_42_504: 1 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_42_504: 6/6 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_42_516: 2 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_42_516: 1/1 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_42_515: 9 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_42_515: 12/12 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_42_498: 1 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_42_498: 2/2 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_42_505: 7 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_42_505: 39/39 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_40_934: 3 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_40_934: 5/5 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_42_524: 1 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_42_524: 2/2 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_40_933: 9 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_40_933: 30/30 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_05_682: 3 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_05_682: 1/1 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_40_964: 26 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_40_964: 1/1 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_42_503: 2 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_42_503: 8/8 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_42_522: 8 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_42_522: 1/1 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_42_515: 9 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_42_515: 12/12 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_40_961: 24 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_40_961: 1/1 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_42_498: 1 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_42_498: 2/2 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_40_850: 3 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_40_850: 1/1 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🎯 [enrichRecords] FINAL: 110/110 enriquecidos (100%)
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🔵 [BACKEND DATA] JAVIER /HERRAJEHOJA/ (undefined): {tiempoActivoSegundos: 15682, tiempoActivoHoras: '4.36h', jornadaSegundos: 23400, jornadaHoras: '6.5h', pausaDescontada: 0, …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEstadisticaForArray] operador - JAVIER /HERRAJEHOJA/: {registros: 30, sumaTotal: 15682, sumaTotalHoras: '4.36h', jornadaMaxima: 23400, jornadaMaximaHoras: '6.5h', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🔵 [BACKEND DATA] JOSE GRAU (undefined): {tiempoActivoSegundos: 20266, tiempoActivoHoras: '5.63h', jornadaSegundos: 23400, jornadaHoras: '6.5h', pausaDescontada: 0, …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEstadisticaForArray] operador - JOSE GRAU: {registros: 13, sumaTotal: 20266, sumaTotalHoras: '5.63h', jornadaMaxima: 23400, jornadaMaximaHoras: '6.5h', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🔵 [BACKEND DATA] JESUS /COMPACTO/ (undefined): {tiempoActivoSegundos: 17782, tiempoActivoHoras: '4.94h', jornadaSegundos: 23400, jornadaHoras: '6.5h', pausaDescontada: 0, …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEstadisticaForArray] operador - JESUS /COMPACTO/: {registros: 11, sumaTotal: 17782, sumaTotalHoras: '4.94h', jornadaMaxima: 23400, jornadaMaximaHoras: '6.5h', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🔵 [BACKEND DATA] DANIEL /COMPACTO/ (undefined): {tiempoActivoSegundos: 11391, tiempoActivoHoras: '3.16h', jornadaSegundos: 23400, jornadaHoras: '6.5h', pausaDescontada: 0, …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEstadisticaForArray] operador - DANIEL /COMPACTO/: {registros: 12, sumaTotal: 11391, sumaTotalHoras: '3.16h', jornadaMaxima: 23400, jornadaMaximaHoras: '6.5h', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🔵 [BACKEND DATA] RAUL /OPTIMIZACION/ (undefined): {tiempoActivoSegundos: 21616, tiempoActivoHoras: '6.00h', jornadaSegundos: 23400, jornadaHoras: '6.5h', pausaDescontada: 0, …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEstadisticaForArray] operador - RAUL /OPTIMIZACION/: {registros: 5, sumaTotal: 21616, sumaTotalHoras: '6.00h', jornadaMaxima: 23400, jornadaMaximaHoras: '6.5h', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🔵 [BACKEND DATA] TOMAS /MATRIMONIO/ (undefined): {tiempoActivoSegundos: 22193, tiempoActivoHoras: '6.16h', jornadaSegundos: 23400, jornadaHoras: '6.5h', pausaDescontada: 0, …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEstadisticaForArray] operador - TOMAS /MATRIMONIO/: {registros: 14, sumaTotal: 22193, sumaTotalHoras: '6.16h', jornadaMaxima: 23400, jornadaMaximaHoras: '6.5h', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🔵 [BACKEND DATA] ANTONIO SOBRINO (undefined): {tiempoActivoSegundos: 7363, tiempoActivoHoras: '2.05h', jornadaSegundos: 23400, jornadaHoras: '6.5h', pausaDescontada: 0, …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEstadisticaForArray] operador - ANTONIO SOBRINO: {registros: 3, sumaTotal: 7363, sumaTotalHoras: '2.05h', jornadaMaxima: 23400, jornadaMaximaHoras: '6.5h', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🔵 [BACKEND DATA] CRISTIAN /ARMADO/ (undefined): {tiempoActivoSegundos: 17480, tiempoActivoHoras: '4.86h', jornadaSegundos: 23400, jornadaHoras: '6.5h', pausaDescontada: 0, …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEstadisticaForArray] operador - CRISTIAN /ARMADO/: {registros: 6, sumaTotal: 17480, sumaTotalHoras: '4.86h', jornadaMaxima: 23400, jornadaMaximaHoras: '6.5h', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🔵 [BACKEND DATA] SANDRA ORTIZ (undefined): {tiempoActivoSegundos: 15308, tiempoActivoHoras: '4.25h', jornadaSegundos: 23400, jornadaHoras: '6.5h', pausaDescontada: 0, …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEstadisticaForArray] operador - SANDRA ORTIZ: {registros: 13, sumaTotal: 15308, sumaTotalHoras: '4.25h', jornadaMaxima: 23400, jornadaMaximaHoras: '6.5h', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🔵 [BACKEND DATA] ROBERTO ARCHENA (undefined): {tiempoActivoSegundos: 24200, tiempoActivoHoras: '6.72h', jornadaSegundos: 23400, jornadaHoras: '6.5h', pausaDescontada: 0, …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEstadisticaForArray] operador - ROBERTO ARCHENA: {registros: 3, sumaTotal: 24200, sumaTotalHoras: '6.72h', jornadaMaxima: 23400, jornadaMaximaHoras: '6.5h', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ANTONIO (undefined): {actividad: '2h 02m', inactividad: '4h 27m', valor: '31%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] CRISTIAN (undefined): {actividad: '4h 51m', inactividad: '1h 38m', valor: '75%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] DANIEL (undefined): {actividad: '3h 09m', inactividad: '3h 20m', valor: '49%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JAVIER (undefined): {actividad: '4h 21m', inactividad: '2h 08m', valor: '67%', jornadaUsada: '6.5h', statusFichaje: 'parcial', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JESUS (undefined): {actividad: '4h 56m', inactividad: '1h 33m', valor: '76%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JOSE (undefined): {actividad: '5h 37m', inactividad: '0h 52m', valor: '87%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] RAUL (undefined): {actividad: '6h 00m', inactividad: '0h 29m', valor: '92%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ROBERTO (undefined): {actividad: '6h 43m', inactividad: '0h 00m', valor: '100%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] SANDRA (undefined): {actividad: '4h 15m', inactividad: '2h 14m', valor: '65%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] TOMAS (undefined): {actividad: '6h 09m', inactividad: '0h 20m', valor: '95%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_42_505: 7 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_42_505: 39/39 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_42_504: 1 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_42_504: 6/6 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_42_516: 2 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_42_516: 1/1 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_40_933: 9 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_40_933: 30/30 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_42_524: 1 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_42_524: 2/2 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_40_964: 26 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_40_964: 1/1 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_40_934: 3 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_40_934: 5/5 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_42_503: 2 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_42_503: 8/8 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_40_961: 24 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_40_961: 1/1 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_05_682: 3 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_05_682: 1/1 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ANTONIO (undefined): {actividad: '2h 02m', inactividad: '4h 27m', valor: '31%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] CRISTIAN (undefined): {actividad: '4h 51m', inactividad: '1h 38m', valor: '75%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] DANIEL (undefined): {actividad: '3h 09m', inactividad: '3h 20m', valor: '49%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JAVIER (undefined): {actividad: '4h 21m', inactividad: '2h 08m', valor: '67%', jornadaUsada: '6.5h', statusFichaje: 'parcial', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JESUS (undefined): {actividad: '4h 56m', inactividad: '1h 33m', valor: '76%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JOSE (undefined): {actividad: '5h 37m', inactividad: '0h 52m', valor: '87%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] RAUL (undefined): {actividad: '6h 00m', inactividad: '0h 29m', valor: '92%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ROBERTO (undefined): {actividad: '6h 43m', inactividad: '0h 00m', valor: '100%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] SANDRA (undefined): {actividad: '4h 15m', inactividad: '2h 14m', valor: '65%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] TOMAS (undefined): {actividad: '6h 09m', inactividad: '0h 20m', valor: '95%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_42_522: 8 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_42_522: 1/1 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 📦 [info-terminales] Pedido 2025_40_850: 3 módulos recibidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 ✅ [info-terminales] Pedido 2025_40_850: 1/1 enriquecidos
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🎯 [enrichRecords] FINAL: 110/110 enriquecidos (100%)
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🔵 [BACKEND DATA] JAVIER /HERRAJEHOJA/ (undefined): {tiempoActivoSegundos: 15682, tiempoActivoHoras: '4.36h', jornadaSegundos: 23400, jornadaHoras: '6.5h', pausaDescontada: 0, …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEstadisticaForArray] operador - JAVIER /HERRAJEHOJA/: {registros: 30, sumaTotal: 15682, sumaTotalHoras: '4.36h', jornadaMaxima: 23400, jornadaMaximaHoras: '6.5h', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🔵 [BACKEND DATA] JOSE GRAU (undefined): {tiempoActivoSegundos: 20266, tiempoActivoHoras: '5.63h', jornadaSegundos: 23400, jornadaHoras: '6.5h', pausaDescontada: 0, …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEstadisticaForArray] operador - JOSE GRAU: {registros: 13, sumaTotal: 20266, sumaTotalHoras: '5.63h', jornadaMaxima: 23400, jornadaMaximaHoras: '6.5h', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🔵 [BACKEND DATA] JESUS /COMPACTO/ (undefined): {tiempoActivoSegundos: 17782, tiempoActivoHoras: '4.94h', jornadaSegundos: 23400, jornadaHoras: '6.5h', pausaDescontada: 0, …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEstadisticaForArray] operador - JESUS /COMPACTO/: {registros: 11, sumaTotal: 17782, sumaTotalHoras: '4.94h', jornadaMaxima: 23400, jornadaMaximaHoras: '6.5h', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🔵 [BACKEND DATA] DANIEL /COMPACTO/ (undefined): {tiempoActivoSegundos: 11391, tiempoActivoHoras: '3.16h', jornadaSegundos: 23400, jornadaHoras: '6.5h', pausaDescontada: 0, …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEstadisticaForArray] operador - DANIEL /COMPACTO/: {registros: 12, sumaTotal: 11391, sumaTotalHoras: '3.16h', jornadaMaxima: 23400, jornadaMaximaHoras: '6.5h', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🔵 [BACKEND DATA] RAUL /OPTIMIZACION/ (undefined): {tiempoActivoSegundos: 21616, tiempoActivoHoras: '6.00h', jornadaSegundos: 23400, jornadaHoras: '6.5h', pausaDescontada: 0, …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEstadisticaForArray] operador - RAUL /OPTIMIZACION/: {registros: 5, sumaTotal: 21616, sumaTotalHoras: '6.00h', jornadaMaxima: 23400, jornadaMaximaHoras: '6.5h', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🔵 [BACKEND DATA] TOMAS /MATRIMONIO/ (undefined): {tiempoActivoSegundos: 22193, tiempoActivoHoras: '6.16h', jornadaSegundos: 23400, jornadaHoras: '6.5h', pausaDescontada: 0, …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEstadisticaForArray] operador - TOMAS /MATRIMONIO/: {registros: 14, sumaTotal: 22193, sumaTotalHoras: '6.16h', jornadaMaxima: 23400, jornadaMaximaHoras: '6.5h', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🔵 [BACKEND DATA] ANTONIO SOBRINO (undefined): {tiempoActivoSegundos: 7363, tiempoActivoHoras: '2.05h', jornadaSegundos: 23400, jornadaHoras: '6.5h', pausaDescontada: 0, …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEstadisticaForArray] operador - ANTONIO SOBRINO: {registros: 3, sumaTotal: 7363, sumaTotalHoras: '2.05h', jornadaMaxima: 23400, jornadaMaximaHoras: '6.5h', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🔵 [BACKEND DATA] CRISTIAN /ARMADO/ (undefined): {tiempoActivoSegundos: 17480, tiempoActivoHoras: '4.86h', jornadaSegundos: 23400, jornadaHoras: '6.5h', pausaDescontada: 0, …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEstadisticaForArray] operador - CRISTIAN /ARMADO/: {registros: 6, sumaTotal: 17480, sumaTotalHoras: '4.86h', jornadaMaxima: 23400, jornadaMaximaHoras: '6.5h', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🔵 [BACKEND DATA] SANDRA ORTIZ (undefined): {tiempoActivoSegundos: 15308, tiempoActivoHoras: '4.25h', jornadaSegundos: 23400, jornadaHoras: '6.5h', pausaDescontada: 0, …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEstadisticaForArray] operador - SANDRA ORTIZ: {registros: 13, sumaTotal: 15308, sumaTotalHoras: '4.25h', jornadaMaxima: 23400, jornadaMaximaHoras: '6.5h', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🔵 [BACKEND DATA] ROBERTO ARCHENA (undefined): {tiempoActivoSegundos: 24200, tiempoActivoHoras: '6.72h', jornadaSegundos: 23400, jornadaHoras: '6.5h', pausaDescontada: 0, …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEstadisticaForArray] operador - ROBERTO ARCHENA: {registros: 3, sumaTotal: 24200, sumaTotalHoras: '6.72h', jornadaMaxima: 23400, jornadaMaximaHoras: '6.5h', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [tiempo-real] consulta #5 inicializada, filas=110
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [tiempo-real] 📊 stats iniciales: total=110, abiertas=2
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ANTONIO (undefined): {actividad: '2h 02m', inactividad: '4h 27m', valor: '31%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] CRISTIAN (undefined): {actividad: '4h 51m', inactividad: '1h 38m', valor: '75%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] DANIEL (undefined): {actividad: '3h 09m', inactividad: '3h 20m', valor: '49%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JAVIER (undefined): {actividad: '4h 21m', inactividad: '2h 08m', valor: '67%', jornadaUsada: '6.5h', statusFichaje: 'parcial', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JESUS (undefined): {actividad: '4h 56m', inactividad: '1h 33m', valor: '76%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JOSE (undefined): {actividad: '5h 37m', inactividad: '0h 52m', valor: '87%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] RAUL (undefined): {actividad: '6h 00m', inactividad: '0h 29m', valor: '92%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ROBERTO (undefined): {actividad: '6h 43m', inactividad: '0h 00m', valor: '100%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] SANDRA (undefined): {actividad: '4h 15m', inactividad: '2h 14m', valor: '65%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] TOMAS (undefined): {actividad: '6h 09m', inactividad: '0h 20m', valor: '95%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ANTONIO (undefined): {actividad: '2h 02m', inactividad: '4h 27m', valor: '31%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] CRISTIAN (undefined): {actividad: '4h 51m', inactividad: '1h 38m', valor: '75%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] DANIEL (undefined): {actividad: '3h 09m', inactividad: '3h 20m', valor: '49%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JAVIER (undefined): {actividad: '4h 21m', inactividad: '2h 08m', valor: '67%', jornadaUsada: '6.5h', statusFichaje: 'parcial', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JESUS (undefined): {actividad: '4h 56m', inactividad: '1h 33m', valor: '76%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JOSE (undefined): {actividad: '5h 37m', inactividad: '0h 52m', valor: '87%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] RAUL (undefined): {actividad: '6h 00m', inactividad: '0h 29m', valor: '92%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ROBERTO (undefined): {actividad: '6h 43m', inactividad: '0h 00m', valor: '100%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] SANDRA (undefined): {actividad: '4h 15m', inactividad: '2h 14m', valor: '65%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] TOMAS (undefined): {actividad: '6h 09m', inactividad: '0h 20m', valor: '95%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ANTONIO (undefined): {actividad: '2h 02m', inactividad: '4h 27m', valor: '31%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] CRISTIAN (undefined): {actividad: '4h 51m', inactividad: '1h 38m', valor: '75%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] DANIEL (undefined): {actividad: '3h 09m', inactividad: '3h 20m', valor: '49%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JAVIER (undefined): {actividad: '4h 21m', inactividad: '2h 08m', valor: '67%', jornadaUsada: '6.5h', statusFichaje: 'parcial', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JESUS (undefined): {actividad: '4h 56m', inactividad: '1h 33m', valor: '76%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JOSE (undefined): {actividad: '5h 37m', inactividad: '0h 52m', valor: '87%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] RAUL (undefined): {actividad: '6h 00m', inactividad: '0h 29m', valor: '92%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ROBERTO (undefined): {actividad: '6h 43m', inactividad: '0h 00m', valor: '100%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] SANDRA (undefined): {actividad: '4h 15m', inactividad: '2h 14m', valor: '65%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] TOMAS (undefined): {actividad: '6h 09m', inactividad: '0h 20m', valor: '95%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ANTONIO (undefined): {actividad: '2h 02m', inactividad: '4h 27m', valor: '31%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] CRISTIAN (undefined): {actividad: '4h 51m', inactividad: '1h 38m', valor: '75%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] DANIEL (undefined): {actividad: '3h 09m', inactividad: '3h 20m', valor: '49%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JAVIER (undefined): {actividad: '4h 21m', inactividad: '2h 08m', valor: '67%', jornadaUsada: '6.5h', statusFichaje: 'parcial', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JESUS (undefined): {actividad: '4h 56m', inactividad: '1h 33m', valor: '76%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JOSE (undefined): {actividad: '5h 37m', inactividad: '0h 52m', valor: '87%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] RAUL (undefined): {actividad: '6h 00m', inactividad: '0h 29m', valor: '92%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ROBERTO (undefined): {actividad: '6h 43m', inactividad: '0h 00m', valor: '100%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] SANDRA (undefined): {actividad: '4h 15m', inactividad: '2h 14m', valor: '65%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] TOMAS (undefined): {actividad: '6h 09m', inactividad: '0h 20m', valor: '95%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ANTONIO (undefined): {actividad: '2h 02m', inactividad: '4h 27m', valor: '31%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] CRISTIAN (undefined): {actividad: '4h 51m', inactividad: '1h 38m', valor: '75%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] DANIEL (undefined): {actividad: '3h 09m', inactividad: '3h 20m', valor: '49%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JAVIER (undefined): {actividad: '4h 21m', inactividad: '2h 08m', valor: '67%', jornadaUsada: '6.5h', statusFichaje: 'parcial', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JESUS (undefined): {actividad: '4h 56m', inactividad: '1h 33m', valor: '76%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JOSE (undefined): {actividad: '5h 37m', inactividad: '0h 52m', valor: '87%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] RAUL (undefined): {actividad: '6h 00m', inactividad: '0h 29m', valor: '92%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ROBERTO (undefined): {actividad: '6h 43m', inactividad: '0h 00m', valor: '100%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] SANDRA (undefined): {actividad: '4h 15m', inactividad: '2h 14m', valor: '65%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] TOMAS (undefined): {actividad: '6h 09m', inactividad: '0h 20m', valor: '95%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ANTONIO (undefined): {actividad: '2h 02m', inactividad: '4h 27m', valor: '31%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] CRISTIAN (undefined): {actividad: '4h 51m', inactividad: '1h 38m', valor: '75%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] DANIEL (undefined): {actividad: '3h 09m', inactividad: '3h 20m', valor: '49%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JAVIER (undefined): {actividad: '4h 21m', inactividad: '2h 08m', valor: '67%', jornadaUsada: '6.5h', statusFichaje: 'parcial', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JESUS (undefined): {actividad: '4h 56m', inactividad: '1h 33m', valor: '76%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JOSE (undefined): {actividad: '5h 37m', inactividad: '0h 52m', valor: '87%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] RAUL (undefined): {actividad: '6h 00m', inactividad: '0h 29m', valor: '92%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ROBERTO (undefined): {actividad: '6h 43m', inactividad: '0h 00m', valor: '100%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] SANDRA (undefined): {actividad: '4h 15m', inactividad: '2h 14m', valor: '65%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] TOMAS (undefined): {actividad: '6h 09m', inactividad: '0h 20m', valor: '95%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ANTONIO (undefined): {actividad: '2h 02m', inactividad: '4h 27m', valor: '31%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] CRISTIAN (undefined): {actividad: '4h 51m', inactividad: '1h 38m', valor: '75%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] DANIEL (undefined): {actividad: '3h 09m', inactividad: '3h 20m', valor: '49%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JAVIER (undefined): {actividad: '4h 21m', inactividad: '2h 08m', valor: '67%', jornadaUsada: '6.5h', statusFichaje: 'parcial', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JESUS (undefined): {actividad: '4h 56m', inactividad: '1h 33m', valor: '76%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JOSE (undefined): {actividad: '5h 37m', inactividad: '0h 52m', valor: '87%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] RAUL (undefined): {actividad: '6h 00m', inactividad: '0h 29m', valor: '92%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ROBERTO (undefined): {actividad: '6h 43m', inactividad: '0h 00m', valor: '100%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] SANDRA (undefined): {actividad: '4h 15m', inactividad: '2h 14m', valor: '65%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] TOMAS (undefined): {actividad: '6h 09m', inactividad: '0h 20m', valor: '95%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ANTONIO (undefined): {actividad: '2h 02m', inactividad: '4h 27m', valor: '31%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] CRISTIAN (undefined): {actividad: '4h 51m', inactividad: '1h 38m', valor: '75%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] DANIEL (undefined): {actividad: '3h 09m', inactividad: '3h 20m', valor: '49%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JAVIER (undefined): {actividad: '4h 21m', inactividad: '2h 08m', valor: '67%', jornadaUsada: '6.5h', statusFichaje: 'parcial', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JESUS (undefined): {actividad: '4h 56m', inactividad: '1h 33m', valor: '76%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JOSE (undefined): {actividad: '5h 37m', inactividad: '0h 52m', valor: '87%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] RAUL (undefined): {actividad: '6h 00m', inactividad: '0h 29m', valor: '92%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ROBERTO (undefined): {actividad: '6h 43m', inactividad: '0h 00m', valor: '100%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] SANDRA (undefined): {actividad: '4h 15m', inactividad: '2h 14m', valor: '65%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] TOMAS (undefined): {actividad: '6h 09m', inactividad: '0h 20m', valor: '95%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ANTONIO (undefined): {actividad: '2h 02m', inactividad: '4h 27m', valor: '31%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] CRISTIAN (undefined): {actividad: '4h 51m', inactividad: '1h 38m', valor: '75%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] DANIEL (undefined): {actividad: '3h 09m', inactividad: '3h 20m', valor: '49%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JAVIER (undefined): {actividad: '4h 21m', inactividad: '2h 08m', valor: '67%', jornadaUsada: '6.5h', statusFichaje: 'parcial', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JESUS (undefined): {actividad: '4h 56m', inactividad: '1h 33m', valor: '76%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JOSE (undefined): {actividad: '5h 37m', inactividad: '0h 52m', valor: '87%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] RAUL (undefined): {actividad: '6h 00m', inactividad: '0h 29m', valor: '92%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ROBERTO (undefined): {actividad: '6h 43m', inactividad: '0h 00m', valor: '100%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] SANDRA (undefined): {actividad: '4h 15m', inactividad: '2h 14m', valor: '65%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] TOMAS (undefined): {actividad: '6h 09m', inactividad: '0h 20m', valor: '95%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ANTONIO (undefined): {actividad: '2h 02m', inactividad: '4h 27m', valor: '31%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] CRISTIAN (undefined): {actividad: '4h 51m', inactividad: '1h 38m', valor: '75%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] DANIEL (undefined): {actividad: '3h 09m', inactividad: '3h 20m', valor: '49%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JAVIER (undefined): {actividad: '4h 21m', inactividad: '2h 08m', valor: '67%', jornadaUsada: '6.5h', statusFichaje: 'parcial', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JESUS (undefined): {actividad: '4h 56m', inactividad: '1h 33m', valor: '76%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JOSE (undefined): {actividad: '5h 37m', inactividad: '0h 52m', valor: '87%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] RAUL (undefined): {actividad: '6h 00m', inactividad: '0h 29m', valor: '92%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ROBERTO (undefined): {actividad: '6h 43m', inactividad: '0h 00m', valor: '100%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] SANDRA (undefined): {actividad: '4h 15m', inactividad: '2h 14m', valor: '65%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] TOMAS (undefined): {actividad: '6h 09m', inactividad: '0h 20m', valor: '95%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ANTONIO (undefined): {actividad: '2h 02m', inactividad: '4h 27m', valor: '31%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] CRISTIAN (undefined): {actividad: '4h 51m', inactividad: '1h 38m', valor: '75%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] DANIEL (undefined): {actividad: '3h 09m', inactividad: '3h 20m', valor: '49%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JAVIER (undefined): {actividad: '4h 21m', inactividad: '2h 08m', valor: '67%', jornadaUsada: '6.5h', statusFichaje: 'parcial', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JESUS (undefined): {actividad: '4h 56m', inactividad: '1h 33m', valor: '76%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JOSE (undefined): {actividad: '5h 37m', inactividad: '0h 52m', valor: '87%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] RAUL (undefined): {actividad: '6h 00m', inactividad: '0h 29m', valor: '92%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ROBERTO (undefined): {actividad: '6h 43m', inactividad: '0h 00m', valor: '100%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] SANDRA (undefined): {actividad: '4h 15m', inactividad: '2h 14m', valor: '65%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] TOMAS (undefined): {actividad: '6h 09m', inactividad: '0h 20m', valor: '95%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ANTONIO (undefined): {actividad: '2h 02m', inactividad: '4h 27m', valor: '31%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] CRISTIAN (undefined): {actividad: '4h 51m', inactividad: '1h 38m', valor: '75%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] DANIEL (undefined): {actividad: '3h 09m', inactividad: '3h 20m', valor: '49%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JAVIER (undefined): {actividad: '4h 21m', inactividad: '2h 08m', valor: '67%', jornadaUsada: '6.5h', statusFichaje: 'parcial', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JESUS (undefined): {actividad: '4h 56m', inactividad: '1h 33m', valor: '76%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JOSE (undefined): {actividad: '5h 37m', inactividad: '0h 52m', valor: '87%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] RAUL (undefined): {actividad: '6h 00m', inactividad: '0h 29m', valor: '92%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ROBERTO (undefined): {actividad: '6h 43m', inactividad: '0h 00m', valor: '100%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] SANDRA (undefined): {actividad: '4h 15m', inactividad: '2h 14m', valor: '65%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] TOMAS (undefined): {actividad: '6h 09m', inactividad: '0h 20m', valor: '95%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] ANTONIO (undefined): {actividad: '2h 02m', inactividad: '4h 27m', valor: '31%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] CRISTIAN (undefined): {actividad: '4h 51m', inactividad: '1h 38m', valor: '75%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] DANIEL (undefined): {actividad: '3h 09m', inactividad: '3h 20m', valor: '49%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JAVIER (undefined): {actividad: '4h 21m', inactividad: '2h 08m', valor: '67%', jornadaUsada: '6.5h', statusFichaje: 'parcial', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JESUS (undefined): {actividad: '4h 56m', inactividad: '1h 33m', valor: '76%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] JOSE (undefined): {actividad: '5h 37m', inactividad: '0h 52m', valor: '87%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 🟢 [PANTALLA] RAUL (undefined): {actividad: '6h 00m', inactividad: '0h 29m', valor: '92%', jornadaUsada: '6.5h', statusFichaje: 'total', …}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Verificando fecha: {testDate: '2025-11-07', todayStr: '2025-11-08', isHistoricalData: true, jornadaCompleta: '6.5h'}
+entry-6a973ddab97150e6867728a9d13d5012.js:1019 [DEBUG computeEffectiveElapsed] Usando jornada histórica completa: {jornadaCompleta: '6.5h', breakDuration: 1800, effective: 21600}
