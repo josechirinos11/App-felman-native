@@ -98,6 +98,7 @@ interface TareaStats {
 interface ModuloAnalysis {
   modulo: string;
   tareasRealizadas: Set<string>;
+  tareasRequeridas: Set<string>; // Tareas requeridas desde el backend
   tareasTotales: number;
   porcentajeCompletado: number;
   tiempoTotalSegundos: number;
@@ -140,7 +141,58 @@ interface UserData {
   role?: string;
 }
 
+// Nueva interfaz para tareas del backend
+interface TareaBackend {
+  CodigoSerie: string;
+  CodigoNumero: number;
+  Linea: number;
+  Descripcion: string;
+}
+
+// ===================== CONSTANTES =====================
+
+// Mapeo de tareas del backend a tareas estándar
+const TASK_MAPPING: Record<string, string> = {
+  'HERRAJE': 'HERRAJE',
+  'HER_HDER': 'HERRAJE',
+  'HER_HIZQ': 'HERRAJE',
+  'HOJA_ACT': 'HERRAJE',
+  'HOJA_ACT_HERRAJE': 'HERRAJE',
+  'MATRIMONIO': 'MATRIMONIO',
+  'MONOBLOK': 'COMPACTO',
+  'MONOBLOCK': 'COMPACTO',
+  'JAMBA': 'COMPACTO',
+  'VIDRIOS': 'ACRISTALADO',
+  'ACRISTALAMIENTO': 'ACRISTALADO',
+  'MARCOS': 'ARMADO',
+};
+
+// Tareas indispensables que deben verificarse
+const TAREAS_INDISPENSABLES = new Set([
+  'HERRAJE',
+  'MATRIMONIO',
+  'COMPACTO',
+  'ACRISTALADO',
+  'ARMADO',
+]);
+
 // ===================== UTILIDADES =====================
+
+/**
+ * Mapea el nombre de una tarea del backend a la tarea estándar
+ * Retorna null si la tarea no necesita verificación
+ */
+const mapearTareaBackend = (descripcionTarea: string): string | null => {
+  const descripcionUpper = descripcionTarea.toUpperCase().trim();
+  
+  // Si existe un mapeo directo, usarlo
+  if (TASK_MAPPING[descripcionUpper]) {
+    return TASK_MAPPING[descripcionUpper];
+  }
+  
+  // Si la descripción no está en el mapeo, no es una tarea indispensable
+  return null;
+};
 
 const formatDateLocal = (date: Date): string => {
   const year = date.getFullYear();
@@ -215,13 +267,6 @@ export default function ControlProduccionFabricaScreen() {
   const [showFromPicker, setShowFromPicker] = useState(false);
   const [showToPicker, setShowToPicker] = useState(false);
 
-  // Modal y estados de expansión
-  const [expandedPedidos, setExpandedPedidos] = useState<Set<string>>(new Set());
-  const [expandedModulos, setExpandedModulos] = useState<Set<string>>(new Set());
-  const [expandedTareas, setExpandedTareas] = useState<Set<string>>(new Set());
-  const [modalVisible, setModalVisible] = useState(false);
-  const [modalContent, setModalContent] = useState<any>(null);
-
   // Usuario
   const [userName, setUserName] = useState<string>('—');
   const [userRole, setUserRole] = useState<string>('—');
@@ -290,16 +335,30 @@ export default function ControlProduccionFabricaScreen() {
       const from = formatDateLocal(fechaDesde);
       const to = formatDateLocal(fechaHasta);
       const url = `${API_URL}/control-terminales/production-analytics?start=${from}&end=${to}`;
-      console.log(`📤 Solicitando datos de producción: ${url}`);
+      console.log(`\n� ============ FETCH TIEMPO REAL ============`);
+      console.log(`📤 URL: ${url}`);
+      console.log(`📅 Rango: ${from} → ${to}`);
       
       const res = await fetch(url);
+      console.log(`📡 Status: ${res.status} ${res.statusText}`);
+      
       if (res.ok) {
         const json = await res.json();
+        
+        console.log(`📦 Tipo de respuesta:`, typeof json);
+        console.log(`📦 Es array json:`, Array.isArray(json));
+        console.log(`📦 Tiene json.data:`, !!json?.data);
+        console.log(`📦 Es array json.data:`, Array.isArray(json?.data));
         
         // El backend devuelve { data: [...], pagination: {...} }
         let data = Array.isArray(json?.data) ? json.data : (Array.isArray(json) ? json : []);
         
-        console.log(`📦 Datos de producción obtenidos: ${data.length} registros`);
+        console.log(`✅ Registros totales: ${data.length}`);
+        
+        if (data.length > 0) {
+          console.log(`📋 Primer registro (muestra):`, JSON.stringify(data[0], null, 2));
+          console.log(`📋 Últimos registro (muestra):`, JSON.stringify(data[data.length - 1], null, 2));
+        }
         
         if (data.length === 0) {
           console.warn('⚠️ No se encontraron registros en el rango de fechas especificado');
@@ -318,21 +377,43 @@ export default function ControlProduccionFabricaScreen() {
         setRecords([]);
       }
     } catch (error) {
-      console.error('Error al obtener tiempo real:', error);
+      console.error('❌ Error al obtener tiempo real:', error);
       setRecords([]);
     }
   };
 
   const fetchPedidosData = async () => {
     try {
+      console.log(`\n🔵 ============ FETCH PEDIDOS COMERCIALES ============`);
+      console.log(`📤 URL: ${API_URL}/control-access/pedidosComerciales`);
+      
       const res = await fetch(`${API_URL}/control-access/pedidosComerciales`);
+      console.log(`📡 Status: ${res.status} ${res.statusText}`);
+      
       if (res.ok) {
         const data = await res.json();
-        console.log(`📦 Pedidos comerciales obtenidos: ${data.length} pedidos`);
+        
+        console.log(`📦 Tipo de respuesta:`, typeof data);
+        console.log(`📦 Es array:`, Array.isArray(data));
+        console.log(`✅ Total pedidos: ${Array.isArray(data) ? data.length : 0}`);
+        
+        if (Array.isArray(data) && data.length > 0) {
+          console.log(`📋 Primer pedido (muestra):`, JSON.stringify(data[0], null, 2));
+          
+          // Analizar cuántos tienen fecha de compromiso
+          const conCompromiso = data.filter((p: Pedido) => p.Compromiso).length;
+          console.log(`📅 Pedidos con fecha compromiso: ${conCompromiso}/${data.length}`);
+          
+          if (conCompromiso < data.length) {
+            const sinCompromiso = data.filter((p: Pedido) => !p.Compromiso).slice(0, 3);
+            console.log(`⚠️ Ejemplos sin compromiso:`, sinCompromiso.map((p: Pedido) => p.NoPedido));
+          }
+        }
+        
         setPedidosData(Array.isArray(data) ? data : []);
       }
     } catch (error) {
-      console.error('Error al obtener pedidos:', error);
+      console.error('❌ Error al obtener pedidos:', error);
       setPedidosData([]);
     }
   };
@@ -381,8 +462,67 @@ export default function ControlProduccionFabricaScreen() {
 
   // ===================== ENRIQUECIMIENTO DE DATOS =====================
 
+  /**
+   * Obtiene las tareas requeridas para un módulo desde el backend
+   * y las mapea a tareas estándar indispensables
+   */
+  const fetchTareasRequeridas = async (codigoSerie: string, codigoNumero: number): Promise<Set<string>> => {
+    try {
+      const url = `${API_URL}/control-pedido/tareas?codigoserie=${codigoSerie}&codigonumero=${codigoNumero}`;
+      console.log(`\n� [TAREAS] Consultando: ${codigoSerie}-${codigoNumero}`);
+      console.log(`📤 URL: ${url}`);
+      
+      const response = await fetch(url);
+      console.log(`📡 Status: ${response.status} ${response.statusText}`);
+      
+      if (!response.ok) {
+        console.warn(`⚠️ No se pudieron obtener tareas para ${codigoSerie}-${codigoNumero}`);
+        return new Set();
+      }
+
+      const tareas: TareaBackend[] = await response.json();
+      
+      console.log(`📦 Tipo respuesta:`, typeof tareas);
+      console.log(`📦 Es array:`, Array.isArray(tareas));
+      console.log(`✅ Total tareas: ${Array.isArray(tareas) ? tareas.length : 0}`);
+      
+      if (!Array.isArray(tareas) || tareas.length === 0) {
+        console.warn(`⚠️ Sin tareas para ${codigoSerie}-${codigoNumero}`);
+        return new Set();
+      }
+
+      if (tareas.length > 0) {
+        console.log(`� Primera tarea (muestra):`, JSON.stringify(tareas[0], null, 2));
+      }
+
+      // Mapear tareas del backend a tareas estándar
+      const tareasRequeridas = new Set<string>();
+      
+      tareas.forEach(tarea => {
+        const tareaEstandar = mapearTareaBackend(tarea.Descripcion);
+        if (tareaEstandar) {
+          tareasRequeridas.add(tareaEstandar);
+          console.log(`  ✅ "${tarea.Descripcion}" → ${tareaEstandar} (INDISPENSABLE)`);
+        } else {
+          console.log(`  ⚪ "${tarea.Descripcion}" → (no indispensable, ignorada)`);
+        }
+      });
+
+      console.log(`📊 Resultado: ${tareasRequeridas.size} tareas indispensables de ${tareas.length} totales`);
+      console.log(`📋 Tareas indispensables:`, Array.from(tareasRequeridas));
+      
+      return tareasRequeridas;
+
+    } catch (error) {
+      console.error(`❌ Error al obtener tareas para ${codigoSerie}-${codigoNumero}:`, error);
+      return new Set();
+    }
+  };
+
   const enrichRecordsWithModuleInfo = async (records: TiempoRealRecord[]): Promise<TiempoRealRecord[]> => {
     try {
+      console.log(`\n🔵 ============ ENRIQUECIMIENTO DE REGISTROS ============`);
+      
       // Agrupar registros por pedido (NumeroManual o Fabricacion)
       const pedidosMap = new Map<string, TiempoRealRecord[]>();
       
@@ -396,18 +536,25 @@ export default function ControlProduccionFabricaScreen() {
         pedidosMap.get(pedido)!.push(r);
       });
 
-      console.log(`📋 Enriqueciendo ${pedidosMap.size} pedidos únicos...`);
+      console.log(`📋 Total pedidos únicos a enriquecer: ${pedidosMap.size}`);
+      console.log(`📋 Pedidos:`, Array.from(pedidosMap.keys()).slice(0, 5));
 
       // Obtener información de cada pedido del backend
       const enrichPromises = Array.from(pedidosMap.entries()).map(async ([pedido, pedidoRecords]) => {
         try {
           const requestBody = { codigoPresupuesto: pedido };
           
+          console.log(`\n🔵 [ENRICH] Pedido: ${pedido}`);
+          console.log(`📤 URL: ${API_URL}/control-pedido/info-para-terminales-costes`);
+          console.log(`📤 Body:`, JSON.stringify(requestBody));
+          
           const response = await fetch(`${API_URL}/control-pedido/info-para-terminales-costes`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody)
           });
+
+          console.log(`📡 Status: ${response.status} ${response.statusText}`);
 
           if (!response.ok) {
             console.warn(`⚠️ No se pudo obtener info para pedido ${pedido}`);
@@ -416,11 +563,17 @@ export default function ControlProduccionFabricaScreen() {
 
           const data: InfoParaTerminalesResponse = await response.json();
 
+          console.log(`📦 Response status: ${data.status}`);
+          console.log(`📦 Cliente: ${data.clienteNombre}`);
+          console.log(`📦 Módulos count: ${data.modulos?.length || 0}`);
+          
+          if (data.modulos && data.modulos.length > 0) {
+            console.log(`� Primer módulo (muestra):`, JSON.stringify(data.modulos[0], null, 2));
+          }
+
           if (data.status !== 'ok' || !data.modulos || data.modulos.length === 0) {
             return;
           }
-
-          console.log(`📦 [Pedido ${pedido}] ${data.modulos.length} módulos, Cliente: ${data.clienteNombre}`);
 
           // Crear mapa de módulos
           const moduloInfoMap = new Map<string, InfoModulo>();
@@ -447,7 +600,7 @@ export default function ControlProduccionFabricaScreen() {
             .map(m => m.Modulo);
 
           if (modulosSinFichajes.length > 0) {
-            console.log(`⚠️ [Pedido ${pedido}] ${modulosSinFichajes.length} módulos sin fichajes:`, modulosSinFichajes);
+            console.log(`⚠️ [Pedido ${pedido}] ${modulosSinFichajes.length} módulos sin fichajes:`, modulosSinFichajes.slice(0, 3));
           }
 
           console.log(`✅ [Pedido ${pedido}] ${enriquecidos}/${pedidoRecords.length} registros enriquecidos`);
@@ -459,7 +612,8 @@ export default function ControlProduccionFabricaScreen() {
 
       await Promise.all(enrichPromises);
 
-      console.log(`✅ Enriquecimiento completado para ${records.length} registros`);
+      console.log(`\n✅ ============ ENRIQUECIMIENTO COMPLETADO ============`);
+      console.log(`📊 Total registros procesados: ${records.length}`);
       return records;
 
     } catch (error) {
@@ -471,6 +625,10 @@ export default function ControlProduccionFabricaScreen() {
   // ===================== ANÁLISIS DE PEDIDOS =====================
 
   const analyzePedidos = useMemo(() => {
+    console.log(`\n🔵 ============ ANÁLISIS DE PEDIDOS ============`);
+    console.log(`📊 Total records a analizar: ${records.length}`);
+    console.log(`📊 Total pedidosData disponibles: ${pedidosData.length}`);
+    
     const pedidosMap = new Map<string, PedidoAnalysis>();
 
     records.forEach(record => {
@@ -482,10 +640,22 @@ export default function ControlProduccionFabricaScreen() {
         // Buscar info de pedido en pedidosData
         const pedidoInfo = pedidosData.find(p => p.NoPedido === pedido);
         
+        console.log(`\n📦 Analizando pedido: ${pedido}`);
+        console.log(`  Cliente record: ${record.ClienteNombre}`);
+        console.log(`  PedidoInfo encontrado:`, pedidoInfo ? 'SÍ' : 'NO');
+        if (pedidoInfo) {
+          console.log(`  Cliente pedidoInfo: ${pedidoInfo.Cliente}`);
+          console.log(`  Compromiso: ${pedidoInfo.Compromiso}`);
+          console.log(`  Recibido: ${pedidoInfo.Recibido}`);
+        }
+        
+        const fechaCompromiso = pedidoInfo?.Compromiso ? new Date(pedidoInfo.Compromiso) : undefined;
+        console.log(`  FechaCompromiso final:`, fechaCompromiso ? fechaCompromiso.toISOString() : 'undefined');
+        
         pedidosMap.set(pedido, {
           pedido,
           cliente: record.ClienteNombre || pedidoInfo?.Cliente || 'Cliente desconocido',
-          fechaCompromiso: pedidoInfo?.Compromiso ? new Date(pedidoInfo.Compromiso) : undefined,
+          fechaCompromiso,
           modulos: new Map(),
           totalModulos: 0,
           modulosIniciados: 0,
@@ -506,6 +676,7 @@ export default function ControlProduccionFabricaScreen() {
         analisis.modulos.set(modulo, {
           modulo,
           tareasRealizadas: new Set(),
+          tareasRequeridas: new Set(), // Inicializar vacío, se llenará después
           tareasTotales: 0,
           porcentajeCompletado: 0,
           tiempoTotalSegundos: 0,
@@ -560,21 +731,42 @@ export default function ControlProduccionFabricaScreen() {
             // Actualizar total de módulos reales desde backend
             analisis.totalModulos = info.modulos.length;
             
-            analisis.modulos.forEach((moduloAnalisis, modulo) => {
-              // Cada módulo tiene una cantidad estimada de tareas
-              // Basado en análisis de logs: promedio de 8 tareas por módulo
-              const tareasEstimadas = 8;
-              moduloAnalisis.tareasTotales = tareasEstimadas;
-              moduloAnalisis.porcentajeCompletado = 
-                (moduloAnalisis.tareasRealizadas.size / tareasEstimadas) * 100;
+            // Procesar cada módulo: obtener tareas requeridas y calcular estadísticas
+            const moduloPromises = info.modulos.map(async (moduloInfo) => {
+              const modulo = moduloInfo.Modulo;
+              const moduloAnalisis = analisis.modulos.get(modulo);
               
-              if (moduloAnalisis.tareasRealizadas.size > 0) {
-                analisis.modulosIniciados++;
-              }
-              if (moduloAnalisis.porcentajeCompletado >= 100) {
-                analisis.modulosCompletados++;
+              if (moduloAnalisis) {
+                // 🔍 Obtener tareas requeridas desde el backend
+                const tareasRequeridas = await fetchTareasRequeridas(
+                  moduloInfo.CodigoSerie, 
+                  moduloInfo.CodigoNumero
+                );
+                
+                moduloAnalisis.tareasRequeridas = tareasRequeridas;
+                
+                // Calcular tareas totales basado en tareas requeridas + tareas realizadas
+                const todasLasTareas = new Set([
+                  ...Array.from(tareasRequeridas),
+                  ...Array.from(moduloAnalisis.tareasRealizadas)
+                ]);
+                
+                moduloAnalisis.tareasTotales = todasLasTareas.size || 8; // Fallback a 8 si no hay tareas
+                moduloAnalisis.porcentajeCompletado = 
+                  moduloAnalisis.tareasTotales > 0 
+                    ? (moduloAnalisis.tareasRealizadas.size / moduloAnalisis.tareasTotales) * 100 
+                    : 0;
+                
+                if (moduloAnalisis.tareasRealizadas.size > 0) {
+                  analisis.modulosIniciados++;
+                }
+                if (moduloAnalisis.porcentajeCompletado >= 100) {
+                  analisis.modulosCompletados++;
+                }
               }
             });
+            
+            await Promise.all(moduloPromises);
 
             // Calcular porcentaje general
             if (analisis.totalModulos > 0) {
@@ -587,6 +779,24 @@ export default function ControlProduccionFabricaScreen() {
         console.error(`❌ Error al obtener info de tareas para ${pedido}:`, error);
       }
     });
+
+    console.log(`\n✅ ============ ANÁLISIS COMPLETADO ============`);
+    console.log(`📊 Total pedidos analizados: ${pedidosMap.size}`);
+    
+    // Resumen de fechas de compromiso
+    let conFechaCompromiso = 0;
+    let sinFechaCompromiso = 0;
+    pedidosMap.forEach((analisis, pedido) => {
+      if (analisis.fechaCompromiso) {
+        conFechaCompromiso++;
+      } else {
+        sinFechaCompromiso++;
+        console.log(`  ⚠️ SIN FECHA: ${pedido} (${analisis.cliente})`);
+      }
+    });
+    
+    console.log(`📅 Con fecha compromiso: ${conFechaCompromiso}`);
+    console.log(`⚠️ Sin fecha compromiso: ${sinFechaCompromiso}`);
 
     return pedidosMap;
   }, [records, pedidosData]);
@@ -675,345 +885,150 @@ export default function ControlProduccionFabricaScreen() {
     });
   }, [analyzePedidos, searchQuery]);
 
-  // ===================== FUNCIONES DE TOGGLE =====================
-
-  const togglePedido = (pedido: string) => {
-    setExpandedPedidos(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(pedido)) {
-        newSet.delete(pedido);
-      } else {
-        newSet.add(pedido);
-      }
-      return newSet;
-    });
-  };
-
-  const toggleModulo = (key: string) => {
-    setExpandedModulos(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(key)) {
-        newSet.delete(key);
-      } else {
-        newSet.add(key);
-      }
-      return newSet;
-    });
-  };
-
-  const toggleTarea = (key: string) => {
-    setExpandedTareas(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(key)) {
-        newSet.delete(key);
-      } else {
-        newSet.add(key);
-      }
-      return newSet;
-    });
-  };
-
-  // ===================== RENDERIZADO =====================
+  // ===================== RENDERIZADO PLANO (SIN COLLAPSIBLES) =====================
 
   const renderPedidoItem = ({ item: analisis }: { item: PedidoAnalysis }) => {
-    const expanded = expandedPedidos.has(analisis.pedido);
     const proyeccion = vistaActiva === 'analisis' ? calculateProyeccion(analisis) : null;
+    
+    // Calcular días restantes para mostrar
+    const diasRestantes = analisis.fechaCompromiso 
+      ? Math.ceil((analisis.fechaCompromiso.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+      : null;
 
     return (
-      <View style={styles.pedidoCard}>
-        {/* Cabecera del pedido */}
-        <TouchableOpacity 
-          style={styles.pedidoHeader}
-          onPress={() => togglePedido(analisis.pedido)}
-        >
-          <View style={styles.pedidoHeaderLeft}>
-            <Ionicons 
-              name={expanded ? 'chevron-down' : 'chevron-forward'} 
-              size={24} 
-              color="#2e78b7" 
-            />
-            <View style={styles.pedidoHeaderText}>
-              <Text style={styles.pedidoNumero}>{analisis.pedido}</Text>
-              <Text style={styles.pedidoCliente}>{analisis.cliente}</Text>
-            </View>
-          </View>
-          <View style={styles.pedidoHeaderRight}>
-            {analisis.fichajesAbiertos > 0 && (
-              <View style={styles.badgeActive}>
-                <Text style={styles.badgeText}>
-                  {analisis.fichajesAbiertos} activo(s)
-                </Text>
-              </View>
-            )}
-            <Text style={styles.pedidoPorcentaje}>
-              {Math.round(analisis.porcentajeGeneral)}%
+      <View style={styles.pedidoCardFlat}>
+        {/* 📦 CABECERA DEL PEDIDO */}
+        <View style={styles.pedidoHeaderFlat}>
+          <Text style={styles.pedidoTitleFlat}>
+            📦 PEDIDO {analisis.pedido}
+            {analisis.cliente && ` (Cliente: ${analisis.cliente})`}
+          </Text>
+        </View>
+
+        {/* 📊 INFO RÁPIDA DEL PEDIDO */}
+        <View style={styles.pedidoInfoFlat}>
+          <Text style={styles.pedidoInfoText}>
+            ├─ 📊 Progreso: {Math.round(analisis.porcentajeGeneral)}% | Tiempo dedicado: {formatDurationHM(analisis.tiempoTotalSegundos)}
+          </Text>
+          
+          {analisis.fechaCompromiso && (
+            <Text style={[
+              styles.pedidoInfoText,
+              diasRestantes !== null && diasRestantes < 0 && styles.pedidoInfoDanger
+            ]}>
+              ├─ 📅 Compromiso: {formatDateForDisplay(analisis.fechaCompromiso.toISOString())}
+              {diasRestantes !== null && ` (${diasRestantes} ${diasRestantes === 1 ? 'día' : 'días'} ${diasRestantes < 0 ? 'vencido' : 'restantes'})`}
             </Text>
-          </View>
-        </TouchableOpacity>
+          )}
 
-        {/* Información adicional del pedido */}
-        {expanded && (
-          <View style={styles.pedidoContent}>
-            {/* Información básica */}
-            <View style={styles.infoRow}>
-              <Ionicons name="calendar-outline" size={16} color="#6b7280" />
-              <Text style={styles.infoText}>
-                Compromiso: {analisis.fechaCompromiso 
-                  ? formatDateForDisplay(analisis.fechaCompromiso.toISOString())
-                  : 'Sin fecha'}
-              </Text>
-            </View>
+          {!analisis.fechaCompromiso && (
+            <Text style={[styles.pedidoInfoText, styles.pedidoInfoWarning]}>
+              ├─ ⚠️ Sin fecha de compromiso
+            </Text>
+          )}
+          
+          <Text style={styles.pedidoSeparator}>│</Text>
+        </View>
 
-            <View style={styles.infoRow}>
-              <Ionicons name="cube-outline" size={16} color="#6b7280" />
-              <Text style={styles.infoText}>
-                Módulos: {analisis.modulosIniciados}/{analisis.totalModulos} iniciados, {' '}
-                {analisis.modulosCompletados} completados
-              </Text>
-            </View>
-
-            <View style={styles.infoRow}>
-              <Ionicons name="people-outline" size={16} color="#6b7280" />
-              <Text style={styles.infoText}>
-                Operarios activos: {analisis.operariosActivos.size}
-              </Text>
-            </View>
-
-            <View style={styles.infoRow}>
-              <Ionicons name="time-outline" size={16} color="#6b7280" />
-              <Text style={styles.infoText}>
-                Tiempo total: {formatDurationHM(analisis.tiempoTotalSegundos)}
-              </Text>
-            </View>
-
-            {analisis.estadoMaterial && (
-              <View style={styles.infoRow}>
-                <Ionicons name="list-outline" size={16} color="#6b7280" />
-                <Text style={styles.infoText}>
-                  Material: {analisis.estadoMaterial}
-                </Text>
-              </View>
-            )}
-
-            {/* Proyección (solo en vista análisis) */}
-            {vistaActiva === 'analisis' && proyeccion && (
-              <View style={[
-                styles.proyeccionCard,
-                proyeccion.cumpliraCompromiso ? styles.proyeccionOk : styles.proyeccionWarning
-              ]}>
-                <View style={styles.proyeccionHeader}>
-                  <Ionicons 
-                    name={proyeccion.cumpliraCompromiso ? 'checkmark-circle' : 'alert-circle'} 
-                    size={20} 
-                    color={proyeccion.cumpliraCompromiso ? '#059669' : '#dc2626'} 
-                  />
-                  <Text style={styles.proyeccionTitle}>Proyección</Text>
-                </View>
-                
-                <Text style={styles.proyeccionRazon}>{proyeccion.razon}</Text>
-                
-                <View style={styles.proyeccionStats}>
-                  <Text style={styles.proyeccionStat}>
-                    📅 {proyeccion.diasRestantes} días restantes
-                  </Text>
-                  <Text style={styles.proyeccionStat}>
-                    ⏱️ {Math.round(proyeccion.horasRestantesEstimadas)}h estimadas / {' '}
-                    {Math.round(proyeccion.horasDisponibles)}h disponibles
-                  </Text>
-                  
-                  {proyeccion.requierePersonalAdicional && (
-                    <Text style={styles.proyeccionAlertText}>
-                      ⚠️ Se sugiere {proyeccion.personalSugerido} operario(s) adicional(es)
-                    </Text>
-                  )}
-                  
-                  {proyeccion.tareasCriticas.length > 0 && (
-                    <Text style={styles.proyeccionCriticas}>
-                      🔴 Tareas críticas: {proyeccion.tareasCriticas.join(', ')}
-                    </Text>
-                  )}
-                </View>
-              </View>
-            )}
-
-            {/* Barra de progreso */}
-            <View style={styles.progressBarContainer}>
-              <View 
-                style={[
-                  styles.progressBar, 
-                  { width: `${analisis.porcentajeGeneral}%` }
-                ]} 
-              />
-            </View>
-
-            {/* Módulos */}
-            {renderModulos(analisis)}
-          </View>
-        )}
+        {/* 📁 MÓDULOS (SIEMPRE VISIBLES) */}
+        {renderModulosFlat(analisis)}
       </View>
     );
   };
 
-  const renderModulos = (analisis: PedidoAnalysis) => {
-    return Array.from(analisis.modulos.entries()).map(([modulo, moduloAnalisis]) => {
-      const moduloKey = `${analisis.pedido}_${modulo}`;
-      const expandedModulo = expandedModulos.has(moduloKey);
+  const renderModulosFlat = (analisis: PedidoAnalysis) => {
+    const modulosArray = Array.from(analisis.modulos.entries());
+    
+    return modulosArray.map(([modulo, moduloAnalisis], index) => {
+      const isLast = index === modulosArray.length - 1;
+      const prefix = isLast ? '└─' : '├─';
 
       return (
-        <View key={moduloKey} style={styles.moduloCard}>
-          <TouchableOpacity 
-            style={styles.moduloHeader}
-            onPress={() => toggleModulo(moduloKey)}
-          >
-            <View style={styles.moduloHeaderLeft}>
-              <View style={styles.branchLine} />
-              <Ionicons 
-                name={expandedModulo ? 'chevron-down' : 'chevron-forward'} 
-                size={20} 
-                color="#059669" 
-              />
-              <Text style={styles.moduloNombre}>{modulo}</Text>
-            </View>
-            <View style={styles.moduloHeaderRight}>
-              {moduloAnalisis.fichajesAbiertos > 0 && (
-                <View style={styles.badgeActiveSmall}>
-                  <Text style={styles.badgeTextSmall}>
-                    {moduloAnalisis.fichajesAbiertos} activo
-                  </Text>
-                </View>
-              )}
-              <Text style={styles.moduloPorcentaje}>
-                {Math.round(moduloAnalisis.porcentajeCompletado)}%
-              </Text>
-            </View>
-          </TouchableOpacity>
+        <View key={modulo} style={styles.moduloContainerFlat}>
+          {/* NOMBRE DEL MÓDULO */}
+          <Text style={styles.moduloTitleFlat}>
+            {prefix} 📁 MÓDULO {modulo}
+          </Text>
 
-          {expandedModulo && (
-            <View style={styles.moduloContent}>
-              <View style={styles.moduloStats}>
-                <Text style={styles.moduloStat}>
-                  ✓ Tareas: {moduloAnalisis.tareasRealizadas.size}/{moduloAnalisis.tareasTotales}
-                </Text>
-                <Text style={styles.moduloStat}>
-                  👷 Operarios: {moduloAnalisis.operarios.size}
-                </Text>
-                <Text style={styles.moduloStat}>
-                  ⏱️ Tiempo: {formatDurationHM(moduloAnalisis.tiempoTotalSegundos)}
-                </Text>
-                {moduloAnalisis.ultimaActividad && (
-                  <Text style={styles.moduloStat}>
-                    🕐 Última: {moduloAnalisis.ultimaActividad}
-                  </Text>
-                )}
-              </View>
-
-              {/* Tareas */}
-              {renderTareas(analisis.pedido, modulo, moduloAnalisis)}
-            </View>
-          )}
+          {/* TAREAS DEL MÓDULO (SIEMPRE VISIBLES) */}
+          {renderTareasFlat(analisis.pedido, modulo, moduloAnalisis, isLast)}
         </View>
       );
     });
   };
 
-  const renderTareas = (pedido: string, modulo: string, moduloAnalisis: ModuloAnalysis) => {
-    const tareasArray = Array.from(moduloAnalisis.tareasRealizadas);
+  const renderTareasFlat = (
+    pedido: string, 
+    modulo: string, 
+    moduloAnalisis: ModuloAnalysis,
+    isLastModulo: boolean
+  ) => {
+    // Combinar tareas realizadas y requeridas
+    const todasLasTareas = new Set([
+      ...Array.from(moduloAnalisis.tareasRealizadas),
+      ...Array.from(moduloAnalisis.tareasRequeridas)
+    ]);
 
-    return tareasArray.map(tarea => {
-      const tareaKey = `${pedido}_${modulo}_${tarea}`;
-      const expandedTarea = expandedTareas.has(tareaKey);
+    const tareasArray = Array.from(todasLasTareas).sort();
+
+    return tareasArray.map((tarea, index) => {
+      const isLastTarea = index === tareasArray.length - 1;
+      const tareaRealizada = moduloAnalisis.tareasRealizadas.has(tarea);
+      const tareaRequerida = moduloAnalisis.tareasRequeridas.has(tarea);
       
-      // Obtener stats de la tarea
-      const stats = tareaStatsGlobal.get(tarea);
-      
-      // Obtener registros de esta tarea en este módulo
+      // Obtener registros de esta tarea
       const tareaRecords = records.filter(r => 
         normalizePedido(r.NumeroManual || r.Fabricacion) === pedido &&
         normalizeModulo(r.Modulo) === modulo &&
         normalizeTarea(r.CodigoTarea) === tarea
       );
 
-      return (
-        <View key={tareaKey} style={styles.tareaCard}>
-          <TouchableOpacity 
-            style={styles.tareaHeader}
-            onPress={() => toggleTarea(tareaKey)}
-          >
-            <View style={styles.tareaHeaderLeft}>
-              <View style={styles.branchLine2} />
-              <Ionicons 
-                name={expandedTarea ? 'chevron-down' : 'chevron-forward'} 
-                size={18} 
-                color="#ea580c" 
-              />
-              <Text style={styles.tareaNombre}>{tarea}</Text>
-            </View>
-            <View style={styles.tareaHeaderRight}>
-              <Text style={styles.tareaFichajes}>
-                {tareaRecords.length} fichaje(s)
-              </Text>
-            </View>
-          </TouchableOpacity>
+      // Determinar estado y operario
+      let estado = '';
+      let operarioInfo = '';
+      let tiempoInfo = '';
+      let estadoIcon = '';
+      let estadoStyle = styles.tareaTextNormal;
 
-          {expandedTarea && (
-            <View style={styles.tareaContent}>
-              {stats && (
-                <View style={styles.tareaStats}>
-                  <Text style={styles.tareaStat}>
-                    ⏱️ Promedio global: {formatDurationHM(stats.tiempoPromedioSegundos)}
-                  </Text>
-                  <Text style={styles.tareaStat}>
-                    📊 Total fichajes: {stats.totalFichajes}
-                  </Text>
-                </View>
-              )}
+      if (tareaRequerida && !tareaRealizada) {
+        // PENDIENTE (indispensable sin fichar)
+        estado = 'Pendiente - No fichada';
+        estadoIcon = '⚠️';
+        estadoStyle = styles.tareaTextPendiente;
+      } else if (tareaRealizada) {
+        // Obtener info del último fichaje
+        const ultimoFichaje = tareaRecords.length > 0 ? tareaRecords[tareaRecords.length - 1] : null;
+        const tiempoTotal = tareaRecords.reduce((sum, r) => sum + calculateAdjustedTime(r), 0);
+        const hayAbiertos = tareaRecords.some(r => r.Abierta === 1);
 
-              {/* Operarios */}
-              {renderOperarios(tareaRecords)}
-            </View>
-          )}
-        </View>
-      );
-    });
-  };
+        if (hayAbiertos) {
+          estado = 'En proceso';
+          estadoIcon = '🔴';
+          estadoStyle = styles.tareaTextEnProceso;
+        } else {
+          estado = 'Completada';
+          estadoIcon = '✅';
+          estadoStyle = styles.tareaTextCompletada;
+        }
 
-  const renderOperarios = (tareaRecords: TiempoRealRecord[]) => {
-    // Agrupar por operario
-    const operariosMap = new Map<string, TiempoRealRecord[]>();
-    
-    tareaRecords.forEach(record => {
-      const operario = record.OperarioNombre || 'Sin nombre';
-      if (!operariosMap.has(operario)) {
-        operariosMap.set(operario, []);
+        // Información del operario
+        if (ultimoFichaje?.OperarioNombre) {
+          operarioInfo = ` - ${ultimoFichaje.OperarioNombre}`;
+        }
+
+        // Información del tiempo
+        if (tiempoTotal > 0) {
+          tiempoInfo = ` - ${formatDurationHM(tiempoTotal)}`;
+        }
       }
-      operariosMap.get(operario)!.push(record);
-    });
 
-    return Array.from(operariosMap.entries()).map(([operario, registros]) => {
-      const tiempoTotal = registros.reduce((sum, r) => sum + calculateAdjustedTime(r), 0);
-      const abiertos = registros.filter(r => r.Abierta === 1).length;
+      const indent = isLastModulo ? '    ' : '│   ';
+      const tareaPrefix = isLastTarea ? '└─' : '├─';
 
       return (
-        <View key={operario} style={styles.operarioCard}>
-          <View style={styles.operarioHeader}>
-            <View style={styles.branchLine3} />
-            <Ionicons name="person" size={16} color="#6366f1" />
-            <Text style={styles.operarioNombre}>{operario}</Text>
-          </View>
-          <View style={styles.operarioStats}>
-            <Text style={styles.operarioStat}>
-              ⏱️ {formatDurationHM(tiempoTotal)}
-            </Text>
-            <Text style={styles.operarioStat}>
-              📝 {registros.length} fichaje(s)
-            </Text>
-            {abiertos > 0 && (
-              <Text style={styles.operarioStatActive}>
-                🔴 {abiertos} activo(s)
-              </Text>
-            )}
-          </View>
-        </View>
+        <Text key={tarea} style={[styles.tareaLineFlat, estadoStyle]}>
+          {indent}{tareaPrefix} {estadoIcon} {tarea} ({estado}{operarioInfo}{tiempoInfo})
+        </Text>
       );
     });
   };
@@ -1586,6 +1601,46 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
 
+  // Estilos para tareas pendientes
+  tareaCardPendiente: {
+    backgroundColor: '#fee2e2', // Fondo rojo claro
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+  },
+  tareaNombrePendiente: {
+    color: '#dc2626',
+    fontWeight: '700',
+  },
+  tareaFichajesPendiente: {
+    color: '#dc2626',
+    fontWeight: '600',
+  },
+  badgePendiente: {
+    backgroundColor: '#dc2626',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 8,
+  },
+  badgePendienteText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  tareaStatsPendiente: {
+    gap: 6,
+    backgroundColor: '#fef2f2',
+    padding: 10,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  tareaStatPendiente: {
+    fontSize: 11,
+    color: '#991b1b',
+    fontWeight: '500',
+  },
+
   // Estilos de Operario
   operarioCard: {
     marginTop: 6,
@@ -1624,5 +1679,94 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#dc2626',
     fontWeight: '600',
+  },
+
+  // ===================== ESTILOS FLAT VIEW =====================
+  pedidoCardFlat: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginVertical: 8,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  pedidoHeaderFlat: {
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    paddingBottom: 12,
+  },
+  pedidoTitleFlat: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  pedidoInfoFlat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  pedidoInfoText: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginLeft: 4,
+  },
+  pedidoInfoDanger: {
+    fontSize: 13,
+    color: '#dc2626',
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  pedidoInfoWarning: {
+    fontSize: 13,
+    color: '#f59e0b',
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  pedidoSeparator: {
+    fontSize: 13,
+    color: '#d1d5db',
+    marginVertical: 8,
+  },
+  moduloContainerFlat: {
+    marginLeft: 8,
+    marginTop: 8,
+  },
+  moduloTitleFlat: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2563eb',
+    marginBottom: 6,
+  },
+  tareaLineFlat: {
+    marginLeft: 24,
+    marginBottom: 4,
+  },
+  tareaTextNormal: {
+    fontSize: 12,
+    color: '#6b7280',
+    lineHeight: 18,
+  },
+  tareaTextPendiente: {
+    fontSize: 12,
+    color: '#dc2626',
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  tareaTextEnProceso: {
+    fontSize: 12,
+    color: '#f59e0b',
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  tareaTextCompletada: {
+    fontSize: 12,
+    color: '#10b981',
+    lineHeight: 18,
   },
 });
