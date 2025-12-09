@@ -1,0 +1,40 @@
+FLUJO DE AUTENTICACIÓN
+
+1. ARCHIVOS PRINCIPALES:
+   - UI: app/login.tsx (Pantalla de login)
+   - Lógica: hooks/useAuth.ts (Manejo de estado y peticiones)
+   - Config: config/constants.ts (Define API_URL)
+
+2. FLUJO DE DATOS:
+   a. Usuario ingresa credenciales en app/login.tsx.
+   b. Se llama a login() en hooks/useAuth.ts.
+   c. Intento 1 (Servidor Principal):
+      - Petición POST a: http://85.59.105.234:3000/auth/login (o valor de EXPO_PUBLIC_API_URL)
+      - Si responde OK: Guarda token y datos.
+   d. Intento 2 (Fallback Lambda - Si falla el principal con 401/404):
+      - Petición POST a: https://ba2oohujh5.execute-api.eu-north-1.amazonaws.com/login
+      - Si responde OK: Guarda token simulado 'lambda'.
+
+3. ALMACENAMIENTO (AsyncStorage):
+   - 'token': Token de sesión (JWT o 'lambda').
+   - 'userData': JSON con info del usuario (id, nombre, rol).
+   - 'allowedModuleIds': JSON con lista de módulos permitidos según rol/nombre (Lógica SaaS).
+
+4. TECNOLOGÍA:
+   - Cliente: Axios para peticiones HTTP.
+   - Persistencia: AsyncStorage (Local).
+   - Backend: Node.js/Express (Principal) y AWS Lambda (Respaldo).
+
+5. DONDE CAMBIAR LAS URLS:
+
+   A) URL DEL SERVIDOR PRINCIPAL (http://85.59.105.234:3000):
+      - Archivo: config/constants.ts
+      - Línea: 5
+      - Variable: API_URL
+      - Nota: También puede cambiarse mediante la variable de entorno EXPO_PUBLIC_API_URL en el archivo .env si existe.
+
+   B) URL DE AWS LAMBDA (https://ba2oohujh5.execute-api.eu-north-1.amazonaws.com/login):
+      - Archivo: hooks/useAuth.ts
+      - Línea: 121 (aproximadamente, dentro de la función login)
+      - Variable: lambdaUrl
+      - Nota: Esta URL está escrita directamente en el código (hardcoded).
