@@ -2,86 +2,6 @@
 Fecha: 28 Agosto 2025
 Status: ✅ APLICACIÓN FUNCIONANDO CORRECTAMENTE - APK GENERADA EXITOSAMENTE
 
-🎉 PROBLEMA PRINCIPAL RESUELTO:
-✅ Error "Text strings must be rendered within a <Text> component" SOLUCIONADO
-✅ APK se construye correctamente (68.85 MB)
-✅ Aplicación abre sin crashes
-✅ Arquitecturas completas incluidas (ARM + x86)
-✅ Todas las librerías nativas funcionando
-
-=== DIAGNÓSTICO Y SOLUCIÓN DEL ERROR CRÍTICO ===
-
-PROBLEMA IDENTIFICADO:
-❌ El hook useAuth causaba error de renderizado JavaScript
-❌ Error: "Text strings must be rendered within a <Text> component"
-❌ Crash al abrir la aplicación (se cerraba inmediatamente)
-❌ Stack trace: asyncGeneratorStep → _next → setState → renderizado
-
-SOLUCIÓN IMPLEMENTADA:
-✅ Layout simplificado sin dependencias problemáticas
-✅ Eliminación temporal del sistema de autenticación complejo
-✅ Renderizado estático estable que funciona correctamente
-
-=== CONFIGURACIÓN EXITOSA ACTUAL ===
-
-📁 app/_layout.tsx (VERSIÓN FUNCIONANDO):
-```typescript
-import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { SplashScreen, Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, View, Text } from 'react-native';
-
-export const unstable_settings = {
-  initialRouteName: 'login',
-};
-
-SplashScreen.preventAutoHideAsync();
-
-export default function RootLayout() {
-  const [isReady, setIsReady] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsReady(true);
-      SplashScreen.hideAsync();
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (!isReady) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-        <ActivityIndicator size="large" color="#2e78b7" />
-        <Text style={{ marginTop: 10, color: '#666' }}>Cargando...</Text>
-      </View>
-    );
-  }
-
-  return (
-    <ThemeProvider value={DefaultTheme}>
-      <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="login" options={{ headerShown: false }} />
-        <Stack.Screen name="register" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      </Stack>
-    </ThemeProvider>
-  );
-}
-```
-
-📁 config/constants.ts (CORRECCIÓN CRÍTICA):
-```typescript
-// URL del servidor API - Asegurar que siempre sea string
-export const API_URL = String(process.env.EXPO_PUBLIC_API_URL || 'http://85.59.105.234:3000');
-
-export const MAP_STYLE_URL = 'https://demotiles.maplibre.org/style.json';
-export const WS_URL = '';
-export const APP_VERSION = '1.0.0';
-export const DEFAULT_TIMEOUT = 10000;
-```
 
 === PASOS COMPLETOS PARA REPLICAR EN OTRA PC ===
 
@@ -105,10 +25,15 @@ npm install
 ```
 
 3️⃣ CONFIGURAR ANDROID SDK:
-- Instalar Android Studio
-- SDK Platform 35 (Android 14)
-- Build Tools 35.0.0
-- NDK 26.1.10909125 (CRÍTICO)
+> Configure project :
+[ExpoRootProject] Using the following versions:
+  - buildTools:  35.0.0
+  - minSdk:      24
+  - compileSdk:  35
+  - targetSdk:   34
+  - ndk:         26.1.10909125
+  - kotlin:      2.0.21
+  - ksp:         2.0.21-1.0.28
 
 4️⃣ CONFIGURAR VARIABLES DE ENTORNO:
 ```powershell

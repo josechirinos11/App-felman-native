@@ -65,6 +65,13 @@ const menuItemsBase: MenuItem[] = [
     icon: 'build-outline', 
     route: '/instaladores',
     allowedRoles: ['admin', 'developer', 'administrador', 'supervisor', 'instalador']
+  },
+  { 
+    id: 6, 
+    title: 'Afix', 
+    icon: 'search-outline', 
+    route: '/afix',
+    allowedRoles: ['admin', 'developer', 'administrador', 'comercial']
   }
 ];
 
