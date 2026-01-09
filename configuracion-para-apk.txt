@@ -1,3 +1,37 @@
+=== CONFIGURACIÓN para cargar WEB ===
+npx expo export -p web
+
+# Desde tu máquina (Windows), en la raíz del frontend
+scp -r "D:\App-felman-native\dist\*" deploy_felman@85.59.105.234:/appFelmanBackendLinux/dist/
+
+# desde la pc de felman:      
+scp -r "C:\jose chirinos\code\appNativeFelman\dist\*" deploy_felman@85.59.105.234:/appFelmanBackendLinux/dist/
+
+
+=== CONFIGURACIÓN para virtual android WEB ===
+
+# 1) Localiza el SDK (ajusta si tu SDK está en otra ruta)
+$Env:ANDROID_SDK_ROOT="$env:LOCALAPPDATA\Android\Sdk"
+# 2) Lista tus AVDs para copiar el nombre exacto
+& "$Env:ANDROID_SDK_ROOT\emulator\emulator.exe" -list-avds
+
+
+& "$Env:ANDROID_SDK_ROOT\emulator\emulator.exe" `
+   -avd Pixel_7a `
+   -no-snapshot -wipe-data `
+   -gpu swiftshader_indirect `
+   -accel on `
+   -no-boot-anim -verbose
+
+
+ 
+=== CONFIGURACIÓN para crear apk ===  
+
+#en raiz 
+cd android
+./gradlew clean
+./gradlew assembleRelease
+
 === CONFIGURACIÓN PARA APK - SOLUCIÓN COMPLETA EXITOSA ===
 Fecha: 28 Agosto 2025
 Status: ✅ APLICACIÓN FUNCIONANDO CORRECTAMENTE - APK GENERADA EXITOSAMENTE
