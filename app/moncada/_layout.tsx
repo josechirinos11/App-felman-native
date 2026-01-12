@@ -64,6 +64,14 @@ export default function OptimaTabLayout() {
         }}
       />
 
+      <Tabs.Screen
+        name="dashboard"
+        options={{
+          title: 'Dashboard',
+          tabBarIcon: ({ color }) => <TabBarIcon name="stats-chart-outline" color={color} />,
+        }}
+      />
+
       {/* Las tres vistas nuevas de Dashboard */}
       <Tabs.Screen
         name="control-incidencias"

@@ -20,14 +20,16 @@ interface MenuItem {
   route: RouteNames;
 }
 const menuItems: MenuItem[] = [
+ 
   { id: 1, title: 'Atras', icon: 'arrow-back-outline', route: '/' },
-  { id: 2, title: 'Terminales', icon: 'location-outline', route: '/moncada/control-terminalesMod' },
-  { id: 3, title: 'Tiempo real', icon: 'time-outline', route: '/moncada/control-tiempo-realMod' },
-  { id: 4, title: 'Control Pedidos', icon: 'cube-outline', route: '/moncada/control-pedidos' },
-  { id: 5, title: 'Control de Incidencias', icon: 'alert-circle-outline', route: '/moncada/control-incidencias' },
-  { id: 6, title: 'Entregas Diarias', icon: 'calendar-outline', route: '/moncada/control-entregas-diarias' },
-  { id: 7, title: 'Análisis Produccion', icon: 'bar-chart-outline', route: '/moncada/control-produccion-sonnet' },
-  { id: 8, title: 'Produccion Fabrica', icon: 'construct-outline', route: '/moncada/control-produccion-fabrica' },
+   { id: 2, title: 'dashboard', icon: 'grid-outline', route: '/moncada/dashboard' },
+  { id: 3, title: 'Terminales', icon: 'location-outline', route: '/moncada/control-terminalesMod' },
+  { id: 4, title: 'Tiempo real', icon: 'time-outline', route: '/moncada/control-tiempo-realMod' },
+  { id: 5, title: 'Control Pedidos', icon: 'cube-outline', route: '/moncada/control-pedidos' },
+  { id: 6, title: 'Control de Incidencias', icon: 'alert-circle-outline', route: '/moncada/control-incidencias' },
+  { id: 7, title: 'Entregas Diarias', icon: 'calendar-outline', route: '/moncada/control-entregas-diarias' },
+  { id: 8, title: 'Análisis Produccion', icon: 'bar-chart-outline', route: '/moncada/control-produccion-sonnet' },
+  { id: 9, title: 'Produccion Fabrica', icon: 'construct-outline', route: '/moncada/control-produccion-fabrica' },
 ];
 
 
