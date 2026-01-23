@@ -86,7 +86,7 @@ export default function DashboardScreen() {
     const getToken = async () => {
       const storedToken = await AsyncStorage.getItem('token');
       setToken(storedToken);
-      
+
       // Cargar datos de usuario
       const rawUser = await AsyncStorage.getItem('userData');
       if (rawUser) {
@@ -100,7 +100,7 @@ export default function DashboardScreen() {
   const fetchData = useCallback(async (authToken: string) => {
     // setLoading(true) should only be for the initial load.
     // For background refreshes, we don't want a loading indicator.
-    
+
     try {
       const headers = {
         'Content-Type': 'application/json',
@@ -117,10 +117,10 @@ export default function DashboardScreen() {
       };
 
       const [pedidosRes, pvcRes, aluminioRes, alertasRes] = await Promise.all([
-        fetchWithAuth(`${API_URL}/control-terminales/lista_pepdidos_a_procesar`),
+        fetchWithAuth(`${API_URL}/control-n8n/lista_pepdidos_a_procesar`),
         fetchWithAuth(`${API_URL}/control-terminales/dashboard_pvc`),
         fetchWithAuth(`${API_URL}/control-terminales/dashboard_aluminio`),
-        fetchWithAuth(`${API_URL}/control-terminales/alerta2`)
+        fetchWithAuth(`${API_URL}/control-n8n/alerta2`)
       ]);
 
       console.log('🔍 URL PVC:', `${API_URL}/control-terminales/dashboard_pvc`);
@@ -144,7 +144,7 @@ export default function DashboardScreen() {
         console.log('📊 Dashboard PVC - Keys del primer item:', Object.keys(pvcRes[0]));
       }
       setDashboardPvc(Array.isArray(pvcRes) ? pvcRes : []);
-      
+
       // Update Dashboard Aluminio
       console.log('📊 Dashboard Aluminio Response:', aluminioRes);
       console.log('📊 Dashboard Aluminio - Total items:', Array.isArray(aluminioRes) ? aluminioRes.length : 0);
@@ -163,10 +163,10 @@ export default function DashboardScreen() {
       // Only set error if it's a new one to avoid overwriting user-dismissed errors
       setErrorMessage(prev => prev === error.message ? prev : error.message);
     } finally {
-        // Only stop loading on the first fetch
-        if (loading) {
-            setLoading(false);
-        }
+      // Only stop loading on the first fetch
+      if (loading) {
+        setLoading(false);
+      }
     }
   }, [loading]);
 
@@ -174,7 +174,7 @@ export default function DashboardScreen() {
     if (token) {
       // Initial fetch
       fetchData(token);
-      
+
       // Set up interval for subsequent fetches
       const interval = setInterval(() => {
         console.log('Refreshing data...');
@@ -183,9 +183,9 @@ export default function DashboardScreen() {
 
       // Cleanup interval on unmount
       return () => clearInterval(interval);
-    } else if (!loading) { 
-        setLoading(false);
-        setErrorMessage("Authentication token not found. Please log in again.");
+    } else if (!loading) {
+      setLoading(false);
+      setErrorMessage("Authentication token not found. Please log in again.");
     }
   }, [token, fetchData, loading]);
 
@@ -203,13 +203,13 @@ export default function DashboardScreen() {
     const date = new Date(dateString);
     return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
-  
+
   // --- Render Functions for each Tab ---
 
   const renderPedidos = () => (
-    <View style={{...styles.tableContainer, width: width}}>
+    <View style={{ ...styles.tableContainer, width: width }}>
       <Text style={styles.tableTitle}>Pedidos a Procesar</Text>
-      
+
       {/* Encabezados para vista de tabla (Web/Tablet) */}
       {isTableView && (
         <View style={styles.tableHeaderRow}>
@@ -222,7 +222,7 @@ export default function DashboardScreen() {
           <Text style={[styles.tableHeaderText, { flex: 0.8 }]}>COMPROMISO</Text>
         </View>
       )}
-      
+
       <FlatList
         data={pedidos.filter(p => p.Seccion === 'PVC' || p.Seccion === 'ALUMINIO')}
         keyExtractor={(item) => item.IdPedido.toString()}
@@ -245,7 +245,7 @@ export default function DashboardScreen() {
               <View style={styles.positionBadge}>
                 <Text style={styles.positionBadgeText}>{index + 1}</Text>
               </View>
-              
+
               {/* Primera línea: No Pedido, Sección y Cliente */}
               <View style={styles.pedidoRowFirst}>
                 <View style={styles.pedidoNoPedidoContainer}>
@@ -261,7 +261,7 @@ export default function DashboardScreen() {
                   <Text style={styles.pedidoClienteTextValue} numberOfLines={2}>{item.Cliente}</Text>
                 </View>
               </View>
-              
+
               {/* Segunda línea: Referencia, Estado y Compromiso */}
               <View style={styles.pedidoRowSecond}>
                 <View style={styles.pedidoReferenciaContainer}>
@@ -291,24 +291,24 @@ export default function DashboardScreen() {
     if (dataToShow.length > 0) {
       console.log('🎨 Primer item a renderizar:', dataToShow[0]);
     }
-    
+
     return (
-    <View style={{...styles.tableContainer, width: width}}>
+      <View style={{ ...styles.tableContainer, width: width }}>
         <View style={styles.dashboardTabContainer}>
-            <TouchableOpacity
-                style={[styles.dashboardTab, dashboardTab === 0 && styles.dashboardTabActive]}
-                onPress={() => setDashboardTab(0)}
-            >
-                <Text style={styles.dashboardTabText}>PVC</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-                style={[styles.dashboardTab, dashboardTab === 1 && styles.dashboardTabActive]}
-                onPress={() => setDashboardTab(1)}
-            >
-                <Text style={styles.dashboardTabText}>Aluminio</Text>
-            </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.dashboardTab, dashboardTab === 0 && styles.dashboardTabActive]}
+            onPress={() => setDashboardTab(0)}
+          >
+            <Text style={styles.dashboardTabText}>PVC</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.dashboardTab, dashboardTab === 1 && styles.dashboardTabActive]}
+            onPress={() => setDashboardTab(1)}
+          >
+            <Text style={styles.dashboardTabText}>Aluminio</Text>
+          </TouchableOpacity>
         </View>
-        
+
         {/* Encabezados para vista de tabla (Web/Tablet) */}
         {isTableView && (
           <View style={styles.tableHeaderRow}>
@@ -321,7 +321,7 @@ export default function DashboardScreen() {
             <Text style={[styles.tableHeaderText, { flex: 0.7 }]}>TOTAL/FALTAN</Text>
           </View>
         )}
-        
+
         <FlatList
           data={dataToShow}
           keyExtractor={(item, index) => `${item.NumeroManual}-${item.Modulo}-${index}`}
@@ -344,125 +344,125 @@ export default function DashboardScreen() {
                 <View style={styles.positionBadge}>
                   <Text style={styles.positionBadgeText}>{index + 1}</Text>
                 </View>
-              
-              {/* Primera línea: Cliente, Terminal y Operario */}
-              <View style={styles.dashboardRowFirst}>
-                <View style={styles.clienteContainer}>
-                  <Text style={styles.labelText}>CLIENTE</Text>
-                  <Text style={styles.clienteText} numberOfLines={2}>{item.Cliente || 'N/A'}</Text>
+
+                {/* Primera línea: Cliente, Terminal y Operario */}
+                <View style={styles.dashboardRowFirst}>
+                  <View style={styles.clienteContainer}>
+                    <Text style={styles.labelText}>CLIENTE</Text>
+                    <Text style={styles.clienteText} numberOfLines={2}>{item.Cliente || 'N/A'}</Text>
+                  </View>
+                  <View style={styles.terminalContainer}>
+                    <Text style={styles.labelText}>TERMINAL</Text>
+                    <Text style={styles.terminalText}>{item.CodigoTarea}</Text>
+                  </View>
+                  <View style={styles.operarioContainer}>
+                    <Text style={styles.labelText}>OPERARIO</Text>
+                    <Text style={styles.operarioText} numberOfLines={2}>{item.OperarioNombre}</Text>
+                  </View>
                 </View>
-                <View style={styles.terminalContainer}>
-                  <Text style={styles.labelText}>TERMINAL</Text>
-                  <Text style={styles.terminalText}>{item.CodigoTarea}</Text>
-                </View>
-                <View style={styles.operarioContainer}>
-                  <Text style={styles.labelText}>OPERARIO</Text>
-                  <Text style={styles.operarioText} numberOfLines={2}>{item.OperarioNombre}</Text>
-                </View>
-              </View>
-              
-              {/* Segunda línea: Pedido, Módulo y Total/Faltan */}
-              <View style={styles.dashboardRowSecond}>
-                <View style={styles.pedidoContainer}>
-                  <Text style={styles.labelText}>PEDIDO</Text>
-                  <Text style={styles.pedidoText}>{item.NumeroManual}</Text>
-                </View>
-                <View style={styles.moduloContainer}>
-                  <Text style={styles.labelText}>MÓDULO</Text>
-                  <Text style={styles.moduloTextCard}>{item.Modulo}</Text>
-                </View>
-                <View style={styles.estadoContainer}>
-                  <Text style={styles.labelText}>TOTAL / FALTAN</Text>
-                  <View style={styles.estadoValues}>
-                    <Text style={styles.estadoText}>{item.TotalModulos}</Text>
-                    <Text style={styles.estadoTextSeparator}>/</Text>
-                    <Text style={styles.estadoText}>{item.ModulosRestantes}</Text>
+
+                {/* Segunda línea: Pedido, Módulo y Total/Faltan */}
+                <View style={styles.dashboardRowSecond}>
+                  <View style={styles.pedidoContainer}>
+                    <Text style={styles.labelText}>PEDIDO</Text>
+                    <Text style={styles.pedidoText}>{item.NumeroManual}</Text>
+                  </View>
+                  <View style={styles.moduloContainer}>
+                    <Text style={styles.labelText}>MÓDULO</Text>
+                    <Text style={styles.moduloTextCard}>{item.Modulo}</Text>
+                  </View>
+                  <View style={styles.estadoContainer}>
+                    <Text style={styles.labelText}>TOTAL / FALTAN</Text>
+                    <View style={styles.estadoValues}>
+                      <Text style={styles.estadoText}>{item.TotalModulos}</Text>
+                      <Text style={styles.estadoTextSeparator}>/</Text>
+                      <Text style={styles.estadoText}>{item.ModulosRestantes}</Text>
+                    </View>
                   </View>
                 </View>
               </View>
-            </View>
             )
           )}
         />
-    </View>
+      </View>
     );
   };
 
   const renderAlertas = () => (
-    <View style={{...styles.tableContainer, width: width}}>
-        <Text style={styles.tableTitle}>Alertas</Text>
-        
-        {/* Encabezados para vista de tabla (Web/Tablet) */}
-        {isTableView && (
-          <View style={styles.tableHeaderRow}>
-            <Text style={[styles.tableHeaderText, { width: 40 }]}>#</Text>
-            <Text style={[styles.tableHeaderText, { flex: 1 }]}>PEDIDO</Text>
-            <Text style={[styles.tableHeaderText, { flex: 1.5 }]}>ESTADO</Text>
-            <Text style={[styles.tableHeaderText, { flex: 0.7 }]}>EN FAB.</Text>
-            <Text style={[styles.tableHeaderText, { flex: 1 }]}>COMPROMISO</Text>
-            <Text style={[styles.tableHeaderText, { flex: 0.7 }]}>TOTAL MÓD.</Text>
-            <Text style={[styles.tableHeaderText, { flex: 0.7 }]}>RESTANTES</Text>
-          </View>
+    <View style={{ ...styles.tableContainer, width: width }}>
+      <Text style={styles.tableTitle}>Alertas</Text>
+
+      {/* Encabezados para vista de tabla (Web/Tablet) */}
+      {isTableView && (
+        <View style={styles.tableHeaderRow}>
+          <Text style={[styles.tableHeaderText, { width: 40 }]}>#</Text>
+          <Text style={[styles.tableHeaderText, { flex: 1 }]}>PEDIDO</Text>
+          <Text style={[styles.tableHeaderText, { flex: 1.5 }]}>ESTADO</Text>
+          <Text style={[styles.tableHeaderText, { flex: 0.7 }]}>EN FAB.</Text>
+          <Text style={[styles.tableHeaderText, { flex: 1 }]}>COMPROMISO</Text>
+          <Text style={[styles.tableHeaderText, { flex: 0.7 }]}>TOTAL MÓD.</Text>
+          <Text style={[styles.tableHeaderText, { flex: 0.7 }]}>RESTANTES</Text>
+        </View>
+      )}
+
+      <FlatList
+        data={alertas}
+        keyExtractor={(item) => item.PedidoKey}
+        renderItem={({ item, index }) => (
+          isTableView ? (
+            // Vista de tabla para Web/Tablet
+            <View style={styles.tableRow}>
+              <Text style={[styles.tableCellText, { width: 40 }]}>{index + 1}</Text>
+              <Text style={[styles.tableCellText, styles.tableCellBold, { flex: 1 }]}>{item.NoPedido}</Text>
+              <Text style={[styles.tableCellText, { flex: 1.5 }]} numberOfLines={1}>{item.Estado}</Text>
+              <Text style={[styles.tableCellText, { flex: 0.7 }]}>{item.EnFabricacion}</Text>
+              <Text style={[styles.tableCellText, { flex: 1 }]}>{formatDate(item.Compromiso)}</Text>
+              <Text style={[styles.tableCellText, { flex: 0.7 }]}>{item.TotalModulos}</Text>
+              <Text style={[styles.tableCellText, { flex: 0.7 }]}>{item.ModulosRestantes}</Text>
+            </View>
+          ) : (
+            // Vista de tarjetas para Móvil
+            <View style={styles.alertaCardNew}>
+              {/* Número de posición */}
+              <View style={styles.positionBadge}>
+                <Text style={styles.positionBadgeText}>{index + 1}</Text>
+              </View>
+
+              {/* Primera línea: NoPedido, Estado y EnFabricacion */}
+              <View style={styles.alertaRowFirst}>
+                <View style={styles.alertaNoPedidoContainer}>
+                  <Text style={styles.labelText}>PEDIDO</Text>
+                  <Text style={styles.alertaNoPedidoText} numberOfLines={1}>{item.NoPedido}</Text>
+                </View>
+                <View style={styles.alertaEstadoContainer}>
+                  <Text style={styles.labelText}>ESTADO</Text>
+                  <Text style={styles.alertaEstadoTextNew} numberOfLines={2}>{item.Estado}</Text>
+                </View>
+                <View style={styles.alertaFabricacionContainer}>
+                  <Text style={styles.labelText}>EN FAB.</Text>
+                  <Text style={styles.alertaFabricacionText}>{item.EnFabricacion}</Text>
+                </View>
+              </View>
+
+              {/* Segunda línea: Compromiso, Total Módulos y Módulos Restantes */}
+              <View style={styles.alertaRowSecond}>
+                <View style={styles.alertaCompromisoContainer}>
+                  <Text style={styles.labelText}>COMPROMISO</Text>
+                  <Text style={styles.alertaCompromisoTextNew}>{formatDate(item.Compromiso)}</Text>
+                </View>
+                <View style={styles.alertaTotalModulosContainer}>
+                  <Text style={styles.labelText}>TOTAL MÓD.</Text>
+                  <Text style={styles.alertaTotalModulosText}>{item.TotalModulos}</Text>
+                </View>
+                <View style={styles.alertaRestantesContainer}>
+                  <Text style={styles.labelText}>RESTANTES</Text>
+                  <Text style={styles.alertaRestantesText}>{item.ModulosRestantes}</Text>
+                </View>
+              </View>
+            </View>
+          )
         )}
-        
-        <FlatList
-            data={alertas}
-            keyExtractor={(item) => item.PedidoKey}
-            renderItem={({ item, index }) => (
-              isTableView ? (
-                // Vista de tabla para Web/Tablet
-                <View style={styles.tableRow}>
-                  <Text style={[styles.tableCellText, { width: 40 }]}>{index + 1}</Text>
-                  <Text style={[styles.tableCellText, styles.tableCellBold, { flex: 1 }]}>{item.NoPedido}</Text>
-                  <Text style={[styles.tableCellText, { flex: 1.5 }]} numberOfLines={1}>{item.Estado}</Text>
-                  <Text style={[styles.tableCellText, { flex: 0.7 }]}>{item.EnFabricacion}</Text>
-                  <Text style={[styles.tableCellText, { flex: 1 }]}>{formatDate(item.Compromiso)}</Text>
-                  <Text style={[styles.tableCellText, { flex: 0.7 }]}>{item.TotalModulos}</Text>
-                  <Text style={[styles.tableCellText, { flex: 0.7 }]}>{item.ModulosRestantes}</Text>
-                </View>
-              ) : (
-                // Vista de tarjetas para Móvil
-                <View style={styles.alertaCardNew}>
-                    {/* Número de posición */}
-                    <View style={styles.positionBadge}>
-                        <Text style={styles.positionBadgeText}>{index + 1}</Text>
-                    </View>
-                    
-                    {/* Primera línea: NoPedido, Estado y EnFabricacion */}
-                    <View style={styles.alertaRowFirst}>
-                        <View style={styles.alertaNoPedidoContainer}>
-                            <Text style={styles.labelText}>PEDIDO</Text>
-                            <Text style={styles.alertaNoPedidoText} numberOfLines={1}>{item.NoPedido}</Text>
-                        </View>
-                        <View style={styles.alertaEstadoContainer}>
-                            <Text style={styles.labelText}>ESTADO</Text>
-                            <Text style={styles.alertaEstadoTextNew} numberOfLines={2}>{item.Estado}</Text>
-                        </View>
-                        <View style={styles.alertaFabricacionContainer}>
-                            <Text style={styles.labelText}>EN FAB.</Text>
-                            <Text style={styles.alertaFabricacionText}>{item.EnFabricacion}</Text>
-                        </View>
-                    </View>
-                    
-                    {/* Segunda línea: Compromiso, Total Módulos y Módulos Restantes */}
-                    <View style={styles.alertaRowSecond}>
-                        <View style={styles.alertaCompromisoContainer}>
-                            <Text style={styles.labelText}>COMPROMISO</Text>
-                            <Text style={styles.alertaCompromisoTextNew}>{formatDate(item.Compromiso)}</Text>
-                        </View>
-                        <View style={styles.alertaTotalModulosContainer}>
-                            <Text style={styles.labelText}>TOTAL MÓD.</Text>
-                            <Text style={styles.alertaTotalModulosText}>{item.TotalModulos}</Text>
-                        </View>
-                        <View style={styles.alertaRestantesContainer}>
-                            <Text style={styles.labelText}>RESTANTES</Text>
-                            <Text style={styles.alertaRestantesText}>{item.ModulosRestantes}</Text>
-                        </View>
-                    </View>
-                </View>
-              )
-            )}
-        />
+      />
     </View>
   );
 
@@ -470,8 +470,8 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <AppHeader 
-        titleOverride="Dashboard Moncada" 
+      <AppHeader
+        titleOverride="Dashboard Moncada"
         serverReachableOverride={serverReachable ?? undefined}
         userNameProp={userData?.nombre || userData?.name || '—'}
         roleProp={userData?.rol || userData?.role || '—'}
@@ -479,14 +479,14 @@ export default function DashboardScreen() {
           setUserModalVisible(true);
         }}
       />
-      
+
       <ModalHeader
         visible={userModalVisible}
         onClose={() => setUserModalVisible(false)}
         userName={userData?.nombre || userData?.name || '—'}
         role={userData?.rol || userData?.role || '—'}
       />
-      
+
       {/* Banner de estado de conexión */}
       {isCheckingConnection && (
         <View style={styles.connectionBanner}>
@@ -500,7 +500,7 @@ export default function DashboardScreen() {
           <Text style={styles.connectionBannerText}>Sin conexión al servidor</Text>
         </View>
       )}
-      
+
       <View style={styles.tabBar}>
         <TouchableOpacity style={[styles.tabItem, activeTab === 0 && styles.tabItemActive]} onPress={() => changeTab(0)}>
           <Text style={styles.tabText}>Pedidos</Text>
@@ -539,8 +539,8 @@ export default function DashboardScreen() {
         <ActivityIndicator style={{ flex: 1 }} size="large" />
       ) : errorMessage ? (
         <ScrollView style={styles.errorContainer}>
-            <Text style={styles.errorTitle}>An Error Occurred</Text>
-            <Text style={styles.errorMessage}>{errorMessage}</Text>
+          <Text style={styles.errorTitle}>An Error Occurred</Text>
+          <Text style={styles.errorMessage}>{errorMessage}</Text>
         </ScrollView>
       ) : (
         <Animated.View style={[styles.contentContainer, { transform: [{ translateX: slideAnim }] }]}>
@@ -565,8 +565,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
   },
-  tabItem: { 
-    padding: 10, 
+  tabItem: {
+    padding: 10,
     borderRadius: 5,
     position: 'relative',
   },
@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
   },
   dashboardTabActive: { backgroundColor: COLORS.primary },
   dashboardTabText: { fontWeight: 'bold', color: '#fff' },
-  
+
   // Estilos para el badge de posición
   positionBadge: {
     position: 'absolute',
@@ -658,7 +658,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: 'bold',
   },
-  
+
   // Estilos para el dashboard en 2 líneas
   dashboardCard: {
     backgroundColor: '#fff',
@@ -766,7 +766,7 @@ const styles = StyleSheet.create({
     color: '#666',
     marginHorizontal: 3,
   },
-  
+
   // Estilos para vista de Pedidos
   pedidoCard: {
     backgroundColor: '#fff',
@@ -859,7 +859,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
-  
+
   // Estilos para vista de Alertas
   alertaCardNew: {
     backgroundColor: '#fff',
@@ -952,7 +952,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     textAlign: 'center',
   },
-  
+
   // Estilos para vista de tabla (Web/Tablet)
   tableHeaderRow: {
     flexDirection: 'row',
@@ -993,13 +993,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#d32f2f',
   },
-  
+
   alertaCard: { backgroundColor: '#fff0f0', borderColor: '#ffc0c0', borderWidth: 1 },
   alertaText: { color: '#c0392b', fontWeight: 'bold', marginBottom: 4 },
   errorContainer: { padding: 20, flex: 1, backgroundColor: '#fff' },
   errorTitle: { fontSize: 22, fontWeight: 'bold', color: '#c0392b', marginBottom: 15 },
   errorMessage: { fontSize: 14, color: '#333', fontFamily: 'monospace' },
-  
+
   // Estilos para banners de conexión
   connectionBanner: {
     backgroundColor: '#2196F3',
